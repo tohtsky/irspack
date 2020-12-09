@@ -1,0 +1,66 @@
+"""
+Copyright 2020 BizReach, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+from scipy import sparse as sps
+from sklearn.linear_model import ElasticNet
+
+from .. import parameter_tuning
+from ..definitions import InteractionMatrix
+from .base import BaseSimilarityRecommender
+
+
+def slim_weight(X, alpha, l1_ratio):
+    model = ElasticNet(
+        fit_intercept=False,
+        positive=True,
+        copy_X=False,
+        precompute=True,
+        selection="random",
+        max_iter=100,
+        tol=1e-4,
+        alpha=alpha,
+        l1_ratio=l1_ratio,
+    )
+    coeff_all = []
+    A: sps.csc_matrix = X.tocsc()
+    for i in range(X.shape[1]):
+        if i % 1000 == 0:
+            print(f"Slim Iteration: {i}")
+        start_pos = int(A.indptr[i])
+        end_pos = int(A.indptr[i + 1])
+        current_item_data_backup = A.data[start_pos:end_pos].copy()
+        target = A[:, i].toarray().ravel()
+        A.data[start_pos:end_pos] = 0.0
+        model.fit(A, target)
+        coeff_all.append(model.sparse_coef_)
+        A.data[start_pos:end_pos] = current_item_data_backup
+    return sps.vstack(coeff_all)
+
+
+class SLIMRecommender(BaseSimilarityRecommender):
+    default_tune_range = [
+        parameter_tuning.UniformSuggestion("alpha", 0, 1),
+        parameter_tuning.LogUniformSuggestion("l1_ratio", 1e-6, 1),
+    ]
+
+    def __init__(
+        self, X_all: InteractionMatrix, alpha: float = 0.05, l1_ratio: float = 0.01
+    ):
+        super(SLIMRecommender, self).__init__(X_all)
+        self.alpha = alpha
+        self.l1_ratio = l1_ratio
+
+    def learn(self):
+        self.W = slim_weight(self.X_all, alpha=self.alpha, l1_ratio=self.l1_ratio)
