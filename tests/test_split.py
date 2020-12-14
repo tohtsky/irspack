@@ -2,7 +2,7 @@ import unittest
 from unittest.main import main
 import numpy as np
 import scipy.sparse as sps
-from rs_evaluation.util import rowwise_train_test_split
+from irspack.utils import rowwise_train_test_split
 
 
 class TestSplit(unittest.TestCase):
@@ -25,7 +25,3 @@ class TestSplit(unittest.TestCase):
 
         # should have no overwrap
         self.assertEqual((X_1.multiply(X_2).toarray() ** 2).sum(), 0)
-
-
-if __name__ == "__main__":
-    unittest.main()

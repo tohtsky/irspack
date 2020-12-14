@@ -12,6 +12,7 @@ set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
 
 add_subdirectory(pybind11)
-pybind11_add_module(_ials cpp_source/als/wrapper.cpp)
+#pybind11_add_module(_ials cpp_source/als/wrapper.cpp)
 pybind11_add_module(_knn cpp_source/knn/wrapper.cpp)
+pybind11_add_module(irspack.utils._util_cpp cpp_source/util.cpp)
 

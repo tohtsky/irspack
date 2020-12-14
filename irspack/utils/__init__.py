@@ -6,6 +6,7 @@ from ._util_cpp import (
     rowwise_train_test_split_d,
     rowwise_train_test_split_f,
     rowwise_train_test_split_i,
+    sparse_mm_threaded,
 )
 from ..definitions import InteractionMatrix
 

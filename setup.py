@@ -13,10 +13,11 @@ install_requires = (
         "pandas>=1.0.0",
         "scikit-learn>=0.21.0",
         "scipy>=1.0",
-        "lightfm>=1.15",
+        # "lightfm>=1.15",
     ],
 )
-setup_requires = ["pybind11>=2.4"]
+setup_requires = ["pybind11>=2.4", "requests"]
+IRSPACK_TESTING = os.environ.get("IRSPACK_TESTING", None) is not None
 
 
 class get_eigen_include(object):
@@ -25,8 +26,6 @@ class get_eigen_include(object):
 
     def __str__(self):
         eigen_include_dir = os.environ.get("EIGEN3_INCLUDE_DIR", None)
-        if eigen_include_dir is None:
-            setup_requires.append("requests")
 
         if eigen_include_dir is not None:
             return eigen_include_dir
@@ -156,14 +155,24 @@ def cpp_flag(compiler):
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
 
-    c_opts = {
-        "msvc": ["/EHsc"],
-        "unix": ["-march=native"],
-    }
-    l_opts: Dict[str, List[str]] = {
-        "msvc": [],
-        "unix": [],
-    }
+    if IRSPACK_TESTING:
+        c_opts = {
+            "msvc": ["/EHsc"],
+            "unix": ["-O0", "-coverage", "-g"],
+        }
+        l_opts: Dict[str, List[str]] = {
+            "msvc": [],
+            "unix": ["-coverage"],
+        }
+    else:
+        c_opts = {
+            "msvc": ["/EHsc"],
+            "unix": ["-march=native"],
+        }
+        l_opts: Dict[str, List[str]] = {
+            "msvc": [],
+            "unix": [],
+        }
 
     if sys.platform == "darwin":
         darwin_opts = ["-stdlib=libc++", "-mmacosx-version-min=10.7"]

@@ -94,7 +94,7 @@ class CategoricalSuggestion(Suggestion):
         return trial.suggest_categorical(self.name, self.choices)
 
 
-class FixedSuggestion(Suggestion):
+class FixParameter(Suggestion):
     def __init__(self, name: str, value: Any):
         super().__init__(name)
         self.value = value

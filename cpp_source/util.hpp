@@ -14,6 +14,9 @@ template <typename Real>
 using CSRMatrix = Eigen::SparseMatrix<Real, Eigen::RowMajor>;
 
 template <typename Real>
+using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
+
+template <typename Real>
 using CSCMatrix = Eigen::SparseMatrix<Real, Eigen::ColMajor>;
 
 template <typename Real>
@@ -61,22 +64,30 @@ train_test_split_rowwise(const CSRMatrix<Real> &X, const double test_ratio,
   std::mt19937 random_state(random_seed);
   if (test_ratio > 1.0 || test_ratio < 0)
     throw std::invalid_argument("test_ratio must be within [0, 1]");
-  std::vector<Integer> buffer;
+  std::vector<Integer> col_buffer;
+  std::vector<Real> data_buffer;
+  std::vector<uint64_t> index_;
   std::vector<Triplet> train_data, test_data;
   for (int row = 0; row < X.outerSize(); ++row) {
-    buffer.clear(); // does not change capacity
+    col_buffer.clear(); // does not change capacity
+    data_buffer.clear();
+    index_.clear();
     Integer cnt = 0;
     for (typename CSRMatrix<Real>::InnerIterator it(X, row); it; ++it) {
-      cnt += it.value();
-      buffer.push_back(it.col());
+      index_.push_back(cnt);
+      col_buffer.push_back(it.col());
+      data_buffer.push_back(it.value());
+      cnt += 1;
     }
-    std::shuffle(buffer.begin(), buffer.end(), random_state);
+    std::shuffle(index_.begin(), index_.end(), random_state);
     size_t n_test = static_cast<Integer>(std::floor(cnt * test_ratio));
     for (size_t i = 0; i < n_test; i++) {
-      test_data.emplace_back(row, buffer[i], 1);
+      test_data.emplace_back(row, col_buffer[index_[i]],
+                             data_buffer[index_[i]]);
     }
-    for (size_t i = n_test; i < buffer.size(); i++) {
-      train_data.emplace_back(row, buffer[i], 1);
+    for (size_t i = n_test; i < col_buffer.size(); i++) {
+      train_data.emplace_back(row, col_buffer[index_[i]],
+                              data_buffer[index_[i]]);
     }
   }
   CSRMatrix<Real> X_train(X.rows(), X.cols()), X_test(X.rows(), X.cols());
@@ -86,6 +97,33 @@ train_test_split_rowwise(const CSRMatrix<Real> &X, const double test_ratio,
   X_train.makeCompressed();
   X_test.makeCompressed();
   return {X_train, X_test};
+}
+
+template <typename Real>
+CSRMatrix<Real> okapi_BM_25_weight(const CSRMatrix<Real> &X, Real k1, Real b) {
+  CSRMatrix<Real> result(X);
+  using itertype = typename CSRMatrix<Real>::InnerIterator;
+  const int N = X.rows();
+  result.makeCompressed();
+  DenseVector<Real> idf(X.cols());
+  DenseVector<Real> doc_length(N);
+
+  for (int i = 0; i < N; i++) {
+    for (itertype iter(X, i); iter; ++iter) {
+      idf(iter.col()) += 1;
+      doc_length(i) += iter.value();
+    }
+  }
+  Real avgdl = doc_length.sum() / N;
+  idf.array() = (N / (idf.array() + static_cast<Real>(1))).log();
+  for (int i = 0; i < N; i++) {
+    Real regularizer = k1 * (1 - b + b * doc_length(i) / avgdl);
+    for (itertype iter(result, i); iter; ++iter) {
+      iter.valueRef() = idf(iter.col()) * (iter.valueRef() * (k1 + 1)) /
+                        (iter.valueRef() + regularizer);
+    }
+  }
+  return result;
 }
 
 } // namespace sparse_util
