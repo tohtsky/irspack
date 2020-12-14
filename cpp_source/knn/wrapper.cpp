@@ -16,7 +16,7 @@ PYBIND11_MODULE(_knn, m) {
       .def(py::init<const KNN::CosineSimilarityComputer<Real>::CSRMatrix &,
                     size_t, Real>(),
            py::arg("X"), py::arg("n_thread"), py::arg("shrinkage"))
-      .def("compute_block",
+      .def("compute_similarity",
            &KNN::CosineSimilarityComputer<Real>::compute_similarity);
 
   py::class_<KNN::JaccardSimilarityComputer<Real>>(m,
@@ -24,7 +24,7 @@ PYBIND11_MODULE(_knn, m) {
       .def(py::init<const KNN::JaccardSimilarityComputer<Real>::CSRMatrix &,
                     size_t, Real>(),
            py::arg("X"), py::arg("n_thread"), py::arg("shrinkage"))
-      .def("compute_block",
+      .def("compute_similarity",
            &KNN::JaccardSimilarityComputer<Real>::compute_similarity);
 
   py::class_<KNN::AsymmetricCosineSimilarityComputer<Real>>(
@@ -34,6 +34,6 @@ PYBIND11_MODULE(_knn, m) {
                size_t, Real, Real>(),
            py::arg("X"), py::arg("n_thread"), py::arg("shrinkage"),
            py::arg("alpha"))
-      .def("compute_block",
+      .def("compute_similarity",
            &KNN::AsymmetricCosineSimilarityComputer<Real>::compute_similarity);
 }

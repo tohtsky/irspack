@@ -55,10 +55,18 @@ struct JaccardSimilarityComputer
   inline CSRMatrix compute_similarity_imple(const CSRMatrix &target,
                                             size_t start, size_t end) const {
     int block_size = end - start;
-    CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
+    CSRMatrix target_bin(target.middleRows(start, block_size));
+    for (int i = 0; i < target_bin.rows(); i++) {
+      for (typename CSRMatrix::InnerIterator iter(target_bin, i); iter;
+           ++iter) {
+        iter.valueRef() = 1;
+      }
+    }
+
+    CSRMatrix result = target_bin * (this->X_t);
     result.makeCompressed();
     for (int i = 0; i < block_size; i++) {
-      Real target_norm = target.row(start + i).sum();
+      Real target_norm = target_bin.row(i).sum();
       for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
         iter.valueRef() /= (this->norms(iter.col()) + target_norm -
                             iter.valueRef() + this->shrinkage + 1e-10);

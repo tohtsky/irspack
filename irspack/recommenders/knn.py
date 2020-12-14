@@ -35,4 +35,4 @@ class BaseKNNRecommender(
 
     def learn(self):
         computer = self._create_computer()
-        self.W = computer.compute_block(self.X_all, self.top_k)
+        self.W = computer.compute_similarity(self.X_all, self.top_k)

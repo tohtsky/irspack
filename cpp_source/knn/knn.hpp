@@ -27,7 +27,7 @@ template <typename Real, class SimilarityType> struct KNNComputer {
   using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
   KNNComputer(const CSRMatrix &X_arg, Real shrinkage, size_t n_thread)
       : X_t(X_arg.transpose()), n_thread(n_thread), N(X_arg.rows()),
-        n_features(X_arg.cols()), shrinkage(shrinkage) {
+        n_features(X_arg.cols()), shrinkage(shrinkage), norms(n_features) {
     if (n_thread == 0) {
       std::invalid_argument("n_thread should be > 0");
     }

@@ -13,7 +13,10 @@ from .rp3 import RP3betaRecommender
 from .dense_slim import DenseSLIMRecommender
 from .nmf import NMFRecommender
 from .rwr import RandomWalkWithRestartRecommender
-from .bpr import BPRFMRecommender
+try:
+    from .bpr import BPRFMRecommender
+except:
+    pass
 from .truncsvd import TruncatedSVDRecommender
 from .ials import IALSRecommender
 
