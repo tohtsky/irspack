@@ -138,50 +138,6 @@ protected:
     return static_cast<const SimilarityType &>(*this).compute_similarity_imple(
         target, start, end);
   }
-
-  /*
-    CSRMatrix compute_sim_cosine(const CSRMatrix &target, size_t start,
-                                 size_t end) const {
-      int block_size = end - start;
-      CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
-      result.makeCompressed();
-      for (int i = 0; i < block_size; i++) {
-        Real norm = target.row(i).squaredNorm();
-        for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
-          iter.valueRef() /= (norms(iter.col()) * norm + this->shrinkage +
-    1e-10);
-        }
-      }
-    }
-
-    CSRMatrix compute_sim_jaccard(const CSRMatrix &target, size_t start,
-                                  size_t end) const {
-      int block_size = end - start;
-      CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
-      result.makeCompressed();
-      for (int i = 0; i < block_size; i++) {
-        Real norm = target.row(i).sum();
-        for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
-          iter.valueRef() /= (norms(iter.col()) + norm - iter.valueRef() +
-                              this->shrinkage + 1e-10);
-        }
-      }
-    }
-
-    CSRMatrix compute_sim_(const CSRMatrix &target, size_t start,
-                           size_t end) const {
-      int block_size = end - start;
-      CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
-      result.makeCompressed();
-      for (int i = 0; i < block_size; i++) {
-        Real norm = target.row(i).sum();
-        for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
-          iter.valueRef() /= (norms(iter.col()) + norm - iter.valueRef() +
-                              this->shrinkage + 1e-10);
-        }
-      }
-    }
-    */
 };
 
 } // namespace KNN

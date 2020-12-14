@@ -8,6 +8,7 @@ from ._util_cpp import (
     rowwise_train_test_split_i,
     sparse_mm_threaded,
     okapi_BM_25_weight,
+    tf_idf_weight,
 )
 from ..definitions import InteractionMatrix
 
@@ -43,4 +44,5 @@ __all__ = [
     "rowwise_train_test_split",
     "sparse_mm_threaded",
     "okapi_BM_25_weight",
+    "tf_idf_weight",
 ]

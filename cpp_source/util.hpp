@@ -117,12 +117,36 @@ CSRMatrix<Real> okapi_BM_25_weight(const CSRMatrix<Real> &X, Real k1, Real b) {
     }
   }
   Real avgdl = doc_length.sum() / N;
-  idf.array() = (N / (idf.array() + static_cast<Real>(1))).log();
+  idf.array() =
+      (N / (idf.array() + static_cast<Real>(1)) + static_cast<Real>(1)).log();
   for (int i = 0; i < N; i++) {
     Real regularizer = k1 * (1 - b + b * doc_length(i) / avgdl);
     for (itertype iter(result, i); iter; ++iter) {
       iter.valueRef() = idf(iter.col()) * (iter.valueRef() * (k1 + 1)) /
                         (iter.valueRef() + regularizer);
+    }
+  }
+  return result;
+}
+
+template <typename Real>
+CSRMatrix<Real> tf_idf_weight(const CSRMatrix<Real> &X, bool smooth) {
+  CSRMatrix<Real> result(X);
+  using itertype = typename CSRMatrix<Real>::InnerIterator;
+  const int N = X.rows();
+  result.makeCompressed();
+  DenseVector<Real> idf(X.cols());
+  idf.array() = 0;
+
+  for (int i = 0; i < N; i++) {
+    for (itertype iter(X, i); iter; ++iter) {
+      idf(iter.col()) += 1;
+    }
+  }
+  idf.array() = (N / (idf.array() + static_cast<Real>(smooth))).log();
+  for (int i = 0; i < N; i++) {
+    for (itertype iter(result, i); iter; ++iter) {
+      iter.valueRef() *= idf(iter.col());
     }
   }
   return result;
