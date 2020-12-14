@@ -1,18 +1,3 @@
-/**
- * Copyright 2020 BizReach, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 #pragma once
 #include <Eigen/Core>
 #include <Eigen/Sparse>
@@ -27,12 +12,17 @@
 
 namespace KNN {
 
+enum class SimilarityType {
+  COSINE = 0,
+  JACCARD = 1,
+};
+
 /**
  * Given N \times n_features sparse matrix, computer
  * r x N
  * similarity matrix.
  */
-template <class Derived, typename Real> struct KNNComputer {
+template <typename Real> struct KNNComputer {
   using CSRMatrix = Eigen::SparseMatrix<Real, Eigen::RowMajor>;
   using CSCMatrix = Eigen::SparseMatrix<Real, Eigen::ColMajor>;
 
@@ -40,17 +30,19 @@ template <class Derived, typename Real> struct KNNComputer {
   using CSRIterType = typename CSRMatrix::InnerIterator;
   using CSCIterType = typename CSCMatrix::InnerIterator;
   using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
-  inline KNNComputer(const CSRMatrix &X_arg, size_t n_thread)
+  KNNComputer(const CSRMatrix &X_arg, const SimilarityType &similarity_type,
+              Real shrinkage, size_t n_thread)
       : X_t(X_arg.transpose()), n_thread(n_thread), N(X_arg.rows()),
-        n_features(X_arg.cols()) {
+        n_features(X_arg.cols()), similarity_type_(similarity_type),
+        shrinkage(shrinkage) {
     if (n_thread == 0) {
       std::invalid_argument("n_thread should be > 0");
     }
     X_t.makeCompressed();
+    this->initialize_norms();
   }
 
-  inline CSRMatrix compute_similarity(const CSRMatrix &target,
-                                      size_t top_k) const {
+  CSRMatrix compute_similarity(const CSRMatrix &target, size_t top_k) const {
     if (target.cols() != this->n_features)
       throw std::invalid_argument("illegal # of feature.");
     CSRMatrix result(target.rows(), this->N);
@@ -92,10 +84,9 @@ template <class Derived, typename Real> struct KNNComputer {
     }
   }
 
-  inline std::vector<Triplet> compute_similarity_triple(const CSRMatrix &target,
-                                                        size_t start,
-                                                        size_t end,
-                                                        size_t top_k) const {
+  std::vector<Triplet> compute_similarity_triple(const CSRMatrix &target,
+                                                 size_t start, size_t end,
+                                                 size_t top_k) const {
     /*
      We want to compute n_item x n_item matrix
       S = X_t * X
@@ -103,9 +94,7 @@ template <class Derived, typename Real> struct KNNComputer {
      We devide the problem col-wise
      X_t * X[start, end]
     */
-    CSRMatrix block_result_row(
-        static_cast<const Derived *>(this)->compute_sim_imple(target, start,
-                                                              end));
+    CSRMatrix block_result_row = this->compute_sim_imple(target, start, end);
     block_result_row.makeCompressed();
 
     using IndexType = typename CSCMatrix::StorageIndex;
@@ -138,22 +127,37 @@ template <class Derived, typename Real> struct KNNComputer {
     }
     return triples;
   }
+
   CSCMatrix X_t;
-  size_t n_thread;
+  const size_t n_thread;
   const int N, n_features;
-};
 
-template <typename Real>
-struct CosineKNNComputer : KNNComputer<CosineKNNComputer<Real>, Real> {
-  typedef KNNComputer<CosineKNNComputer<Real>, Real> Base;
-  typedef typename Base::CSRMatrix CSRMatrix;
-  typedef typename Base::CSCMatrix CSCMatrix;
-  typedef typename Base::DenseVector DenseVector;
+private:
+  const SimilarityType similarity_type_;
+  Real shrinkage;
+  DenseVector norms;
 
-  inline CosineKNNComputer(const CSCMatrix &X, size_t n_thread, Real shrink)
-      : Base(X, n_thread), shrink(shrink), norms(X.rows()) {
+  void initialize_norms() {
+    switch (similarity_type_) {
+    case SimilarityType::COSINE:
+      this->initialize_norms_cosine();
+      break;
+    case SimilarityType::JACCARD:
+      this->initialize_norms_jaccard();
+      break;
+    default:
+      throw std::runtime_error("unknown similarity type!");
+    }
+  }
+
+  void initialize_norms_cosine() {
     for (int i = 0; i < this->N; i++) {
       this->norms(i) = this->X_t.col(i).squaredNorm();
+    }
+  }
+  void initialize_norms_jaccard() {
+    for (int i = 0; i < this->N; i++) {
+      this->norms(i) = this->X_t.col(i).sum();
     }
   }
   CSRMatrix compute_sim_imple(const CSRMatrix &target, size_t start,
@@ -161,18 +165,57 @@ struct CosineKNNComputer : KNNComputer<CosineKNNComputer<Real>, Real> {
     if (start > end) {
       throw std::invalid_argument("start must be <= end");
     }
+
+    switch (similarity_type_) {
+    case SimilarityType::COSINE:
+      return this->compute_sim_cosine(target, start, end);
+    case SimilarityType::JACCARD:
+      return this->compute_sim_jaccard(target, start, end);
+    default:
+      throw std::runtime_error("unknown similarity type.");
+    }
+  }
+
+  CSRMatrix compute_sim_cosine(const CSRMatrix &target, size_t start,
+                               size_t end) const {
     int block_size = end - start;
     CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
     result.makeCompressed();
     for (int i = 0; i < block_size; i++) {
       Real norm = target.row(i).squaredNorm();
       for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
-        iter.valueRef() /= (norms(iter.col()) * norm + shrink + 1e-6);
+        iter.valueRef() /= (norms(iter.col()) * norm + this->shrinkage + 1e-10);
       }
     }
-    return result;
   }
-  Real shrink;
-  DenseVector norms;
+
+  CSRMatrix compute_sim_jaccard(const CSRMatrix &target, size_t start,
+                                size_t end) const {
+    int block_size = end - start;
+    CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
+    result.makeCompressed();
+    for (int i = 0; i < block_size; i++) {
+      Real norm = target.row(i).sum();
+      for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
+        iter.valueRef() /= (norms(iter.col()) + norm - iter.valueRef() +
+                            this->shrinkage + 1e-10);
+      }
+    }
+  }
+
+  CSRMatrix compute_sim_(const CSRMatrix &target, size_t start,
+                         size_t end) const {
+    int block_size = end - start;
+    CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
+    result.makeCompressed();
+    for (int i = 0; i < block_size; i++) {
+      Real norm = target.row(i).sum();
+      for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
+        iter.valueRef() /= (norms(iter.col()) + norm - iter.valueRef() +
+                            this->shrinkage + 1e-10);
+      }
+    }
+  }
 };
+
 } // namespace KNN

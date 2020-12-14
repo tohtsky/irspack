@@ -1,18 +1,3 @@
-"""
-Copyright 2020 BizReach, Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-     https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
 from typing import Dict, List
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
@@ -70,7 +55,7 @@ class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
     The purpose of this class is to postpone importing pybind11
     until it is actually installed, so that the ``get_include()``
-    method can be invoked. """
+    method can be invoked."""
 
     def __init__(self, user=False):
         self.user = user
@@ -206,7 +191,7 @@ setup(
     name="irspack",
     version="0.2.0",
     author="Tomoki Ohtsuki",
-    author_email="tomoki.otsuki@bizreach.co.jp",
+    author_email="tomoki.otsuki129@gmail.com",
     description="Implicit feedback-based recommender system pack",
     long_description="",
     ext_modules=ext_modules,
