@@ -107,6 +107,8 @@ CSRMatrix<Real> okapi_BM_25_weight(const CSRMatrix<Real> &X, Real k1, Real b) {
   result.makeCompressed();
   DenseVector<Real> idf(X.cols());
   DenseVector<Real> doc_length(N);
+  idf.array() = 0;
+  doc_length.array() = 0;
 
   for (int i = 0; i < N; i++) {
     for (itertype iter(X, i); iter; ++iter) {

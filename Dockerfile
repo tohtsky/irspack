@@ -30,15 +30,16 @@ RUN pip install numpy>=1.11 \
     scikit-learn>=0.21.0 \
     scipy>=1.0 \
     lightfm>=1.15
+RUN pip install pytest pytest-cov
 COPY irspack /work/irspack
 COPY cpp_source /work/cpp_source
 COPY setup.py /work/setup.py
 
 RUN IRSPACK_TESTING="true" python setup.py develop
 COPY tests /work/tests
-RUN cd /work/tests && python test_split.py
+RUN pytest -s tests/ --cov=tests/ --cov-report=html
 RUN lcov -d `pwd` -c -o coverage.info --no-external && \
     lcov -e coverage.info */cpp_source/* o -o coverageFiltered.info && \
-    genhtml -o /work/generated coverageFiltered.info
+    genhtml -o /work/cpp_coverage coverageFiltered.info
 
 CMD ["python", "-m", "http.server"]

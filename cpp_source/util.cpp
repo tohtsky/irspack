@@ -17,5 +17,6 @@ PYBIND11_MODULE(_util_cpp, m) {
         &sparse_util::train_test_split_rowwise<float>);
   m.def("rowwise_train_test_split_i",
         &sparse_util::train_test_split_rowwise<float>);
-  m.def("Okapi_BM_25_weight", &sparse_util::okapi_BM_25_weight<double>);
+  m.def("okapi_BM_25_weight", &sparse_util::okapi_BM_25_weight<double>,
+        py::arg("X"), py::arg("k1") = 1.2, py::arg("b") = 0.75);
 }

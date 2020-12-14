@@ -7,12 +7,15 @@ from ._util_cpp import (
     rowwise_train_test_split_f,
     rowwise_train_test_split_i,
     sparse_mm_threaded,
+    okapi_BM_25_weight,
 )
 from ..definitions import InteractionMatrix
 
 
 def rowwise_train_test_split(
-    X: InteractionMatrix, test_ratio: float, random_seed: Optional[int] = None
+    X: InteractionMatrix,
+    test_ratio: float = 0.5,
+    random_seed: Optional[int] = None,
 ) -> Tuple[InteractionMatrix, InteractionMatrix]:
     if (test_ratio < 0) or (test_ratio > 1.0):
         raise ValueError("test_ratio must be a float within [0.0, 1.0]")
@@ -34,3 +37,10 @@ def rowwise_train_test_split(
             X_train_double.astype(original_dtype),
             X_test_double.astype(original_dtype),
         )
+
+
+__all__ = [
+    "rowwise_train_test_split",
+    "sparse_mm_threaded",
+    "okapi_BM_25_weight",
+]
