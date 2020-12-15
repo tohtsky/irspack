@@ -18,6 +18,7 @@ from ..recommenders import (
     TruncatedSVDRecommender,
     CosineKNNRecommender,
     JaccardKNNRecommender,
+    TverskyIndexKNNRecommender,
     AsymmetricCosineKNNRecommender,
 )
 
@@ -30,11 +31,15 @@ class P3alphaOptimizer(BaseOptimizerWithThreadingSupport):
     recommender_class = P3alphaRecommender
 
 
-class IALSOptimizer(BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport):
+class IALSOptimizer(
+    BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport
+):
     recommender_class = IALSRecommender
 
 
-class BPRFMOptimizer(BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport):
+class BPRFMOptimizer(
+    BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport
+):
     recommender_class = BPRFMRecommender
 
 
@@ -68,6 +73,10 @@ class CosineKNNOptimizer(BaseOptimizerWithThreadingSupport):
 
 class JaccardKNNOptimizer(BaseOptimizerWithThreadingSupport):
     recommender_class = JaccardKNNRecommender
+
+
+class TverskyIndexKNNOptimizer(BaseOptimizerWithThreadingSupport):
+    recommender_class = TverskyIndexKNNRecommender
 
 
 class AsymmetricCosineKNNOptimizer(BaseOptimizerWithThreadingSupport):

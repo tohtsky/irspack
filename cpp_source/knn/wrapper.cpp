@@ -26,6 +26,7 @@ PYBIND11_MODULE(_knn, m) {
            py::arg("X"), py::arg("shrinkage"), py::arg("n_thread") = 1)
       .def("compute_similarity",
            &KNN::JaccardSimilarityComputer<Real>::compute_similarity);
+
   py::class_<KNN::TverskyIndexComputer<Real>>(m, "TverskyIndexComputer")
       .def(py::init<const KNN::TverskyIndexComputer<Real>::CSRMatrix &, Real,
                     Real, Real, size_t>(),

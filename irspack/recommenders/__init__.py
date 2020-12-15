@@ -19,6 +19,7 @@ from .knn import (
     CosineKNNRecommender,
     JaccardKNNRecommender,
     AsymmetricCosineKNNRecommender,
+    TverskyIndexKNNRecommender,
 )
 
 __all__ = [
@@ -38,6 +39,7 @@ __all__ = [
     "SVDRecommender",
     "CosineKNNRecommender",
     "JaccardKNNRecommender",
+    "TverskyIndexKNNRecommender",
     "AsymmetricCosineKNNRecommender",
 ]
 

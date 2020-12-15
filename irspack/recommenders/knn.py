@@ -8,6 +8,7 @@ from ._knn import (
     CosineSimilarityComputer,
     AsymmetricSimilarityComputer,
     JaccardSimilarityComputer,
+    TverskyIndexComputer,
 )
 from ..parameter_tuning import (
     IntegerSuggestion,
@@ -98,6 +99,38 @@ class CosineKNNRecommender(BaseKNNRecommender):
     def _create_computer(self, X) -> CosineSimilarityComputer:
         return CosineSimilarityComputer(
             X, self.shrinkage, self.normalize, self.n_thread
+        )
+
+
+class TverskyIndexKNNRecommender(BaseKNNRecommender):
+    default_tune_range = default_tune_range_knn.copy() + [
+        UniformSuggestion("alpha", 0, 2),
+        UniformSuggestion("beta", 0, 2),
+    ]
+
+    def __init__(
+        self,
+        X_all: InteractionMatrix,
+        shrinkage: float = 0.0,
+        alpha: float = 0.5,
+        beta: float = 0.5,
+        top_k: int = 100,
+        feature_weighting: str = "NONE",
+        n_thread: Optional[int] = 1,
+    ):
+        super().__init__(
+            X_all,
+            shrinkage,
+            top_k,
+            n_thread,
+            feature_weighting=feature_weighting,
+        )
+        self.alpha = alpha
+        self.beta = beta
+
+    def _create_computer(self, X) -> CosineSimilarityComputer:
+        return TverskyIndexComputer(
+            X, self.shrinkage, self.alpha, self.beta, self.n_thread
         )
 
 
