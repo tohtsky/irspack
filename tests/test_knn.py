@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 import scipy.sparse as sps
-from irspack.recommenders._knn import (
-    CosineSimilarityComputer,
-    JaccardSimilarityComputer,
-    AsymmetricSimilarityComputer,
+from irspack.recommenders.knn import (
+    CosineKNNRecommender,
+    JaccardKNNRecommender,
+    AssumetricCosineKNNRecommender,
 )
 
 X_small = sps.csr_matrix(
@@ -16,11 +16,14 @@ X_many[X_many > 0.9] = 1
 X_many = sps.csr_matrix(X_many)
 X_many.sort_indices()
 
+X_many_dense = sps.csr_matrix(np.random.rand(133, 245))
 
-@pytest.mark.parametrize("X", [X_many, X_small])
+
+@pytest.mark.parametrize("X", [X_many, X_small, X_many_dense])
 def test_cosine(X):
-    computer = CosineSimilarityComputer(X.T, 0, 5)
-    sim = computer.compute_similarity(X.T, X.shape[1]).toarray()
+    rec = CosineKNNRecommender(X, shrinkage=0, n_thread=5, top_k=X.shape[1])
+    rec.learn()
+    sim = rec.W.toarray()
     manual = X.T.toarray()  # I x U
     norm = (manual ** 2).sum(axis=1) ** 0.5
     manual = manual / norm[:, None]
@@ -31,13 +34,14 @@ def test_cosine(X):
     )
 
 
-@pytest.mark.parametrize("X", [X_many, X_small])
+@pytest.mark.parametrize("X", [X_many, X_small, X_many_dense])
 def test_jaccard(X):
-    computer = JaccardSimilarityComputer(X.T, 0, 5)
+    rec = JaccardKNNRecommender(X, shrinkage=0, top_k=X.shape[1], n_thread=1)
+    rec.learn()
+    sim = rec.W.toarray()
     X_bin = X.copy()
     X_bin.sort_indices()
     X_bin.data[:] = 1
-    sim = computer.compute_similarity(X.T, X.shape[1]).toarray()
     manual = X_bin.T.toarray()  # I x U
     norm = manual.sum(axis=1)
     manual = manual.dot(manual.T)
@@ -47,10 +51,16 @@ def test_jaccard(X):
     assert np.all(np.abs(sim - manual) <= 1e-5)
 
 
-@pytest.mark.parametrize("X, alpha", [(X_many, 0.3), (X_small, 0.7)])
+@pytest.mark.parametrize(
+    "X, alpha", [(X_many, 0.5), (X_small, 0.7), (X_many_dense, (0.01))]
+)
 def test_asymmetric_cosine(X, alpha):
-    computer = AsymmetricSimilarityComputer(X.T, 0, alpha, 1)
-    sim = computer.compute_similarity(X.T, X.shape[1]).toarray()
+    rec = AssumetricCosineKNNRecommender(
+        X, shrinkage=0, alpha=alpha, n_thread=1, top_k=X.shape[1]
+    )
+    rec.learn()
+    sim = rec.W.toarray()
+
     manual = X.T.toarray()  # I x U
     norm = (manual ** 2).sum(axis=1)
     norm_alpha = np.power(norm, alpha)
@@ -66,6 +76,7 @@ def test_asymmetric_cosine(X, alpha):
 
 @pytest.mark.parametrize("X", [X_many, X_small])
 def test_topk(X):
-    computer = CosineSimilarityComputer(X.T, 0, 5)
-    sim = computer.compute_similarity(X.T, 30).toarray()
+    rec = CosineKNNRecommender(X, shrinkage=0, top_k=30, n_thread=5)
+    rec.learn()
+    sim = rec.W.toarray()
     assert np.all((sim > 0).sum(axis=1) <= 30)
