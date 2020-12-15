@@ -7,6 +7,7 @@ from ..parameter_tuning import (
 )
 from typing import Optional
 from ._knn import P3alphaComputer
+from sklearn.preprocessing import normalize
 
 
 class P3alphaRecommender(
@@ -35,8 +36,9 @@ class P3alphaRecommender(
         computer = P3alphaComputer(
             self.X_all.T,
             alpha=self.alpha,
-            normalize=self.normalize_weight,
             n_thread=self.n_thread,
         )
         top_k = self.X_all.shape[1] if self.top_k is None else self.top_k
         self.W = computer.compute_W(self.X_all.T, top_k)
+        if self.normalize_weight:
+            self.W = normalize(self.W, norm="l1", axis=1)
