@@ -1,12 +1,14 @@
+from collections import OrderedDict
 from enum import Enum
+from typing import Dict, List, TYPE_CHECKING
 
 import numpy as np
-from typing import List, Dict
-from collections import OrderedDict
 
-from .recommenders import base as base_recommender
 from ._evaluator import EvaluatorCore, Metrics
 from .definitions import InteractionMatrix
+
+if TYPE_CHECKING:
+    from .recommenders import base as base_recommender
 
 
 class TargetMetric(Enum):

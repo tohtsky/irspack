@@ -13,12 +13,13 @@ from .rp3 import RP3betaRecommender
 from .dense_slim import DenseSLIMRecommender
 from .nmf import NMFRecommender
 from .rwr import RandomWalkWithRestartRecommender
-try:
-    from .bpr import BPRFMRecommender
-except:
-    pass
 from .truncsvd import TruncatedSVDRecommender
 from .ials import IALSRecommender
+from .knn import (
+    CosineKNNRecommender,
+    JaccardKNNRecommender,
+    AsymmetricCosineKNNRecommender,
+)
 
 __all__ = [
     "BaseRecommender",
@@ -32,10 +33,12 @@ __all__ = [
     "NMFRecommender",
     "RandomWalkWithRestartRecommender",
     "SLIMRecommender",
-    "BPRFMRecommender",
     "TruncatedSVDRecommender",
     "IALSRecommender",
     "SVDRecommender",
+    "CosineKNNRecommender",
+    "JaccardKNNRecommender",
+    "AsymmetricCosineKNNRecommender",
 ]
 
 try:
@@ -44,3 +47,11 @@ try:
     __all__.append("MultVAERecommender")
 except ModuleNotFoundError:
     warnings.warn("Failed to import MultVAERecommender")
+
+try:
+    from .bpr import BPRFMRecommender
+
+    __all__.append("BPRFMRecommender")
+except:
+    warnings.warn("Failed to import BPRFMRecommender")
+    pass

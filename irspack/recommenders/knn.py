@@ -66,7 +66,7 @@ class JaccardKNNRecommender(BaseKNNRecommender):
         return JaccardSimilarityComputer(self.X_all.T, self.shrinkage, self.n_thread)
 
 
-class AssumetricCosineKNNRecommender(BaseKNNRecommender):
+class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
     default_tune_range = default_tune_range_knn + [UniformSuggestion("alpha", 0, 1)]
 
     def __init__(
