@@ -1,6 +1,7 @@
 #pragma once
 #include "knn.hpp"
 #include <cstdlib>
+#include <stdexcept>
 
 namespace KNN {
 template <typename Real>
@@ -84,16 +85,22 @@ struct AsymmetricCosineSimilarityComputer
   using CSRMatrix = typename Base::CSRMatrix;
   using DenseVector = typename Base::DenseVector;
 
+protected:
   Real alpha;
+
+public:
   inline AsymmetricCosineSimilarityComputer(const CSRMatrix &X_arg,
                                             Real shrinkage, Real alpha,
                                             size_t n_thread)
       : Base(X_arg, shrinkage, n_thread), alpha(alpha) {
+    if ((alpha > 1) || (alpha < 0)) {
+      throw std::invalid_argument("alpha must be in [0, 1]");
+    }
     for (int i = 0; i < this->N; i++) {
       Real norm = this->X_t.col(i).squaredNorm();
       this->norms(i) = norm;
     }
-    this->norms.array() = this->norms.array().pow((1 - alpha) / 2);
+    this->norms.array() = this->norms.array().pow((1 - alpha));
   }
   inline CSRMatrix compute_similarity_imple(const CSRMatrix &target,
                                             size_t start, size_t end) const {
@@ -102,7 +109,7 @@ struct AsymmetricCosineSimilarityComputer
     result.makeCompressed();
     for (int i = 0; i < block_size; i++) {
       Real target_norm =
-          std::pow(target.row(start + i).squaredNorm(), this->alpha / 2);
+          std::pow(target.row(start + i).squaredNorm(), this->alpha);
       for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
         iter.valueRef() /=
             (this->norms(iter.col()) * target_norm + this->shrinkage + 1e-10);

@@ -7,12 +7,9 @@ from irspack.utils import (
     okapi_BM_25_weight,
     tf_idf_weight,
 )
-from sklearn.feature_extraction.text import TfidfTransformer
 
 X = sps.csr_matrix(
-    np.asfarray(
-        [[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]]
-    )
+    np.asfarray([[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])
 )
 X.sort_indices()
 X_array = X.toarray()
@@ -56,10 +53,7 @@ def test_bm25():
 
 def test_tf_idf():
     X_manual = (
-        X.toarray()
-        * np.log(X.shape[0] / (1 + np.bincount(X.nonzero()[1])))[None, :]
+        X.toarray() * np.log(X.shape[0] / (1 + np.bincount(X.nonzero()[1])))[None, :]
     )
     X_tf_idf = tf_idf_weight(X).toarray()
-    print(X_manual)
-    print(X_tf_idf)
     assert np.all((X_manual - X_tf_idf) == 0.0)

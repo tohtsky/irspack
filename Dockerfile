@@ -1,5 +1,5 @@
 FROM python:3.7.9-slim-stretch
-
+ENV TINI_VERSION v0.19.0
 WORKDIR /work/
 
 RUN apt-get -y update && apt-get install -y --no-install-recommends \
@@ -23,6 +23,8 @@ RUN mkdir /work/tmp && \
     tar xfz /work/tmp/lcov-1.12.tar.gz -C /work/tmp/ && \
     cd /work/tmp/lcov-1.12 && \
     make install
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
 RUN pip install numpy>=1.11 \
     tqdm>=4.0 \
     optuna>=1.0.0 \
@@ -37,9 +39,3 @@ COPY setup.py /work/setup.py
 
 RUN IRSPACK_TESTING="true" python setup.py develop
 COPY tests /work/tests
-RUN pytest -s tests/ --cov=tests/ --cov-report=html
-RUN lcov -d `pwd` -c -o coverage.info --no-external && \
-    lcov -e coverage.info */cpp_source/* o -o coverageFiltered.info && \
-    genhtml -o /work/cpp_coverage coverageFiltered.info
-
-CMD ["python", "-m", "http.server"]
