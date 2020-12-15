@@ -38,9 +38,8 @@ PYBIND11_MODULE(_knn, m) {
            &KNN::AsymmetricCosineSimilarityComputer<Real>::compute_similarity);
 
   py::class_<KNN::P3alphaComputer<Real>>(m, "P3alphaComputer")
-      .def(py::init<const KNN::P3alphaComputer<Real>::CSRMatrix &, Real, bool,
+      .def(py::init<const KNN::P3alphaComputer<Real>::CSRMatrix &, Real,
                     size_t>(),
-           py::arg("X"), py::arg("alpha") = 0, py::arg("normalize") = false,
-           py::arg("n_thread"))
+           py::arg("X"), py::arg("alpha") = 0, py::arg("n_thread"))
       .def("compute_W", &KNN::P3alphaComputer<Real>::compute_W);
 }

@@ -138,8 +138,7 @@ protected:
   Real alpha;
 
 public:
-  inline P3alphaComputer(const CSRMatrix &X_arg, Real alpha, bool normalize,
-                         size_t n_thread)
+  inline P3alphaComputer(const CSRMatrix &X_arg, Real alpha, size_t n_thread)
       : Base(X_arg, 0, n_thread), alpha(alpha) {
     // We want ItU * UtI
     // and each rows to be normalized & each *columns* to be top-K constrained,
