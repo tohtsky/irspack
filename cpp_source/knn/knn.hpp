@@ -12,9 +12,10 @@
 
 namespace KNN {
 /**
- * Given N \times n_features sparse matrix, computer
- * r x N
- * similarity matrix.
+ * Given R \times C sparse matrix X, compute
+ * r x R matrix T * X^T
+ * against r x C matrix T.
+ * where each *ROW* is supposed to contain only top_k non-zero elements.
  */
 template <typename Real, class SimilarityType> struct KNNComputer {
 
@@ -80,11 +81,11 @@ template <typename Real, class SimilarityType> struct KNNComputer {
                                                  size_t start, size_t end,
                                                  size_t top_k) const {
     /*
-     We want to compute n_item x n_item matrix
-      S = X_t * X
-     with each *column* restricted by top-k strategy.
-     We devide the problem col-wise
-     X_t * X[start, end]
+     We want to compute
+     target * X^T
+     with each *ROW* restricted by top-k strategy.
+     We devide the problem row-wise.
+     target[start:end, :] * X^T
     */
     CSRMatrix block_result_row = this->compute_sim_block(target, start, end);
     block_result_row.makeCompressed();

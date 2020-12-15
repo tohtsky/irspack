@@ -6,7 +6,7 @@ services:
       - ./coverage_result:/work/coverage_result
     command: >
       sh -c '
-        pytest -s tests/ --cov=irspack/ --cov-report=html &&
+        pytest -s tests/ --cov=irspack --cov-report=html &&
         mv htmlcov /work/coverage_result/pycov 
         lcov -d `pwd` -c -o coverage.info 
         lcov -e coverage.info */cpp_source/* -o coverageFiltered.info

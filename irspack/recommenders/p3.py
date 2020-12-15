@@ -1,18 +1,17 @@
-from .base import BaseSimilarityRecommender
+from .base import BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
 from ..definitions import InteractionMatrix
 from ..parameter_tuning import (
     LogUniformSuggestion,
     IntegerSuggestion,
     CategoricalSuggestion,
 )
-from typing import Optional, List
-import numpy as np
-from scipy import sparse as sps
-from sklearn.preprocessing import normalize
-from .utils import restrict_topk_columnwise
+from typing import Optional
+from ._knn import P3alphaComputer
 
 
-class P3alphaRecommender(BaseSimilarityRecommender):
+class P3alphaRecommender(
+    BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
+):
     default_tune_range = [
         LogUniformSuggestion("alpha", low=1e-10, high=2),
         IntegerSuggestion("top_k", low=10, high=1000),
@@ -25,36 +24,19 @@ class P3alphaRecommender(BaseSimilarityRecommender):
         alpha: float = 1,
         top_k: Optional[int] = None,
         normalize_weight: bool = False,
+        n_thread: Optional[int] = 1,
     ):
-        super().__init__(X_all)
+        super().__init__(X_all, n_thread=n_thread)
         self.alpha = alpha
         self.top_k = top_k
         self.normalize_weight = normalize_weight
 
     def learn(self):
-        Pui = self.X_all.tocsc()
-        Pui.data = np.power(Pui.data, self.alpha)
-        Pui = normalize(Pui, norm="l1", axis=1)
-
-        Piu = self.X_all.transpose().tocsr()
-        Piu.data = np.power(Piu.data, self.alpha)
-        Piu = normalize(Piu, norm="l1", axis=1)
-
-        n_item = self.X_all.shape[1]
-
-        # chunking
-        MB_size = 1000
-        Ws: List[sps.csr_matrix] = []
-        for start in range(0, n_item, MB_size):
-            end = min(n_item, start + MB_size)
-            W_mb: sps.csc_matrix = Piu.dot(Pui[:, start:end]).tocsc()
-            if self.top_k is not None:
-                W_mb = restrict_topk_columnwise(W_mb, self.top_k)
-            Ws.append(W_mb)
-        self.W: sps.csc_matrix = sps.hstack(Ws, format="csc")
-        self.W.eliminate_zeros()
-
-        if self.normalize_weight:
-            self.W = normalize(self.W, norm="l1", axis=1)
-
-        self.W.sort_indices()
+        computer = P3alphaComputer(
+            self.X_all.T,
+            alpha=self.alpha,
+            normalize=self.normalize_weight,
+            n_thread=self.n_thread,
+        )
+        top_k = self.X_all.shape[1] if self.top_k is None else self.top_k
+        self.W = computer.compute_W(self.X_all.T, top_k)

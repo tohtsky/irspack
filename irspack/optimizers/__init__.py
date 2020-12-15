@@ -26,7 +26,7 @@ class TopPopOptimizer(BaseOptimizer):
     recommender_class = TopPopRecommender
 
 
-class P3alphaOptimizer(BaseOptimizer):
+class P3alphaOptimizer(BaseOptimizerWithThreadingSupport):
     recommender_class = P3alphaRecommender
 
 
