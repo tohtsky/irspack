@@ -24,7 +24,7 @@ class BaseRecommender(ABC):
     default_tune_range: List[Suggestion] = []
 
     def __init__(self, X_all: InteractionMatrix, **kwargs):
-        self.X_all = sps.csr_matrix(X_all)
+        self.X_all = sps.csr_matrix(X_all).astype(np.float64)
         self.n_user: int = self.X_all.shape[0]
         self.n_item: int = self.X_all.shape[1]
         self.X_all.sort_indices()

@@ -4,7 +4,7 @@ import scipy.sparse as sps
 from irspack.recommenders.knn import (
     CosineKNNRecommender,
     JaccardKNNRecommender,
-    AssumetricCosineKNNRecommender,
+    AsymmetricCosineKNNRecommender,
 )
 
 X_small = sps.csr_matrix(
@@ -55,7 +55,7 @@ def test_jaccard(X):
     "X, alpha", [(X_many, 0.5), (X_small, 0.7), (X_many_dense, (0.01))]
 )
 def test_asymmetric_cosine(X, alpha):
-    rec = AssumetricCosineKNNRecommender(
+    rec = AsymmetricCosineKNNRecommender(
         X, shrinkage=0, alpha=alpha, n_thread=1, top_k=X.shape[1]
     )
     rec.learn()

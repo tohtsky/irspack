@@ -16,6 +16,9 @@ from ..recommenders import (
     SLIMRecommender,
     TopPopRecommender,
     TruncatedSVDRecommender,
+    CosineKNNRecommender,
+    JaccardKNNRecommender,
+    AsymmetricCosineKNNRecommender,
 )
 
 
@@ -57,6 +60,18 @@ class SLIMOptimizer(BaseOptimizer):
 
 class NMFOptimizer(BaseOptimizer):
     recommender_class = NMFRecommender
+
+
+class CosineKNNOptimizer(BaseOptimizerWithThreadingSupport):
+    recommender_class = CosineKNNRecommender
+
+
+class JaccardKNNOptimizer(BaseOptimizerWithThreadingSupport):
+    recommender_class = JaccardKNNRecommender
+
+
+class AsymmetricCosineKNNOptimizer(BaseOptimizerWithThreadingSupport):
+    recommender_class = AsymmetricCosineKNNRecommender
 
 
 try:

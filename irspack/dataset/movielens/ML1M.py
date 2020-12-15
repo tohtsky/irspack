@@ -3,18 +3,18 @@ from io import BytesIO
 
 import pandas as pd
 
-from .ML100K import MovieLens100KDataManager
+from .base import BaseMovieLenstDataLoader
 
 
-class MovieLens1MDataManager(MovieLens100KDataManager):
+class MovieLens1MDataManager(BaseMovieLenstDataLoader):
     DOWNLOAD_URL = "http://files.grouplens.org/datasets/movielens/ml-1m.zip"
     DEFAULT_PATH = os.path.expanduser("~/.ml-1m.zip")
-    DATA_PATH_IN_ZIP = "ml-1m/ratings.dat"
+    INTERACTION_PATH = "ml-1m/ratings.dat"
     ITEM_INFO_PATH = "ml-1m/movies.dat"
     USER_INFO_PATH = "ml-1m/users.dat"
 
-    def _read_interaction(self, byte_stream: bytes) -> pd.DataFrame:
-        with BytesIO(byte_stream) as ifs:
+    def read_interaction(self) -> pd.DataFrame:
+        with self._read_as_istream(self.INTERACTION_PATH) as ifs:
             df = pd.read_csv(
                 ifs,
                 sep="\:\:",
