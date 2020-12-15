@@ -128,6 +128,55 @@ public:
 };
 
 template <typename Real>
+struct TverskyIndexComputer : KNNComputer<Real, TverskyIndexComputer<Real>> {
+  using Base = KNNComputer<Real, TverskyIndexComputer<Real>>;
+  using CSCMatrix = typename Base::CSCMatrix;
+  using CSRMatrix = typename Base::CSRMatrix;
+
+protected:
+  Real alpha, beta;
+
+public:
+  inline TverskyIndexComputer(const CSRMatrix &X_arg, Real shrinkage,
+                              Real alpha, Real beta, size_t n_thread)
+      : Base(X_arg, shrinkage, n_thread), alpha(alpha), beta(beta) {
+    for (int i = 0; i < this->X_t.cols(); i++) {
+      for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
+        iter.valueRef() = 1;
+      }
+    }
+    for (int i = 0; i < this->N; i++) {
+      this->norms(i) = this->X_t.col(i).sum();
+    }
+  }
+
+  inline CSRMatrix compute_similarity_imple(const CSRMatrix &target,
+                                            size_t start, size_t end) const {
+    int block_size = end - start;
+    CSRMatrix target_bin(target.middleRows(start, block_size));
+    for (int i = 0; i < target_bin.rows(); i++) {
+      for (typename CSRMatrix::InnerIterator iter(target_bin, i); iter;
+           ++iter) {
+        iter.valueRef() = 1;
+      }
+    }
+
+    CSRMatrix result = target_bin * (this->X_t);
+    result.makeCompressed();
+    for (int i = 0; i < block_size; i++) {
+      Real target_norm = target_bin.row(i).sum();
+      for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
+        Real itv = iter.value();
+        iter.valueRef() /=
+            (itv + this->alpha * (this->norms(iter.col()) - itv) +
+             this->beta * (target_norm - itv) + this->shrinkage + 1e-6);
+      }
+    }
+    return result;
+  }
+};
+
+template <typename Real>
 struct P3alphaComputer : KNNComputer<Real, P3alphaComputer<Real>> {
   using Base = KNNComputer<Real, P3alphaComputer>;
   using CSCMatrix = typename Base::CSCMatrix;
