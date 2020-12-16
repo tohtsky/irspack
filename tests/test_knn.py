@@ -113,3 +113,15 @@ def test_p3(X, alpha):
     P_iu /= zero_or_1(P_iu.sum(axis=1))[:, None]
     W_man = P_iu.dot(P_ui)
     np.testing.assert_allclose(W, W_man)
+
+
+def test_raise_shrinkage():
+    with pytest.raises(ValueError):
+        _ = P3alphaComputer(X_many.T, alpha=1.0, n_thread=0)
+
+    with pytest.raises(ValueError):
+        _ = P3alphaComputer(X_many.T, alpha=-1.0, n_thread=1)
+
+    with pytest.raises(ValueError):
+        rec = AsymmetricCosineKNNRecommender(X_many, 0, alpha=1.5)
+        rec.learn()
