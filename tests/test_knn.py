@@ -98,7 +98,7 @@ def test_topk(X):
     "X, alpha", [(X_small, 0.001), (X_many_dense, 2), (X_many, 1)]
 )
 def test_p3(X, alpha):
-    computer = P3alphaComputer(X.T, alpha, 4)
+    computer = P3alphaComputer(X.T, alpha, 4, max_chunk_size=1)
     W = computer.compute_W(X.T, X.shape[1]).toarray()
 
     P_ui = np.power(X.toarray(), alpha)

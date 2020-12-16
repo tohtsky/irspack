@@ -57,7 +57,8 @@ struct Solver {
                    other_factor.row(it.col()).transpose() *
                    other_factor.row(it.col());
 
-        B += (1 + config.alpha) * other_factor.row(it.col()).transpose();
+        B += it.value() * (1 + config.alpha) *
+             other_factor.row(it.col()).transpose();
       }
       Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> U(P_local);
       result.row(i) = U.solve(B).transpose();
@@ -73,28 +74,29 @@ struct Solver {
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config]() {
-        DenseMatrix P_local(P.rows(), P.cols());
-        DenseVector B(P.rows());
-        while (true) {
-          int cursor_local = cursor.fetch_add(1);
-          if (cursor_local >= target_factor.rows()) {
-            break;
-          }
-          P_local.array() = P.array();
-          B.array() = static_cast<Real>(0);
-          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-            P_local += (config.alpha * it.value()) *
-                       other_factor.row(it.col()).transpose() *
-                       other_factor.row(it.col());
+      workers.emplace_back(
+          [this, &target_factor, &cursor, &X, &other_factor, &config]() {
+            DenseMatrix P_local(P.rows(), P.cols());
+            DenseVector B(P.rows());
+            while (true) {
+              int cursor_local = cursor.fetch_add(1);
+              if (cursor_local >= target_factor.rows()) {
+                break;
+              }
+              P_local.array() = P.array();
+              B.array() = static_cast<Real>(0);
+              for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+                P_local += (config.alpha * it.value()) *
+                           other_factor.row(it.col()).transpose() *
+                           other_factor.row(it.col());
 
-            B += (1 + config.alpha) * other_factor.row(it.col()).transpose();
-          }
-          Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> U(P_local);
-          target_factor.row(cursor_local) = U.solve(B).transpose();
-        }
-      });
+                B += it.value() * (1 + config.alpha) *
+                     other_factor.row(it.col()).transpose();
+              }
+              Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> U(P_local);
+              target_factor.row(cursor_local) = U.solve(B).transpose();
+            }
+          });
     }
     for (auto &w : workers) {
       w.join();
