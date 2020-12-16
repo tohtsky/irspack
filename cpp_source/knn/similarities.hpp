@@ -1,8 +1,10 @@
 #pragma once
-#include "knn.hpp"
+#include <cstddef>
 #include <cstdlib>
 #include <stdexcept>
 
+#include "../argcheck.hpp"
+#include "knn.hpp"
 namespace KNN {
 template <typename Real>
 struct CosineSimilarityComputer
@@ -16,8 +18,9 @@ protected:
 
 public:
   inline CosineSimilarityComputer(const CSRMatrix &X_arg, Real shrinkage,
-                                  bool normalize, size_t n_thread)
-      : Base(X_arg, shrinkage, n_thread), normalize(normalize) {
+                                  bool normalize, size_t n_thread,
+                                  size_t max_chunk_size)
+      : Base(X_arg, shrinkage, n_thread, max_chunk_size), normalize(normalize) {
     for (int i = 0; i < this->N; i++) {
       this->norms(i) = this->X_t.col(i).norm();
     }
@@ -49,8 +52,8 @@ struct JaccardSimilarityComputer
   using CSCMatrix = typename Base::CSCMatrix;
   using CSRMatrix = typename Base::CSRMatrix;
   inline JaccardSimilarityComputer(const CSRMatrix &X_arg, Real shrinkage,
-                                   size_t n_thread)
-      : Base(X_arg, shrinkage, n_thread) {
+                                   size_t n_thread, size_t max_chunk_size)
+      : Base(X_arg, shrinkage, n_thread, max_chunk_size) {
     for (int i = 0; i < this->X_t.cols(); i++) {
       for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
         iter.valueRef() = 1;
@@ -99,11 +102,10 @@ protected:
 public:
   inline AsymmetricCosineSimilarityComputer(const CSRMatrix &X_arg,
                                             Real shrinkage, Real alpha,
-                                            size_t n_thread)
-      : Base(X_arg, shrinkage, n_thread), alpha(alpha) {
-    if ((alpha > 1) || (alpha < 0)) {
-      throw std::invalid_argument("alpha must be in [0, 1]");
-    }
+                                            size_t n_thread,
+                                            size_t max_chunk_size)
+      : Base(X_arg, shrinkage, n_thread, max_chunk_size), alpha(alpha) {
+    irspack::check_arg_doubly_bounded<Real>(alpha, 0, 1, "alpha");
     for (int i = 0; i < this->N; i++) {
       Real norm = this->X_t.col(i).squaredNorm();
       this->norms(i) = norm;
@@ -138,8 +140,13 @@ protected:
 
 public:
   inline TverskyIndexComputer(const CSRMatrix &X_arg, Real shrinkage,
-                              Real alpha, Real beta, size_t n_thread)
-      : Base(X_arg, shrinkage, n_thread), alpha(alpha), beta(beta) {
+                              Real alpha, Real beta, size_t n_thread,
+                              size_t max_chunk_size)
+      : Base(X_arg, shrinkage, n_thread, max_chunk_size), alpha(alpha),
+        beta(beta) {
+    irspack::check_arg_lower_bounded<Real>(alpha, 0, "alpha");
+    irspack::check_arg_lower_bounded<Real>(beta, 0, "beta");
+
     for (int i = 0; i < this->X_t.cols(); i++) {
       for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
         iter.valueRef() = 1;
@@ -187,8 +194,10 @@ protected:
   Real alpha;
 
 public:
-  inline P3alphaComputer(const CSRMatrix &X_arg, Real alpha, size_t n_thread)
-      : Base(X_arg, 0, n_thread), alpha(alpha) {
+  inline P3alphaComputer(const CSRMatrix &X_arg, Real alpha, size_t n_thread,
+                         size_t max_chunk_size)
+      : Base(X_arg, 0, n_thread, max_chunk_size), alpha(alpha) {
+    irspack::check_arg_lower_bounded<Real>(alpha, 0, "alpha");
     // We want ItU * UtI
     // and each rows to be normalized & each *columns* to be top-K constrained,
     // so the computation should be

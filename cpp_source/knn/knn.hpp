@@ -1,4 +1,5 @@
 #pragma once
+#include "../argcheck.hpp"
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <atomic>
@@ -26,12 +27,16 @@ template <typename Real, class SimilarityType> struct KNNComputer {
   using CSRIterType = typename CSRMatrix::InnerIterator;
   using CSCIterType = typename CSCMatrix::InnerIterator;
   using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
-  KNNComputer(const CSRMatrix &X_arg, Real shrinkage, size_t n_thread)
+  KNNComputer(const CSRMatrix &X_arg, Real shrinkage, size_t n_thread,
+              size_t max_chunk_size)
       : X_t(X_arg.transpose()), n_thread(n_thread), N(X_arg.rows()),
-        n_features(X_arg.cols()), shrinkage(shrinkage), norms(X_arg.rows()) {
-    if (n_thread == 0) {
-      std::invalid_argument("n_thread should be > 0");
-    }
+        n_features(X_arg.cols()), shrinkage(shrinkage), norms(X_arg.rows()),
+        max_chunk_size(max_chunk_size) {
+    irspack::check_arg_lower_bounded<Real>(shrinkage, 0, "shrinkage");
+    irspack::check_arg_lower_bounded<size_t>(n_thread, 1, "n_thread");
+    irspack::check_arg_lower_bounded<size_t>(max_chunk_size, 1,
+                                             "max_chunk_size");
+
     X_t.makeCompressed();
   }
 
@@ -87,35 +92,40 @@ template <typename Real, class SimilarityType> struct KNNComputer {
      We devide the problem row-wise.
      target[start:end, :] * X^T
     */
-    CSRMatrix block_result_row = this->compute_sim_block(target, start, end);
-    block_result_row.makeCompressed();
 
     using IndexType = typename CSCMatrix::StorageIndex;
 
     std::vector<Triplet> triples;
     std::vector<IndexType> buffer(this->N);
 
-    const Real *data_ptr = block_result_row.valuePtr();
-    auto index_ptr = block_result_row.innerIndexPtr();
-    auto index_start_ptr = block_result_row.outerIndexPtr();
+    for (size_t cursor = start; cursor < end; cursor += this->max_chunk_size) {
+      size_t end_local = std::min(cursor + this->max_chunk_size, end);
+      CSRMatrix block_result_row =
+          this->compute_sim_block(target, cursor, end_local);
+      block_result_row.makeCompressed();
 
-    for (IndexType row = 0; row < block_result_row.rows(); row++) {
-      size_t nz_size = index_start_ptr[row + 1] - index_start_ptr[row];
-      size_t col_size = std::min(nz_size, top_k);
-      auto data_start = data_ptr + index_start_ptr[row];
-      auto index_start = index_ptr + index_start_ptr[row];
-      for (size_t i = 0; i < nz_size; i++) {
-        buffer[i] = i;
-      }
-      std::sort(buffer.begin(), buffer.begin() + nz_size,
-                [&data_start](IndexType &col1, IndexType &col2) {
-                  return data_start[col1] > data_start[col2];
-                });
-      std::sort(buffer.begin(), buffer.begin() + col_size);
-      for (size_t j = 0; j < col_size; j++) {
-        triples.emplace_back(row + start,
-                             static_cast<IndexType>(index_start[buffer[j]]),
-                             data_start[buffer[j]]);
+      const Real *data_ptr = block_result_row.valuePtr();
+      auto index_ptr = block_result_row.innerIndexPtr();
+      auto index_start_ptr = block_result_row.outerIndexPtr();
+
+      for (IndexType row = 0; row < block_result_row.rows(); row++) {
+        size_t nz_size = index_start_ptr[row + 1] - index_start_ptr[row];
+        size_t col_size = std::min(nz_size, top_k);
+        auto data_start = data_ptr + index_start_ptr[row];
+        auto index_start = index_ptr + index_start_ptr[row];
+        for (size_t i = 0; i < nz_size; i++) {
+          buffer[i] = i;
+        }
+        std::sort(buffer.begin(), buffer.begin() + nz_size,
+                  [&data_start](IndexType &col1, IndexType &col2) {
+                    return data_start[col1] > data_start[col2];
+                  });
+        std::sort(buffer.begin(), buffer.begin() + col_size);
+        for (size_t j = 0; j < col_size; j++) {
+          triples.emplace_back(row + cursor,
+                               static_cast<IndexType>(index_start[buffer[j]]),
+                               data_start[buffer[j]]);
+        }
       }
     }
     return triples;
@@ -130,15 +140,15 @@ protected:
   Real shrinkage;
   DenseVector norms;
 
+private:
   inline CSRMatrix compute_sim_block(const CSRMatrix &target, size_t start,
                                      size_t end) const {
-    if (start > end) {
-      throw std::invalid_argument("start must be <= end");
-    }
-
     return static_cast<const SimilarityType &>(*this).compute_similarity_imple(
         target, start, end);
   }
+
+protected:
+  size_t max_chunk_size = 128;
 };
 
 } // namespace KNN
