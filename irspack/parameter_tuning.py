@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Any
+from typing import List, Any, Dict
 from optuna import Trial
 
 __all__ = [
@@ -22,8 +22,12 @@ class Suggestion(ABC):
         pass
 
 
-def overwrite_suggestions(base: List[Suggestion], overwrite: List[Suggestion]):
-    overwritten_parameter_names = {x.name for x in overwrite}
+def overwrite_suggestions(
+    base: List[Suggestion], overwrite: List[Suggestion], fixed: Dict[str, Any]
+) -> List[Suggestion]:
+    overwritten_parameter_names = set(
+        [x.name for x in overwrite] + [x for x in fixed]
+    )
     suggestions = [
         suggest_base
         for suggest_base in base
@@ -41,7 +45,7 @@ class UniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial) -> float:
+    def suggest(self, trial: Trial) -> Any:
         return trial.suggest_uniform(self.name, self.low, self.high)
 
 
@@ -54,7 +58,7 @@ class LogUniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial) -> float:
+    def suggest(self, trial: Trial) -> Any:
         return trial.suggest_loguniform(self.name, self.low, self.high)
 
 
@@ -68,7 +72,7 @@ class IntegerSuggestion(Suggestion):
         self.high = high
         self.step = step
 
-    def suggest(self, trial: Trial) -> int:
+    def suggest(self, trial: Trial) -> Any:
         return trial.suggest_int(self.name, self.low, self.high, step=self.step)
 
 
@@ -81,7 +85,7 @@ class IntegerLogUniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial) -> int:
+    def suggest(self, trial: Trial) -> Any:
         return round(trial.suggest_loguniform(self.name, self.low, self.high))
 
 
@@ -92,12 +96,3 @@ class CategoricalSuggestion(Suggestion):
 
     def suggest(self, trial: Trial) -> Any:
         return trial.suggest_categorical(self.name, self.choices)
-
-
-class FixParameter(Suggestion):
-    def __init__(self, name: str, value: Any):
-        super().__init__(name)
-        self.value = value
-
-    def suggest(self, trial: Trial) -> Any:
-        return self.value

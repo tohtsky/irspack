@@ -20,11 +20,10 @@ from ..recommenders.base import (
 )
 from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
-MEASURES = ["hit", "recall", "ndcg", "gini_index", "entropy"]
-
 
 class BaseOptimizer(ABC):
     recommender_class: Type[BaseRecommender]
+    default_tune_range: List[Suggestion] 
 
     def __init__(
         self,
@@ -34,6 +33,7 @@ class BaseOptimizer(ABC):
         logger: Optional[Logger] = None,
         n_trials: int = 20,
         suggest_overwrite: List[Suggestion] = list(),
+        fixed_param: Dict[str, Any] = dict(),
     ):
         if logger is None:
             logger = getLogger(__name__)
@@ -48,16 +48,26 @@ class BaseOptimizer(ABC):
         self.best_trial_index: Optional[int] = None
         self.best_val = float("inf")
         self.best_params: Optional[Dict[str, Any]] = None
-        self.learnt_config_best: Dict[str, Any] = dict()  # to store early-stopped epoch
+        self.learnt_config_best: Dict[
+            str, Any
+        ] = dict()  # to store early-stopped epoch
 
         self.valid_results: List[Dict[str, float]] = []
         self.tried_configs: List[Dict[str, Any]] = []
+        for suggest in suggest_overwrite:
+            if suggest.name in fixed_param:
+                raise ValueError(
+                    "suggest_overwrite and fixe_param have overwrap."
+                )
         self.suggest_overwrite = suggest_overwrite
+        self.fixed_param = fixed_param
 
     def suggest(self, trial: optuna.Trial):
         parameters: Dict[str, Any] = dict()
         suggestions = overwrite_suggestions(
-            self.recommender_class.default_tune_range, self.suggest_overwrite
+            self.default_tune_range,
+            self.suggest_overwrite,
+            self.fixed_param,
         )
         for c in suggestions:
             parameters[c.name] = c.suggest(trial)
@@ -68,20 +78,23 @@ class BaseOptimizer(ABC):
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return args, kwargs
 
-    def do_search(self, name: Optional[str] = None, timeout: Optional[int] = None):
+    def do_search(
+        self, name: Optional[str] = None, timeout: Optional[int] = None
+    ):
         if name is None:
             name = f"{self.__class__.__name__}-{datetime.now().isoformat()}"
         self.logger.info(f"Start serching for {name}.")
         study = optuna.create_study()
-        self.current_trial = 0
+        self.current_trial = -1
         self.best_val = float("inf")
         self.best_time = None
         self.valid_results = []
         self.tried_configs = []
 
         def objective_func(trial: optuna.Trial) -> float:
+            self.current_trial += 1  # for pruning
             start = time.time()
-            params = self.suggest(trial)
+            params = dict(**self.suggest(trial), **self.fixed_param)
             self.logger.info(f"\nTrial {self.current_trial}:")
             self.logger.info(f"parameter = {params}")
 
@@ -109,7 +122,6 @@ class BaseOptimizer(ABC):
                 self.logger.info(f"Found best {self.metric} using this config.")
                 self.best_trial_index = self.current_trial
 
-            self.current_trial += 1
             return -target_score
 
         study.optimize(objective_func, n_trials=self.n_trials, timeout=timeout)
@@ -119,7 +131,10 @@ class BaseOptimizer(ABC):
         best_params.update(**self.learnt_config_best)
         self.best_params = best_params
         result_df = pd.concat(
-            [pd.DataFrame(self.tried_configs), pd.DataFrame(self.valid_results)],
+            [
+                pd.DataFrame(self.tried_configs),
+                pd.DataFrame(self.valid_results),
+            ],
             axis=1,
         ).copy()
         is_best = np.zeros(result_df.shape[0], dtype=np.bool)
@@ -140,18 +155,20 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         logger: Optional[Logger] = None,
         n_trials: int = 20,
         suggest_overwrite: List[Suggestion] = list(),
+        fixed_param: Dict[str, Any] = dict(),
         max_epoch: int = 512,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
         **kwargs,
     ):
-        super(BaseOptimizerWithEarlyStopping, self).__init__(
+        super().__init__(
             data,
             val_evaluator,
             metric,
-            logger,
-            n_trials,
-            suggest_overwrite,
+            logger=logger,
+            n_trials=n_trials,
+            suggest_overwrite=suggest_overwrite,
+            fixed_param=fixed_param,
         )
         self.max_epoch = max_epoch
         self.validate_epoch = validate_epoch
@@ -160,7 +177,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
     def get_model_arguments(
         self, *args, **kwargs
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super(BaseOptimizerWithEarlyStopping, self).get_model_arguments(
+        return super().get_model_arguments(
             *args,
             max_epoch=self.max_epoch,
             validate_epoch=self.validate_epoch,
@@ -183,7 +200,7 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
         n_thread: Optional[int] = None,
         **kwargs,
     ):
-        super(BaseOptimizerWithThreadingSupport, self).__init__(
+        super().__init__(
             data,
             val_evaluator,
             metric,
@@ -196,6 +213,6 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
     def get_model_arguments(
         self, *args, **kwargs
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super(BaseOptimizerWithThreadingSupport, self).get_model_arguments(
+        return super().get_model_arguments(
             *args, n_thread=self.n_thread, **kwargs
         )
