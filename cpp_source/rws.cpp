@@ -11,13 +11,13 @@
 using namespace std;
 
 using MatrixEntry = float;
-
 using CSRMatrix = Eigen::SparseMatrix<MatrixEntry, Eigen::RowMajor>;
 using ReturnValue = Eigen::SparseMatrix<int32_t, Eigen::RowMajor>;
 
 static uniform_real_distribution<float> udist_(0, 1);
-
 namespace py = pybind11;
+
+namespace irspack {
 
 struct RandomWalkGenerator {
   inline RandomWalkGenerator(CSRMatrix X)
@@ -147,7 +147,10 @@ private:
   // mt19937 random_state_;
 };
 
+} // namespace irspack
+
 PYBIND11_MODULE(_rwr, m) {
+  using namespace irspack;
   m.doc() = "Backend C++ inplementation for Random walk with restart.";
   py::class_<RandomWalkGenerator>(m, "RandomWalkGenerator")
       .def(py::init<CSRMatrix &>())

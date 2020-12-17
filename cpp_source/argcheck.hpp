@@ -3,6 +3,12 @@
 #include <stdexcept>
 #include <string>
 namespace irspack {
+
+inline void check_arg(bool condition, const std::string &failure_message) {
+  if (!condition) {
+    throw std::runtime_error(failure_message);
+  }
+}
 template <typename Field>
 void check_arg_lower_bounded(Field x, Field low, const std::string &varname) {
   if ((x < low)) {

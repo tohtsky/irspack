@@ -6,12 +6,10 @@ from irspack.recommenders.knn import (
     JaccardKNNRecommender,
     AsymmetricCosineKNNRecommender,
 )
-from irspack.recommenders._knn import P3alphaComputer
+from irspack.recommenders.p3 import P3alphaRecommender
 
 X_small = sps.csr_matrix(
-    np.asfarray(
-        [[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]]
-    )
+    np.asfarray([[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])
 )
 X_many = np.random.rand(888, 512)
 X_many[X_many <= 0.9] = 0
@@ -94,12 +92,11 @@ def test_topk(X):
     assert np.all((sim > 0).sum(axis=1) <= 30)
 
 
-@pytest.mark.parametrize(
-    "X, alpha", [(X_small, 0.001), (X_many_dense, 2), (X_many, 1)]
-)
+@pytest.mark.parametrize("X, alpha", [(X_small, 0.001), (X_many_dense, 2), (X_many, 1)])
 def test_p3(X, alpha):
-    computer = P3alphaComputer(X.T, alpha, 4, max_chunk_size=1)
-    W = computer.compute_W(X.T, X.shape[1]).toarray()
+    rec = P3alphaRecommender(X, alpha=alpha, n_thread=4)
+    rec.learn()
+    W = rec.W.toarray()
 
     P_ui = np.power(X.toarray(), alpha)
     P_iu = np.power(X.T.toarray(), alpha)
@@ -117,10 +114,12 @@ def test_p3(X, alpha):
 
 def test_raise_shrinkage():
     with pytest.raises(ValueError):
-        _ = P3alphaComputer(X_many.T, alpha=1.0, n_thread=0)
+        _ = P3alphaRecommender(X_many.T, alpha=1.0, n_thread=0)
+        _.learn()
 
     with pytest.raises(ValueError):
-        _ = P3alphaComputer(X_many.T, alpha=-1.0, n_thread=1)
+        _ = P3alphaRecommender(X_many.T, alpha=-1.0, n_thread=1)
+        _.learn()
 
     with pytest.raises(ValueError):
         rec = AsymmetricCosineKNNRecommender(X_many, 0, alpha=1.5)

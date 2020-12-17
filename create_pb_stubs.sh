@@ -7,3 +7,6 @@ cp stubs/irspack/recommenders/_knn-stubs/__init__.pyi irspack/recommenders/_knn.
 
 pybind11-stubgen -o stubs --no-setup-py irspack.utils._util_cpp
 cp stubs/irspack/utils/_util_cpp-stubs/__init__.pyi irspack/utils/_util_cpp.pyi
+
+pybind11-stubgen -o stubs --no-setup-py irspack._evaluator
+cp stubs/irspack/_evaluator-stubs/__init__.pyi irspack/_evaluator.pyi

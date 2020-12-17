@@ -8,6 +8,7 @@
 #include <tuple>
 #include <unordered_map>
 
+namespace irspack {
 namespace sparse_util {
 
 template <typename Real>
@@ -153,3 +154,4 @@ CSRMatrix<Real> tf_idf_weight(const CSRMatrix<Real> &X, bool smooth) {
 }
 
 } // namespace sparse_util
+} // namespace irspack

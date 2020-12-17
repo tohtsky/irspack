@@ -8,6 +8,7 @@
 #include <vector>
 
 namespace py = pybind11;
+using namespace irspack;
 PYBIND11_MODULE(_util_cpp, m) {
 
   m.def("sparse_mm_threaded", &sparse_util::parallel_sparse_product<double>);

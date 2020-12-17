@@ -14,6 +14,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "argcheck.hpp"
+
+namespace irspack {
+
 using CountVector = Eigen::Matrix<std::int64_t, Eigen::Dynamic, 1>;
 struct Metrics {
   inline Metrics(size_t n_item) : n_item(n_item), item_cnt(n_item) {
@@ -27,6 +31,8 @@ struct Metrics {
     total_user += other.total_user;
     valid_user += other.valid_user;
     item_cnt += other.item_cnt;
+    precision += other.precision;
+    map += other.map;
   }
 
   std::map<std::string, double> as_dict() const {
@@ -57,6 +63,8 @@ struct Metrics {
     result["hit"] = hit / denominator;
     result["ndcg"] = ndcg / denominator;
     result["recall"] = recall / denominator;
+    result["map"] = map / denominator;
+    result["precision"] = precision / denominator;
     result["appeared_item"] = apperere_item;
     result["entropy"] = entropy;
     result["gini_index"] = gini;
@@ -68,6 +76,8 @@ struct Metrics {
   double hit = 0;
   double recall = 0;
   double ndcg = 0;
+  double precision = 0;
+  double map = 0;
   size_t n_item;
   CountVector item_cnt;
 };
@@ -88,9 +98,10 @@ struct EvaluatorCore {
                              size_t cutoff, size_t offset, size_t n_thread,
                              bool recall_with_cutoff = false) {
     Metrics overall(n_items);
-    if (offset >= n_users) {
-      throw std::invalid_argument("offset >= n_users");
-    }
+    check_arg(n_users > offset, "got offset >= n_users");
+    check_arg(cutoff > 0, "cutoff must be strictly greather than 0.");
+    check_arg(cutoff <= n_items, "cutoff must not exeeed the number of items.");
+
     std::vector<std::vector<int>> uinds(n_thread);
     for (int u = 0; u < scores.rows(); u++) {
       uinds[u % n_thread].push_back(u);
@@ -110,6 +121,7 @@ struct EvaluatorCore {
     return overall;
   }
 
+private:
   inline Metrics get_metrics_local(const Eigen::Ref<DenseMatrix> &scores,
                                    const std::vector<int> &user_set,
                                    size_t cutoff, size_t offset,
@@ -168,17 +180,23 @@ struct EvaluatorCore {
       if (n_hit > 0) {
         metrics.hit += 1;
       }
+      metrics.precision += n_hit / static_cast<double>(cutoff);
       metrics.recall += n_hit / static_cast<double>(n_gt);
       double dcg = 0;
       double idcg =
           std::accumulate(dcg_discount.begin(),
                           dcg_discount.begin() + std::min(n_gt, cutoff), 0.);
+      double cum_hit = 0;
+      double average_precision = 0;
       for (size_t i = 0; i < cutoff; i++) {
         if (hit_item.find(recommendation[i]) != hit_item.end()) {
           dcg += dcg_discount[i];
+          cum_hit += 1;
+          average_precision += (cum_hit / (i + 1));
         }
       }
       metrics.ndcg += (dcg / idcg);
+      metrics.map += average_precision / n_gt;
     }
     return metrics;
   }
@@ -187,8 +205,10 @@ struct EvaluatorCore {
   const size_t n_users;
   const size_t n_items;
 };
+} // namespace irspack
 
 namespace py = pybind11;
+using namespace irspack;
 
 PYBIND11_MODULE(_evaluator, m) {
   py::class_<Metrics>(m, "Metrics")

@@ -67,6 +67,16 @@ class get_pybind_include(object):
 
 ext_modules = [
     Extension(
+        "irspack._evaluator",
+        ["cpp_source/evaluator.cpp"],
+        include_dirs=[
+            get_pybind_include(),
+            get_pybind_include(user=True),
+            get_eigen_include(),
+        ],
+        language="c++",
+    ),
+    Extension(
         "irspack.recommenders._rwr",
         ["cpp_source/rws.cpp"],
         include_dirs=[
@@ -99,16 +109,7 @@ ext_modules = [
         ],
         language="c++",
     ),
-    Extension(
-        "irspack._evaluator",
-        ["cpp_source/evaluator.cpp"],
-        include_dirs=[
-            get_pybind_include(),
-            get_pybind_include(user=True),
-            get_eigen_include(),
-        ],
-        language="c++",
-    ),
+
     Extension(
         "irspack.utils._util_cpp",
         ["cpp_source/util.cpp"],
