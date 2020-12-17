@@ -23,13 +23,13 @@ from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
 class BaseOptimizer(ABC):
     recommender_class: Type[BaseRecommender]
-    default_tune_range: List[Suggestion] 
+    default_tune_range: List[Suggestion]
 
     def __init__(
         self,
         data: InteractionMatrix,
         val_evaluator: Evaluator,
-        metric="ndcg",
+        metric: str = "ndcg",
         logger: Optional[Logger] = None,
         n_trials: int = 20,
         suggest_overwrite: List[Suggestion] = list(),
@@ -62,7 +62,7 @@ class BaseOptimizer(ABC):
         self.suggest_overwrite = suggest_overwrite
         self.fixed_param = fixed_param
 
-    def suggest(self, trial: optuna.Trial):
+    def suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
         parameters: Dict[str, Any] = dict()
         suggestions = overwrite_suggestions(
             self.default_tune_range,
@@ -74,13 +74,13 @@ class BaseOptimizer(ABC):
         return parameters
 
     def get_model_arguments(
-        self, *args, **kwargs
+        self, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return args, kwargs
 
     def do_search(
         self, name: Optional[str] = None, timeout: Optional[int] = None
-    ):
+    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         if name is None:
             name = f"{self.__class__.__name__}-{datetime.now().isoformat()}"
         self.logger.info(f"Start serching for {name}.")
@@ -151,7 +151,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         self,
         data: InteractionMatrix,
         val_evaluator: Evaluator,
-        metric="ndcg",
+        metric: str = "ndcg",
         logger: Optional[Logger] = None,
         n_trials: int = 20,
         suggest_overwrite: List[Suggestion] = list(),
@@ -159,7 +159,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         max_epoch: int = 512,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             data,
@@ -175,7 +175,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         self.score_degradation_max = score_degradation_max
 
     def get_model_arguments(
-        self, *args, **kwargs
+        self, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return super().get_model_arguments(
             *args,
@@ -193,12 +193,12 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
         self,
         data: InteractionMatrix,
         val_evaluator: Evaluator,
-        metric="ndcg",
+        metric: str = "ndcg",
         logger: Optional[Logger] = None,
         n_trials: int = 20,
         suggest_overwrite: List[Suggestion] = list(),
         n_thread: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             data,
@@ -211,7 +211,7 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
         self.n_thread = n_thread
 
     def get_model_arguments(
-        self, *args, **kwargs
+        self, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return super().get_model_arguments(
             *args, n_thread=self.n_thread, **kwargs

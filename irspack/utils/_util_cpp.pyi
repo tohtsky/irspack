@@ -1,3 +1,4 @@
+from numpy import float32
 import irspack.utils._util_cpp
 from typing import *
 from typing import Iterable as iterable
