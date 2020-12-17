@@ -58,7 +58,7 @@ class BaseKNNRecommender(
     ]:
         raise NotImplementedError("")
 
-    def learn(self):
+    def _learn(self):
         if self.feature_weighting == FeatureWeightingScheme.NONE:
             X_weighted = self.X_all
         elif self.feature_weighting == FeatureWeightingScheme.TF_IDF:
@@ -137,16 +137,12 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
 class JaccardKNNRecommender(BaseKNNRecommender):
     default_tune_range = default_tune_range_knn.copy()
 
-    def _create_computer(
-        self, X: InteractionMatrix
-    ) -> JaccardSimilarityComputer:
+    def _create_computer(self, X: InteractionMatrix) -> JaccardSimilarityComputer:
         return JaccardSimilarityComputer(X, self.shrinkage, self.n_thread)
 
 
 class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
-    default_tune_range = default_tune_range_knn + [
-        UniformSuggestion("alpha", 0, 1)
-    ]
+    default_tune_range = default_tune_range_knn + [UniformSuggestion("alpha", 0, 1)]
 
     def __init__(
         self,
@@ -166,9 +162,7 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         )
         self.alpha = alpha
 
-    def _create_computer(
-        self, X: InteractionMatrix
-    ) -> AsymmetricSimilarityComputer:
+    def _create_computer(self, X: InteractionMatrix) -> AsymmetricSimilarityComputer:
         return AsymmetricSimilarityComputer(
             X, self.shrinkage, self.alpha, self.n_thread
         )

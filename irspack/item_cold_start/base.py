@@ -25,9 +25,13 @@ class ItemColdStartRecommenderBase(ABC):
         self.X_profile = X_profile
         self.X_interaction = X_interaction.tocsr()
         self.X_interaction.sort_indices()
+    
+    def learn(self) -> "ItemColdStartRecommenderBase":
+        self._learn()
+        return self
 
     @abstractmethod
-    def learn(self) -> None:
+    def _learn(self) -> None:
         pass
 
     @abstractmethod

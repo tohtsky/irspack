@@ -32,7 +32,7 @@ class P3alphaRecommender(
         self.top_k = top_k
         self.normalize_weight = normalize_weight
 
-    def learn(self):
+    def _learn(self):
         computer = P3alphaComputer(
             self.X_all.T,
             alpha=self.alpha,

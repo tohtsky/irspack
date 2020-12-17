@@ -26,7 +26,7 @@ class CB2CFItemColdStartRecommender(ItemColdStartRecommenderBase):
         self.mlp = mlp
         self.mlp.eval()
 
-    def learn(self) -> None:
+    def _learn(self) -> None:
         pass
 
     def predict_item_embedding(self, item_profile: ProfileMatrix) -> DenseMatrix:
@@ -77,7 +77,9 @@ class CB2CFItemOptimizerBase(object):
         if logger is not None:
             logger.info("Start learning the CB embedding.")
         recommender, best_config_recommender = self.search_embedding(
-            n_trials, logger, timeout=timeout,
+            n_trials,
+            logger,
+            timeout=timeout,
         )
 
         if logger is not None:

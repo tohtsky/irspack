@@ -218,6 +218,9 @@ PYBIND11_MODULE(_evaluator, m) {
       .def("as_dict", &Metrics::as_dict);
 
   py::class_<EvaluatorCore>(m, "EvaluatorCore")
-      .def(py::init<const typename EvaluatorCore::SparseMatrix &>())
-      .def("get_metrics", &EvaluatorCore::get_metrics);
+      .def(py::init<const typename EvaluatorCore::SparseMatrix &>(),
+           py::arg("grount_truth"))
+      .def("get_metrics", &EvaluatorCore::get_metrics, py::arg("score_array"),
+           py::arg("cutoff"), py::arg("offset"), py::arg("n_thread"),
+           py::arg("recall_with_cutoff") = false);
 }

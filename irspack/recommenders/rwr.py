@@ -28,7 +28,7 @@ class RandomWalkWithRestartRecommender(
         self.cutoff = cutoff
         self.random_seed = random_seed
 
-    def learn(self) -> None:
+    def _learn(self) -> None:
         rwg = RandomWalkGenerator(self.X_all.tocsr())
         self.W = rwg.run_with_restart(
             self.decay, self.cutoff, self.n_samples, self.n_thread, self.random_seed

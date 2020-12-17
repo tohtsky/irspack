@@ -13,7 +13,7 @@ class TopPopRecommender(BaseRecommenderWithColdStartPredictability):
         super().__init__(X_train)
         self.score = None
 
-    def learn(self):
+    def _learn(self):
         self.score = self.X_all.sum(axis=0).astype(np.float64)
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:

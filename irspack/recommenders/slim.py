@@ -47,5 +47,5 @@ class SLIMRecommender(BaseSimilarityRecommender):
         self.alpha = alpha
         self.l1_ratio = l1_ratio
 
-    def learn(self):
+    def _learn(self) -> None:
         self.W = slim_weight(self.X_all, alpha=self.alpha, l1_ratio=self.l1_ratio)

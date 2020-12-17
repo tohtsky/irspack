@@ -34,7 +34,7 @@ class UserCBKNNRecommender(UserColdStartRecommenderBase):
         self.X_interaction_csc = X_interaction.astype(np.float64).tocsc()
         self.sim_computer = None
 
-    def learn(self) -> None:
+    def _learn(self) -> None:
         self.sim_computer = CosineKNNComputer(
             self.X_profile, self.n_thread, self.shrink
         )

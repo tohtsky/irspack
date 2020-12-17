@@ -40,7 +40,7 @@ class LinearRecommender(UserColdStartRecommenderBase):
         self.fit_intercept = fit_intercept
         self.W = None
 
-    def learn(self):
+    def _learn(self):
         if self.fit_intercept:
             X_profile_local = self.enlarge_profile(self.X_profile)
         else:

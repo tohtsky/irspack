@@ -74,12 +74,12 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         with BytesIO(self.best_state) as ifs:
             self.trainer.load_state(ifs)
 
-    def learn(self):
+    def _learn(self):
         self.learn_with_optimizer(None, None)
 
     def learn_with_optimizer(
         self, evaluator: Optional[Evaluator], trial: Optional[Trial]
-    ) -> None:
+    ) -> "BaseRecommenderWithEarlyStopping":
         self.start_learning()
         best_score = -float("inf")
         n_score_degradation = 0
@@ -116,3 +116,4 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
 
             if evaluator is not None:
                 self.load_state()
+        return self

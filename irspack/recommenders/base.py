@@ -37,15 +37,19 @@ class BaseRecommender(ABC):
         if attr is None:
             raise CallBeforeFitError("method called before fit")
 
+    def learn(self) -> "BaseRecommender":
+        self._learn()
+        return self
+
     @abstractmethod
-    def learn(self):
+    def _learn(self) -> None:
         pass
 
     def learn_with_optimizer(
         self, evaluator: Optional["evaluator.Evaluator"], trial: Optional[Trial]
     ) -> None:
         # by default, evaluator & trial does not play any role.
-        self.learn()
+        return self.learn()
 
     @abstractmethod
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:

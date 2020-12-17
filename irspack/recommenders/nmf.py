@@ -30,7 +30,7 @@ class NMFRecommender(BaseRecommender):
         self.beta_loss = beta_loss
         self.init = init
 
-    def learn(self) -> None:
+    def _learn(self) -> None:
         nmf_model = NMF(
             n_components=self.n_components,
             alpha=self.alpha,

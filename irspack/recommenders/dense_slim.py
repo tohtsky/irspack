@@ -15,7 +15,7 @@ class DenseSLIMRecommender(BaseSimilarityRecommender):
         super(DenseSLIMRecommender, self).__init__(X_all)
         self.reg = reg
 
-    def learn(self) -> None:
+    def _learn(self) -> None:
         X_all_f32 = self.X_all.astype(np.float32)
         P = X_all_f32.T.dot(X_all_f32)
         P_dense: np.ndarray = P.todense()

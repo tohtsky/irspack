@@ -36,7 +36,7 @@ class RP3betaRecommender(BaseSimilarityRecommender):
         self.top_k = top_k
         self.normalize_weight = normalize_weight
 
-    def learn(self) -> None:
+    def _learn(self) -> None:
         Pui = self.X_all.tocsc()
         Pui.data = np.power(Pui.data, self.alpha)
         Pui = normalize(Pui, norm="l1", axis=1)

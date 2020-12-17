@@ -3,7 +3,7 @@ from .base import UserColdStartRecommenderBase, ProfileMatrix
 
 
 class TopPopularRecommender(UserColdStartRecommenderBase):
-    def learn(self):
+    def _learn(self):
         self.popularity = self.X_interaction.sum(axis=0).astype(np.float64)
 
     def get_score(self, profile: ProfileMatrix):

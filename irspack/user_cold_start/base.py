@@ -27,7 +27,7 @@ class UserColdStartRecommenderBase(ABC):
         pass
 
     @abstractmethod
-    def learn(self) -> None:
+    def _learn(self) -> None:
         pass
 
     @abstractmethod

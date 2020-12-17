@@ -30,7 +30,7 @@ class TruncatedSVDRecommender(
         self.n_components = n_components
         self.decomposer = None
 
-    def learn(self):
+    def _learn(self):
         self.decomposer = TruncatedSVD(n_components=self.n_components)
         self.z = self.decomposer.fit_transform(self.X_all)
 
