@@ -7,7 +7,7 @@ from scipy.sparse.csr import csr_matrix
 class BaseEncoder(ABC):
     names: List[Any]
 
-    def __init___(self, *args, **kwargs):
+    def __init___(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
@@ -17,4 +17,3 @@ class BaseEncoder(ABC):
     @abstractmethod
     def __len__(self) -> int:
         raise NotImplementedError("not implemented")
-

@@ -9,11 +9,15 @@ from .multi_value import ManyToManyEncoder
 
 
 class DataFrameEncoder:
-    def __init__(self):
+    def __init__(self) -> None:
         self.encoders: Dict[str, BaseEncoder] = OrderedDict()
-        self.multivalue_encoders: List[Tuple[str, str, str, ManyToManyEncoder]] = []
+        self.multivalue_encoders: List[
+            Tuple[str, str, str, ManyToManyEncoder]
+        ] = []
 
-    def add_column(self, column: str, mapper: BaseEncoder) -> "DataFrameEncoder":
+    def add_column(
+        self, column: str, mapper: BaseEncoder
+    ) -> "DataFrameEncoder":
         self.encoders[column] = mapper
         return self
 
@@ -32,11 +36,15 @@ class DataFrameEncoder:
     ) -> "DataFrameEncoder":
         if right_key is None:
             right_key = left_key
-        self.multivalue_encoders.append((left_key, target_column, right_key, encoder))
+        self.multivalue_encoders.append(
+            (left_key, target_column, right_key, encoder)
+        )
         return self
 
     def transform_sparse(
-        self, main_table: pd.DataFrame, many_to_many_dfs: List[pd.DataFrame] = []
+        self,
+        main_table: pd.DataFrame,
+        many_to_many_dfs: List[pd.DataFrame] = [],
     ) -> sps.csr_matrix:
         if len(many_to_many_dfs) != len(self.multivalue_encoders):
             raise ValueError(
@@ -46,9 +54,12 @@ class DataFrameEncoder:
         for colname, mapper in self.encoders.items():
             Xs.append(mapper.transform_sparse(main_table[colname]))
 
-        for df_, (index_name_main, item_colname, index_name_child, encoder) in zip(
-            many_to_many_dfs, self.multivalue_encoders
-        ):
+        for df_, (
+            index_name_main,
+            item_colname,
+            index_name_child,
+            encoder,
+        ) in zip(many_to_many_dfs, self.multivalue_encoders):
             Xs.append(
                 encoder.transform_sparse(
                     main_table,
@@ -59,4 +70,3 @@ class DataFrameEncoder:
                 )
             )
         return sps.hstack(Xs, format="csr")
-
