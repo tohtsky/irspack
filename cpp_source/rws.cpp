@@ -111,9 +111,16 @@ protected:
                                                     size_t n_step,
                                                     size_t n_count,
                                                     std::mt19937 &rns) const {
+
     map<size_t, int> count;
+    auto current_loc = item_start_index;
+    size_t start_index = item_user.outerIndexPtr()[current_loc];
+    size_t ep = item_user.outerIndexPtr()[current_loc + 1];
+    size_t nnz = ep - start_index;
+    if (nnz == 0) {
+      return count;
+    }
     for (size_t m = 0; m < n_count; m++) {
-      auto current_loc = item_start_index;
       for (size_t n = 0; n < n_step; n++) {
         current_loc = step_i_to_u(current_loc, rns);
         current_loc = step_u_to_i(current_loc, rns);
@@ -128,6 +135,13 @@ protected:
                                                  size_t n_count,
                                                  std::mt19937 &rns) const {
     map<size_t, int> count;
+    auto current_loc = item_start_index;
+    size_t start_index = item_user.outerIndexPtr()[current_loc];
+    size_t ep = item_user.outerIndexPtr()[current_loc + 1];
+    size_t nnz = ep - start_index;
+    if (nnz == 0) {
+      return count;
+    }
     for (size_t m = 0; m < n_count; m++) {
       auto current_loc = item_start_index;
       for (size_t n = 0; n < cutoff; n++) {
