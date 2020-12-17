@@ -23,31 +23,39 @@ class TruncatedSVDRecommender(
 ):
     default_tune_range = [IntegerSuggestion("n_components", 4, 512)]
     decomposer: Optional[TruncatedSVD]
-    z: Optional[DenseMatrix]
 
-    def __init__(self, X_all, n_components=4):
+    def __init__(self, X_all: InteractionMatrix, n_components: int = 4) -> None:
         super().__init__(X_all)
         self.n_components = n_components
-        self.decomposer = None
+        self.decomposer_: Optional[TruncatedSVD] = None
+        self.z_: Optional[DenseMatrix] = None
 
-    def _learn(self):
-        self.decomposer = TruncatedSVD(n_components=self.n_components)
-        self.z = self.decomposer.fit_transform(self.X_all)
+    @property
+    def z(self) -> DenseMatrix:
+        if self.z_ is None:
+            raise RuntimeError("z fetched before fit")
+        return self.z_
 
-    def get_score(self, user_indices):
+    @property
+    def decomposer(self) -> TruncatedSVD:
+        if self.decomposer_ is None:
+            raise RuntimeError("decomposer fetched before fit.")
+        return self.decomposer_
+
+    def _learn(self) -> None:
+        self.decomposer_ = TruncatedSVD(n_components=self.n_components)
+        self.z_ = self.decomposer_.fit_transform(self.X_all)
+
+    def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         return self.z[user_indices].dot(self.decomposer.components_)
 
-    def get_score_block(self, begin, end):
+    def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         return self.z[begin:end].dot(self.decomposer.components_)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        if self.decomposer is None:
-            raise RuntimeError("No fit yet")
         return self.decomposer.transform(X).dot(self.decomposer.components_)
 
     def get_user_embedding(self) -> DenseMatrix:
-        if self.z is None:
-            raise RuntimeError("No fit yet")
         return self.z
 
     def get_score_from_user_embedding(
@@ -59,13 +67,9 @@ class TruncatedSVDRecommender(
         return user_embedding.dot(self.decomposer.components_)
 
     def get_item_embedding(self) -> DenseMatrix:
-        if self.decomposer is None:
-            raise RuntimeError("No fit yet")
         return self.decomposer.components_.T
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.z is None:
-            raise RuntimeError("No fit yet")
         return self.z[user_indices].dot(item_embedding.T)
