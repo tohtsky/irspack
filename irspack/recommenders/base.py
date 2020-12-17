@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from os import environ
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 from optuna.trial import Trial
@@ -21,7 +21,7 @@ class CallBeforeFitError(Exception):
 
 
 class BaseRecommender(ABC):
-    def __init__(self, X_all: InteractionMatrix, **kwargs) -> None:
+    def __init__(self, X_all: InteractionMatrix, **kwargs: Any) -> None:
         self.X_all = sps.csr_matrix(X_all).astype(np.float64)
         self.n_user: int = self.X_all.shape[0]
         self.n_item: int = self.X_all.shape[1]
@@ -95,10 +95,8 @@ class BaseRecommenderWithColdStartPredictability(BaseRecommender):
 
 
 class BaseRecommenderWithThreadingSupport(BaseRecommender):
-    n_thread: int
-
     def __init__(
-        self, X_all: InteractionMatrix, n_thread: Optional[int], **kwargs
+        self, X_all: InteractionMatrix, n_thread: Optional[int], **kwargs: Any
     ):
         super(BaseRecommenderWithThreadingSupport, self).__init__(
             X_all, **kwargs
@@ -117,7 +115,7 @@ class BaseRecommenderWithThreadingSupport(BaseRecommender):
 class BaseSimilarityRecommender(BaseRecommenderWithColdStartPredictability):
     W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super(BaseSimilarityRecommender, self).__init__(*args, **kwargs)
         self.W_ = None
 

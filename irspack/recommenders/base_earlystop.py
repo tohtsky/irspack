@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from io import BytesIO
-from typing import IO, Optional
+from typing import IO, Optional, Any
 
 from optuna import Trial, exceptions
 from tqdm import tqdm
@@ -11,7 +11,7 @@ from .base import BaseRecommender
 
 
 class TrainerBase(ABC):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
@@ -36,7 +36,7 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         max_epoch: int = 512,
         validate_epoch: int = 5,
         score_degration_max: int = 3,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(X_all, **kwargs)
         self.max_epoch = max_epoch
