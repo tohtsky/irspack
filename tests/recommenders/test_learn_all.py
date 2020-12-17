@@ -17,6 +17,7 @@ from irspack.recommenders import (
     DenseSLIMRecommender,
     SLIMRecommender,
 )
+from irspack.evaluator import Evaluator
 
 X_train = sps.csr_matrix(
     np.asfarray(
@@ -47,9 +48,13 @@ rec_classes: List[Type[BaseRecommender]] = [
 
 
 @pytest.mark.parametrize("RecommenderClass", rec_classes)
-def test_recs(RecommenderClass):
+def test_recs(RecommenderClass) -> None:
     rec = RecommenderClass(X_train)
     rec.learn()
     scores = rec.get_score(np.arange(X_train.shape[0]))
+    eval = Evaluator(X_test, 0, 20)
+    with pytest.raises(RuntimeError):
+        eval.get_score(rec)
+    eval.get_scores(rec, cutoffs=[X_train.shape[1]])
     assert np.all(np.isfinite(scores))
     assert np.all(~np.isnan(scores))
