@@ -1,9 +1,13 @@
+from typing import Union
 import numpy as np
 from scipy import sparse as sps
 
 
-def restrict_topk_columnwise(W, top_k) -> sps.csc_matrix:
-    W_temp = W.tocsc()
+def restrict_topk_columnwise(
+    W: Union[sps.csr_matrix, sps.csc_matrix], top_k: int
+) -> sps.csc_matrix:
+    W_temp: sps.csc_matrix = W.tocsc()
+    W_temp.sort_indices()
     data = []
     rows = []
     cols = []

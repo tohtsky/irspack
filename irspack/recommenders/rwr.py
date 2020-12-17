@@ -7,12 +7,6 @@ from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
 class RandomWalkWithRestartRecommender(
     BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
 ):
-    default_tune_range = [
-        parameter_tuning.UniformSuggestion("decay", 1e-2, 9.9e-1),
-        parameter_tuning.IntegerSuggestion("n_samples", 100, 2000, step=100),
-        parameter_tuning.IntegerSuggestion("cutoff", 100, 2000, step=100),
-    ]
-
     def __init__(
         self,
         X_all: InteractionMatrix,
@@ -30,7 +24,11 @@ class RandomWalkWithRestartRecommender(
 
     def _learn(self) -> None:
         rwg = RandomWalkGenerator(self.X_all.tocsr())
-        self.W = rwg.run_with_restart(
-            self.decay, self.cutoff, self.n_samples, self.n_thread, self.random_seed
+        self.W_ = rwg.run_with_restart(
+            self.decay,
+            self.cutoff,
+            self.n_samples,
+            self.n_thread,
+            self.random_seed,
         )
-        self.W = self.W.tocsc() / self.n_samples
+        self.W_ = self.W_.tocsc() / self.n_samples

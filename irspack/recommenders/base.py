@@ -21,9 +21,7 @@ class CallBeforeFitError(Exception):
 
 
 class BaseRecommender(ABC):
-    default_tune_range: List[Suggestion] = []
-
-    def __init__(self, X_all: InteractionMatrix, **kwargs):
+    def __init__(self, X_all: InteractionMatrix, **kwargs) -> None:
         self.X_all = sps.csr_matrix(X_all).astype(np.float64)
         self.n_user: int = self.X_all.shape[0]
         self.n_item: int = self.X_all.shape[1]
@@ -49,7 +47,7 @@ class BaseRecommender(ABC):
         self, evaluator: Optional["evaluator.Evaluator"], trial: Optional[Trial]
     ) -> None:
         # by default, evaluator & trial does not play any role.
-        return self.learn()
+        self.learn()
 
     @abstractmethod
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
@@ -58,7 +56,9 @@ class BaseRecommender(ABC):
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         raise NotImplementedError("get_score_block not implemented!")
 
-    def get_score_remove_seen_block(self, begin: int, end: int) -> DenseScoreArray:
+    def get_score_remove_seen_block(
+        self, begin: int, end: int
+    ) -> DenseScoreArray:
         scores = self.get_score_block(begin, end)
         if sps.issparse(scores):
             scores = scores.toarray()
@@ -68,7 +68,9 @@ class BaseRecommender(ABC):
             scores = scores.astype(np.float64)
         return scores
 
-    def get_score_remove_seen(self, user_indices: np.ndarray) -> DenseScoreArray:
+    def get_score_remove_seen(
+        self, user_indices: np.ndarray
+    ) -> DenseScoreArray:
         scores = self.get_score(user_indices)
         if sps.issparse(scores):
             scores = scores.toarray()
@@ -84,7 +86,9 @@ class BaseRecommenderWithColdStartPredictability(BaseRecommender):
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         raise NotImplementedError("get_score_cold_user not implemented!")
 
-    def get_score_cold_user_remove_seen(self, X: InteractionMatrix) -> DenseScoreArray:
+    def get_score_cold_user_remove_seen(
+        self, X: InteractionMatrix
+    ) -> DenseScoreArray:
         score = self.get_score_cold_user(X)
         score[X.nonzero()] = -np.inf
         return score
@@ -93,8 +97,12 @@ class BaseRecommenderWithColdStartPredictability(BaseRecommender):
 class BaseRecommenderWithThreadingSupport(BaseRecommender):
     n_thread: int
 
-    def __init__(self, X_all: InteractionMatrix, n_thread: Optional[int], **kwargs):
-        super(BaseRecommenderWithThreadingSupport, self).__init__(X_all, **kwargs)
+    def __init__(
+        self, X_all: InteractionMatrix, n_thread: Optional[int], **kwargs
+    ):
+        super(BaseRecommenderWithThreadingSupport, self).__init__(
+            X_all, **kwargs
+        )
         if n_thread is not None:
             self.n_thread = n_thread
         else:
@@ -107,15 +115,19 @@ class BaseRecommenderWithThreadingSupport(BaseRecommender):
 
 
 class BaseSimilarityRecommender(BaseRecommenderWithColdStartPredictability):
-    W: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
+    W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super(BaseSimilarityRecommender, self).__init__(*args, **kwargs)
-        self.W = None
+        self.W_ = None
+
+    @property
+    def W(self) -> Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]:
+        if self.W_ is None:
+            raise RuntimeError("W fetched before fit.")
+        return self.W_
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        if self.W is None:
-            raise RuntimeError("'get_score' called before the fit")
         if sps.issparse(self.W):
             return self.X_all[user_indices].dot(self.W).toarray()
         else:
@@ -130,8 +142,6 @@ class BaseSimilarityRecommender(BaseRecommenderWithColdStartPredictability):
             return X.dot(self.W)
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
-        if self.W is None:
-            raise RuntimeError("'get_score_block' called before the fit")
         if sps.issparse(self.W):
             return self.X_all[begin:end].dot(self.W).toarray()
         else:

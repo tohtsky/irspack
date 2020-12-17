@@ -23,7 +23,7 @@ class TrainerBase(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def run_epoch(self, **kwargs) -> None:
+    def run_epoch(self) -> None:
         raise NotImplementedError()
 
 
@@ -56,30 +56,38 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
 
     def run_epoch(self) -> None:
         if self.trainer is None:
-            raise RuntimeError("'run_epoch' called before initializing the trainer.")
+            raise RuntimeError(
+                "'run_epoch' called before initializing the trainer."
+            )
         self.trainer.run_epoch()
 
     def save_state(self) -> None:
         if self.trainer is None:
-            raise RuntimeError("'save_state' called before initializing the trainer.")
+            raise RuntimeError(
+                "'save_state' called before initializing the trainer."
+            )
         with BytesIO() as ofs:
             self.trainer.save_state(ofs)
             self.best_state = ofs.getvalue()
 
     def load_state(self) -> None:
         if self.trainer is None:
-            raise RuntimeError("'load_state' called before initializing the trainer.")
+            raise RuntimeError(
+                "'load_state' called before initializing the trainer."
+            )
         if self.best_state is None:
-            raise RuntimeError("'load_state' called before achieving any results.")
+            raise RuntimeError(
+                "'load_state' called before achieving any results."
+            )
         with BytesIO(self.best_state) as ifs:
             self.trainer.load_state(ifs)
 
-    def _learn(self):
+    def _learn(self) -> None:
         self.learn_with_optimizer(None, None)
 
     def learn_with_optimizer(
         self, evaluator: Optional[Evaluator], trial: Optional[Trial]
-    ) -> "BaseRecommenderWithEarlyStopping":
+    ) -> None:
         self.start_learning()
         best_score = -float("inf")
         n_score_degradation = 0
@@ -116,4 +124,3 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
 
             if evaluator is not None:
                 self.load_state()
-        return self

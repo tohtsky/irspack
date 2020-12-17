@@ -10,12 +10,7 @@ from ._knn import (
     JaccardSimilarityComputer,
     TverskyIndexComputer,
 )
-from ..parameter_tuning import (
-    IntegerSuggestion,
-    LogUniformSuggestion,
-    UniformSuggestion,
-    CategoricalSuggestion,
-)
+
 from ..utils import tf_idf_weight, okapi_BM_25_weight
 
 
@@ -23,13 +18,6 @@ class FeatureWeightingScheme(str, enum.Enum):
     NONE = "NONE"
     TF_IDF = "TF_IDF"
     BM_25 = "BM_25"
-
-
-default_tune_range_knn = [
-    IntegerSuggestion("top_k", 4, 1000),
-    UniformSuggestion("shrinkage", 0, 1000),
-    CategoricalSuggestion("feature_weighting", ["NONE", "TF_IDF", "BM_25"]),
-]
 
 
 class BaseKNNRecommender(
@@ -55,10 +43,11 @@ class BaseKNNRecommender(
         CosineSimilarityComputer,
         AsymmetricSimilarityComputer,
         JaccardSimilarityComputer,
+        TverskyIndexComputer,
     ]:
         raise NotImplementedError("")
 
-    def _learn(self):
+    def _learn(self) -> None:
         if self.feature_weighting == FeatureWeightingScheme.NONE:
             X_weighted = self.X_all
         elif self.feature_weighting == FeatureWeightingScheme.TF_IDF:
@@ -69,15 +58,13 @@ class BaseKNNRecommender(
             raise RuntimeError("Unknown weighting scheme.")
 
         computer = self._create_computer(X_weighted.T)
-        self.W = computer.compute_similarity(self.X_all.T, self.top_k).tocsc()
-        self.W[np.arange(self.n_item), np.arange(self.n_item)] = 0.0
+        self.W_ = computer.compute_similarity(self.X_all.T, self.top_k).tocsc()
+
+        # to do make this faster
+        self.W_[np.arange(self.n_item), np.arange(self.n_item)] = 0.0
 
 
 class CosineKNNRecommender(BaseKNNRecommender):
-    default_tune_range = default_tune_range_knn.copy() + [
-        CategoricalSuggestion("normalize", [False, True])
-    ]
-
     def __init__(
         self,
         X_all: InteractionMatrix,
@@ -86,7 +73,7 @@ class CosineKNNRecommender(BaseKNNRecommender):
         top_k: int = 100,
         feature_weighting: str = "NONE",
         n_thread: Optional[int] = 1,
-    ):
+    ) -> None:
         super().__init__(
             X_all,
             shrinkage,
@@ -96,18 +83,15 @@ class CosineKNNRecommender(BaseKNNRecommender):
         )
         self.normalize = normalize
 
-    def _create_computer(self, X) -> CosineSimilarityComputer:
+    def _create_computer(
+        self, X: InteractionMatrix
+    ) -> CosineSimilarityComputer:
         return CosineSimilarityComputer(
             X, self.shrinkage, self.normalize, self.n_thread
         )
 
 
 class TverskyIndexKNNRecommender(BaseKNNRecommender):
-    default_tune_range = default_tune_range_knn.copy() + [
-        UniformSuggestion("alpha", 0, 2),
-        UniformSuggestion("beta", 0, 2),
-    ]
-
     def __init__(
         self,
         X_all: InteractionMatrix,
@@ -117,7 +101,7 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
         top_k: int = 100,
         feature_weighting: str = "NONE",
         n_thread: Optional[int] = 1,
-    ):
+    ) -> None:
         super().__init__(
             X_all,
             shrinkage,
@@ -128,22 +112,20 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
         self.alpha = alpha
         self.beta = beta
 
-    def _create_computer(self, X) -> CosineSimilarityComputer:
+    def _create_computer(self, X: InteractionMatrix) -> TverskyIndexComputer:
         return TverskyIndexComputer(
             X, self.shrinkage, self.alpha, self.beta, self.n_thread
         )
 
 
 class JaccardKNNRecommender(BaseKNNRecommender):
-    default_tune_range = default_tune_range_knn.copy()
-
-    def _create_computer(self, X: InteractionMatrix) -> JaccardSimilarityComputer:
+    def _create_computer(
+        self, X: InteractionMatrix
+    ) -> JaccardSimilarityComputer:
         return JaccardSimilarityComputer(X, self.shrinkage, self.n_thread)
 
 
 class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
-    default_tune_range = default_tune_range_knn + [UniformSuggestion("alpha", 0, 1)]
-
     def __init__(
         self,
         X_all: InteractionMatrix,
@@ -162,7 +144,9 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         )
         self.alpha = alpha
 
-    def _create_computer(self, X: InteractionMatrix) -> AsymmetricSimilarityComputer:
+    def _create_computer(
+        self, X: InteractionMatrix
+    ) -> AsymmetricSimilarityComputer:
         return AsymmetricSimilarityComputer(
             X, self.shrinkage, self.alpha, self.n_thread
         )

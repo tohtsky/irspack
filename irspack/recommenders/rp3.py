@@ -15,13 +15,6 @@ from .utils import restrict_topk_columnwise
 
 
 class RP3betaRecommender(BaseSimilarityRecommender):
-    default_tune_range = [
-        LogUniformSuggestion("alpha", 1e-5, 10),
-        IntegerSuggestion("top_k", 2, 4000),
-        LogUniformSuggestion("beta", 1e-5, 5e-1),
-        CategoricalSuggestion("normalize_weight", [True, False]),
-    ]
-
     def __init__(
         self,
         X_all: InteractionMatrix,
@@ -64,9 +57,9 @@ class RP3betaRecommender(BaseSimilarityRecommender):
         W_un_normalized: sps.csc_matrix = sps.hstack(Ws, format="csc")
 
         if self.normalize_weight:
-            self.W = normalize(W_un_normalized, norm="l1", axis=1)
+            self.W_ = normalize(W_un_normalized, norm="l1", axis=1)
         else:
-            self.W = W_un_normalized
+            self.W_ = W_un_normalized
 
-        self.W.eliminate_zeros()
-        self.W.sort_indices()
+        self.W_.eliminate_zeros()
+        self.W_.sort_indices()

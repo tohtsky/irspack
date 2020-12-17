@@ -32,13 +32,13 @@ class P3alphaRecommender(
         self.top_k = top_k
         self.normalize_weight = normalize_weight
 
-    def _learn(self):
+    def _learn(self) -> None:
         computer = P3alphaComputer(
             self.X_all.T,
             alpha=self.alpha,
             n_thread=self.n_thread,
         )
         top_k = self.X_all.shape[1] if self.top_k is None else self.top_k
-        self.W = computer.compute_W(self.X_all.T, top_k)
+        self.W_ = computer.compute_W(self.X_all.T, top_k)
         if self.normalize_weight:
-            self.W = normalize(self.W, norm="l1", axis=1)
+            self.W_ = normalize(self.W_, norm="l1", axis=1)

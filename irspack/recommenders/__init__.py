@@ -6,7 +6,6 @@ from .base import (
 )
 from .base_earlystop import BaseRecommenderWithEarlyStopping
 from .slim import SLIMRecommender
-from .mf import SVDRecommender
 from .p3 import P3alphaRecommender
 from .toppop import TopPopRecommender
 from .rp3 import RP3betaRecommender
@@ -36,7 +35,6 @@ __all__ = [
     "SLIMRecommender",
     "TruncatedSVDRecommender",
     "IALSRecommender",
-    "SVDRecommender",
     "CosineKNNRecommender",
     "JaccardKNNRecommender",
     "TverskyIndexKNNRecommender",

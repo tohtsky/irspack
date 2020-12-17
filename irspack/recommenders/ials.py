@@ -56,7 +56,7 @@ class IALSTrainer(TrainerBase):
             protocol=pickle.HIGHEST_PROTOCOL,
         )
 
-    def run_epoch(self, **kwargs) -> None:
+    def run_epoch(self) -> None:
         self.core_trainer.step()
 
 
@@ -117,14 +117,14 @@ class IALSRecommender(
             self.n_thread,
         )
 
-    def get_score(self, index) -> DenseScoreArray:
+    def get_score(self, index: UserIndexArray) -> DenseScoreArray:
         if self.trainer is None:
             raise RuntimeError("'get_score' called before training")
         return self.trainer.core_trainer.user[index].dot(
             self.trainer.core_trainer.item.T
         )
 
-    def get_score_block(self, begin, end) -> DenseScoreArray:
+    def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         if self.trainer is None:
             raise RuntimeError("'get_score_block' called before training")
         return self.trainer.core_trainer.user_scores(begin, end)
@@ -135,7 +135,9 @@ class IALSRecommender(
         user_vector = self.trainer.core_trainer.transform_user(
             X.astype(np.float32).tocsr()
         )
-        return user_vector.dot(self.trainer.core_trainer.item.T).astype(np.float64)
+        return user_vector.dot(self.trainer.core_trainer.item.T).astype(
+            np.float64
+        )
 
     def get_user_embedding(self) -> DenseMatrix:
         if self.trainer is None:
@@ -147,7 +149,9 @@ class IALSRecommender(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
         if self.trainer is None:
-            raise RuntimeError("'get_score_from_user_embedding' called before training")
+            raise RuntimeError(
+                "'get_score_from_user_embedding' called before training"
+            )
 
         return user_embedding.dot(self.trainer.core_trainer.item.T)
 
@@ -160,7 +164,9 @@ class IALSRecommender(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
         if self.trainer is None:
-            raise RuntimeError("'get_score_from_item_embedding' called before training")
+            raise RuntimeError(
+                "'get_score_from_item_embedding' called before training"
+            )
         return (
             self.trainer.core_trainer.user[user_indices]
             .dot(item_embedding.T)

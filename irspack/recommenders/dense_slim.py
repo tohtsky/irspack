@@ -9,8 +9,6 @@ from .base import BaseSimilarityRecommender
 
 
 class DenseSLIMRecommender(BaseSimilarityRecommender):
-    default_tune_range = [LogUniformSuggestion("reg", 1, 1e4)]
-
     def __init__(self, X_all: InteractionMatrix, reg: float = 1):
         super(DenseSLIMRecommender, self).__init__(X_all)
         self.reg = reg
@@ -29,4 +27,4 @@ class DenseSLIMRecommender(BaseSimilarityRecommender):
         P_dense *= -diag_P_inv[np.newaxis, :]
         range_ = np.arange(self.n_item)
         P_dense[range_, range_] = 0
-        self.W = P_dense
+        self.W_ = P_dense

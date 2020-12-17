@@ -38,7 +38,7 @@ class BPRFMTrainer(TrainerBase):
             loss=loss,
         )
 
-    def run_epoch(self, **kwargs) -> None:
+    def run_epoch(self) -> None:
         self.fm.fit_partial(self.X, num_threads=self.n_thread)
 
     def load_state(self, ifs: IO) -> None:
@@ -54,13 +54,6 @@ class BPRFMRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    default_tune_range = [
-        parameter_tuning.IntegerSuggestion("n_components", 4, 256),
-        parameter_tuning.LogUniformSuggestion("item_alpha", 1e-9, 1e-2),
-        parameter_tuning.LogUniformSuggestion("user_alpha", 1e-9, 1e-2),
-        parameter_tuning.CategoricalSuggestion("loss", ["bpr", "warp"]),
-    ]
-
     def __init__(
         self,
         X_all: InteractionMatrix,
@@ -125,7 +118,9 @@ class BPRFMRecommender(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
         if self.trainer is None:
-            raise RuntimeError("'get_score_from_user_embedding' called before training")
+            raise RuntimeError(
+                "'get_score_from_user_embedding' called before training"
+            )
         return (
             user_embedding.dot(self.trainer.fm.item_embeddings.T)
             + self.trainer.fm.item_biases[np.newaxis, :]
@@ -140,7 +135,9 @@ class BPRFMRecommender(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
         if self.trainer is None:
-            raise RuntimeError("'get_score_from_item_embedding' called before training")
+            raise RuntimeError(
+                "'get_score_from_item_embedding' called before training"
+            )
         # ignore bias
         return (
             self.trainer.fm.user_embeddings[user_indices]

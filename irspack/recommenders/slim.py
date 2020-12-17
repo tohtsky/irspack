@@ -6,7 +6,9 @@ from ..definitions import InteractionMatrix
 from .base import BaseSimilarityRecommender
 
 
-def slim_weight(X, alpha, l1_ratio):
+def slim_weight(
+    X: InteractionMatrix, alpha: float, l1_ratio: float
+) -> sps.csr_matrix:
     model = ElasticNet(
         fit_intercept=False,
         positive=True,
@@ -31,21 +33,21 @@ def slim_weight(X, alpha, l1_ratio):
         model.fit(A, target)
         coeff_all.append(model.sparse_coef_)
         A.data[start_pos:end_pos] = current_item_data_backup
-    return sps.vstack(coeff_all)
+    return sps.vstack(coeff_all, format="csr")
 
 
 class SLIMRecommender(BaseSimilarityRecommender):
-    default_tune_range = [
-        parameter_tuning.UniformSuggestion("alpha", 0, 1),
-        parameter_tuning.LogUniformSuggestion("l1_ratio", 1e-6, 1),
-    ]
-
     def __init__(
-        self, X_all: InteractionMatrix, alpha: float = 0.05, l1_ratio: float = 0.01
+        self,
+        X_all: InteractionMatrix,
+        alpha: float = 0.05,
+        l1_ratio: float = 0.01,
     ):
         super(SLIMRecommender, self).__init__(X_all)
         self.alpha = alpha
         self.l1_ratio = l1_ratio
 
     def _learn(self) -> None:
-        self.W = slim_weight(self.X_all, alpha=self.alpha, l1_ratio=self.l1_ratio)
+        self.W_ = slim_weight(
+            self.X_all, alpha=self.alpha, l1_ratio=self.l1_ratio
+        )

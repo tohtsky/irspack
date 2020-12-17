@@ -1,3 +1,4 @@
+from typing import Optional
 from sklearn.decomposition import NMF
 from .base import BaseRecommender
 from ..definitions import InteractionMatrix, DenseScoreArray, UserIndexArray
@@ -21,7 +22,7 @@ class NMFRecommender(BaseRecommender):
         alpha: float = 1e-2,
         l1_ratio: float = 1e-2,
         beta_loss: str = "frobenius",
-        init=None,
+        init: Optional[str] = None,
     ):
         super().__init__(X_all)
         self.n_components = n_components
