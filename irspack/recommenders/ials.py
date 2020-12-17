@@ -18,7 +18,6 @@ from ..definitions import (
     UserIndexArray,
 )
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
-from ..parameter_tuning import IntegerSuggestion, LogUniformSuggestion
 
 
 class IALSTrainer(TrainerBase):
@@ -73,12 +72,6 @@ class IALSRecommender(
     Y. Hu, Y. Koren and C. Volinsky, Collaborative filtering for implicit feedback datasets, ICDM 2008.
     http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf
     """
-
-    default_tune_range = [
-        IntegerSuggestion("n_components", 4, 200),
-        LogUniformSuggestion("alpha", 1, 50),
-        LogUniformSuggestion("reg", 1e-10, 1e-2),
-    ]
 
     def __init__(
         self,

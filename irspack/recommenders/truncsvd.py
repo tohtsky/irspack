@@ -21,8 +21,6 @@ class TruncatedSVDRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    default_tune_range = [IntegerSuggestion("n_components", 4, 512)]
-
     def __init__(self, X_all: InteractionMatrix, n_components: int = 4) -> None:
         super().__init__(X_all)
         self.n_components = n_components

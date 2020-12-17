@@ -72,7 +72,7 @@ class BaseMLP:
 
 
 class DecoderNN(BaseMLP, nn.Module):
-    def __init__(self, latent_dim, output_dim, hidden_dims):
+    def __init__(self, latent_dim: int, output_dim: int, hidden_dims: int):
         super().__init__(latent_dim, output_dim, hidden_dims)
 
     def forward(self, z):

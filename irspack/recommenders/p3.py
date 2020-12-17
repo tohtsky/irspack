@@ -13,12 +13,6 @@ from sklearn.preprocessing import normalize
 class P3alphaRecommender(
     BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
 ):
-    default_tune_range = [
-        LogUniformSuggestion("alpha", low=1e-10, high=2),
-        IntegerSuggestion("top_k", low=10, high=1000),
-        CategoricalSuggestion("normalize_weight", [True, False]),
-    ]
-
     def __init__(
         self,
         X_all: InteractionMatrix,

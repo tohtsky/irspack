@@ -2,19 +2,9 @@ from typing import Optional
 from sklearn.decomposition import NMF
 from .base import BaseRecommender
 from ..definitions import InteractionMatrix, DenseScoreArray, UserIndexArray
-from .. import parameter_tuning
 
 
 class NMFRecommender(BaseRecommender):
-    default_tune_range = [
-        parameter_tuning.IntegerSuggestion("n_components", 4, 512),
-        parameter_tuning.LogUniformSuggestion("alpha", 1e-10, 1e-1),
-        parameter_tuning.UniformSuggestion("l1_ratio", 0, 1),
-        parameter_tuning.CategoricalSuggestion(
-            "beta_loss", ["frobenius", "kullback-leibler"]
-        ),
-    ]
-
     def __init__(
         self,
         X_all: InteractionMatrix,

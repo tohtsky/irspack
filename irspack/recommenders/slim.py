@@ -1,7 +1,6 @@
 from scipy import sparse as sps
 from sklearn.linear_model import ElasticNet
 
-from .. import parameter_tuning
 from ..definitions import InteractionMatrix
 from .base import BaseSimilarityRecommender
 
