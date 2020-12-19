@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from os import environ
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 from optuna.trial import Trial
 from scipy import sparse as sps
 
-from .. import evaluator
+if TYPE_CHECKING:
+    from .. import evaluator
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
@@ -30,10 +31,6 @@ class BaseRecommender(ABC):
         # this will store configurable parameters learnt during the training,
         # e.g., the epoch with the best validation score.
         self.learnt_config: Dict[str, Any] = dict()
-
-    def check_optional_filed(self, attr: Optional[Any]) -> None:
-        if attr is None:
-            raise CallBeforeFitError("method called before fit")
 
     def learn(self) -> "BaseRecommender":
         self._learn()
@@ -80,11 +77,10 @@ class BaseRecommender(ABC):
             scores = scores.astype(np.float64)
         return scores
 
-
-class BaseRecommenderWithColdStartPredictability(BaseRecommender):
-    @abstractmethod
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        raise NotImplementedError("get_score_cold_user not implemented!")
+        raise NotImplementedError(
+            f"get_score_cold_user is not implemented for {self.__class__.__name__}!"
+        )
 
     def get_score_cold_user_remove_seen(
         self, X: InteractionMatrix
@@ -112,7 +108,7 @@ class BaseRecommenderWithThreadingSupport(BaseRecommender):
                 )
 
 
-class BaseSimilarityRecommender(BaseRecommenderWithColdStartPredictability):
+class BaseSimilarityRecommender(BaseRecommender):
     W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

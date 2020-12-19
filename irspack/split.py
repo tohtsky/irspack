@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -15,12 +15,10 @@ def split_train_test_userwise(
     user_colname: str,
     item_colname: str,
     item_id_to_iid: Dict[Any, int],
-    train_split_ratio: float,
-    rns,
+    heldout_ratio: float,
+    rns: np.random.RandomState,
     rating_column: Optional[str] = None,
 ) -> UserDataSet:
-    uid_vs_item_iids: Dict[Any, List[Tuple[int, float]]] = defaultdict(list)
-
     df_ = df_[df_[item_colname].isin(item_id_to_iid.keys())]
 
     item_indices = df_[item_colname].map(item_id_to_iid)
@@ -32,10 +30,13 @@ def split_train_test_userwise(
         data = np.ones(df_.shape[0], dtype=np.int32)
 
     X_all = sps.csr_matrix(
-        (data, (user_indices, item_indices)), shape=(len(user_ids), len(item_id_to_iid))
+        (data, (user_indices, item_indices)),
+        shape=(len(user_ids), len(item_id_to_iid)),
     )
     X_learn, X_predict = rowwise_train_test_split(
-        X_all, (1 - train_split_ratio), random_seed=rns.randint(-(2 ** 32), 2 ** 32 - 1)
+        X_all,
+        heldout_ratio,
+        random_seed=rns.randint(-(2 ** 32), 2 ** 32 - 1),
     )
 
     return UserDataSet(user_ids, X_learn.tocsr(), X_predict.tocsr())
@@ -50,8 +51,8 @@ def split(
     n_test_user: Optional[int] = None,
     val_user_ratio: float = 0.1,
     test_user_ratio: float = 0.1,
-    split_ratio_val: float = 0.5,
-    split_ratio_test: float = 0.5,
+    heldout_ratio_val: float = 0.5,
+    heldout_ratio_test: float = 0.5,
     random_state: int = 42,
 ) -> Tuple[Dict[str, UserDataSet], List[Any]]:
 
@@ -90,7 +91,9 @@ def split(
 
     if (test_user_ratio * len(uids)) >= 1:
         val_uids, test_uids = train_test_split(
-            val_test_uids, test_size=n_test_user, random_state=rns,
+            val_test_uids,
+            test_size=n_test_user,
+            random_state=rns,
         )
     else:
         val_uids = val_test_uids
@@ -100,7 +103,7 @@ def split(
     df_test = df_all[df_all[user_column].isin(test_uids)]
     item_all: List[Any] = list(df_train[item_column].unique())
 
-    def select_item(df):
+    def select_item(df: pd.DataFrame) -> pd.DataFrame:
         return df[df[item_column].isin(item_all)]
 
     df_val = select_item(df_val).copy()
@@ -111,17 +114,21 @@ def split(
 
     train_uids = df_train[user_column].unique()
     train_uid_to_iid = {uid: iid for iid, uid in enumerate(train_uids)}
-    X_train = sps.lil_matrix((len(train_uids), len(item_id_to_iid)), dtype=(np.int32))
-
-    X_train[(df_train[user_column].map(train_uid_to_iid).values, df_train.item_iid)] = (
-        1 if rating_column is None else df_train[rating_column]
+    X_train = sps.lil_matrix(
+        (len(train_uids), len(item_id_to_iid)), dtype=(np.int32)
     )
 
-    valid_data: Dict[str, Any] = dict(train=(UserDataSet(train_uids, X_train, None)))
+    X_train[
+        (df_train[user_column].map(train_uid_to_iid).values, df_train.item_iid)
+    ] = (1 if rating_column is None else df_train[rating_column])
 
-    for df_, dataset_name, train_split_ratio in [
-        (df_val, "val", split_ratio_val),
-        (df_test, "test", split_ratio_test),
+    valid_data: Dict[str, Any] = dict(
+        train=(UserDataSet(train_uids, X_train, None))
+    )
+
+    for df_, dataset_name, heldout_ratio in [
+        (df_val, "val", heldout_ratio_val),
+        (df_test, "test", heldout_ratio_test),
     ]:
 
         valid_data[dataset_name] = split_train_test_userwise(
@@ -129,7 +136,7 @@ def split(
             user_column,
             item_column,
             item_id_to_iid,
-            train_split_ratio,
+            heldout_ratio,
             rns,
             rating_column=rating_column,
         )

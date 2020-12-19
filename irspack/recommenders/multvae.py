@@ -7,14 +7,12 @@ from optax import OptState, adam
 import numpy as np
 from scipy import sparse as sps
 
-from .base import BaseRecommenderWithColdStartPredictability
 from ..definitions import (
     DenseScoreArray,
     InteractionMatrix,
     UserIndexArray,
 )
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
-from ..parameter_tuning import CategoricalSuggestion
 
 import haiku as hk
 import jax.numpy as jnp
@@ -263,15 +261,7 @@ class MultVAETrainer(TrainerBase):
         self.params = pickle.load(ifs)
 
 
-class MultVAERecommender(
-    BaseRecommenderWithEarlyStopping, BaseRecommenderWithColdStartPredictability
-):
-    default_tune_range = [
-        CategoricalSuggestion("dim_z", [32, 64, 128, 256]),
-        CategoricalSuggestion("enc_hidden_dims", [[128], [256], [512]]),
-        CategoricalSuggestion("kl_anneal_goal", [0.1, 0.2, 0.4]),
-    ]
-
+class MultVAERecommender(BaseRecommenderWithEarlyStopping):
     def __init__(
         self,
         X_all: InteractionMatrix,

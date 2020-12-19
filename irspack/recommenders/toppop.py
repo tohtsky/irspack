@@ -3,10 +3,10 @@ from typing import Optional
 import numpy as np
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
-from .base import BaseRecommenderWithColdStartPredictability
+from .base import BaseRecommender
 
 
-class TopPopRecommender(BaseRecommenderWithColdStartPredictability):
+class TopPopRecommender(BaseRecommender):
     score: Optional[np.ndarray]
 
     def __init__(self, X_train: InteractionMatrix):

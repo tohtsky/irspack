@@ -8,16 +8,13 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from ..parameter_tuning import IntegerSuggestion
 from .base import (
-    BaseRecommenderWithColdStartPredictability,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 )
 
 
 class TruncatedSVDRecommender(
-    BaseRecommenderWithColdStartPredictability,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):

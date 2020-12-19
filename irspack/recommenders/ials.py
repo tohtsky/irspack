@@ -6,7 +6,6 @@ import numpy as np
 from ._ials import IALSLearningConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
 from .base import (
-    BaseRecommenderWithColdStartPredictability,
     BaseRecommenderWithThreadingSupport,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
@@ -62,7 +61,6 @@ class IALSTrainer(TrainerBase):
 class IALSRecommender(
     BaseRecommenderWithEarlyStopping,
     BaseRecommenderWithThreadingSupport,
-    BaseRecommenderWithColdStartPredictability,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):

@@ -36,7 +36,9 @@ class MovieLens1MDataManager(BaseMovieLenstDataLoader):
                 names=["movieId", "title", "genres"],
             )
             release_year = pd.to_numeric(
-                data.title.str.extract(r"^.*\((?P<release_year>\d+)\)\s*$").release_year
+                data.title.str.extract(
+                    r"^.*\((?P<release_year>\d+)\)\s*$"
+                ).release_year
             )
             data["release_year"] = release_year
             return data.set_index("movieId")
