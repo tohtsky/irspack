@@ -5,11 +5,6 @@ from scipy import sparse as sps
 from sklearn.preprocessing import normalize
 
 from ..definitions import InteractionMatrix
-from ..parameter_tuning import (
-    CategoricalSuggestion,
-    IntegerSuggestion,
-    LogUniformSuggestion,
-)
 from .base import BaseSimilarityRecommender
 from .utils import restrict_topk_columnwise
 

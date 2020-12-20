@@ -1,10 +1,5 @@
 from .base import BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
 from ..definitions import InteractionMatrix
-from ..parameter_tuning import (
-    LogUniformSuggestion,
-    IntegerSuggestion,
-    CategoricalSuggestion,
-)
 from typing import Optional
 from ._knn import P3alphaComputer
 from sklearn.preprocessing import normalize

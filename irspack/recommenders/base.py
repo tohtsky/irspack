@@ -14,7 +14,6 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from ..parameter_tuning import Suggestion
 
 
 class CallBeforeFitError(Exception):

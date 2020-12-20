@@ -197,6 +197,7 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
         logger: Optional[Logger] = None,
         n_trials: int = 20,
         suggest_overwrite: List[Suggestion] = list(),
+        fixed_param: Dict[str, Any] = dict(),
         n_thread: Optional[int] = None,
         **kwargs: Any,
     ):
@@ -206,7 +207,8 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
             metric,
             logger,
             n_trials,
-            suggest_overwrite,
+            suggest_overwrite=suggest_overwrite,
+            fixed_param=fixed_param,
         )
         self.n_thread = n_thread
 

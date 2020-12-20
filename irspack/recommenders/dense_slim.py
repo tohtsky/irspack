@@ -4,7 +4,6 @@ import numpy as np
 from scipy import linalg
 
 from ..definitions import InteractionMatrix
-from ..parameter_tuning import LogUniformSuggestion
 from .base import BaseSimilarityRecommender
 
 

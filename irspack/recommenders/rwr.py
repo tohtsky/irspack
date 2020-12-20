@@ -1,4 +1,3 @@
-from .. import parameter_tuning
 from ..definitions import InteractionMatrix
 from ._rwr import RandomWalkGenerator
 from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender

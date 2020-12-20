@@ -1,48 +1,44 @@
 import pickle
 from dataclasses import dataclass
-from typing import IO, List, Optional, Any, Tuple
-import optax
-from optax import OptState, adam
-
-import numpy as np
-from scipy import sparse as sps
-
-from ..definitions import (
-    DenseScoreArray,
-    InteractionMatrix,
-    UserIndexArray,
-)
-from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
+from typing import IO, List, Optional, Tuple
 
 import haiku as hk
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+import numpy as np
+import optax
+from optax import OptState, adam
+from scipy import sparse as sps
 
-PRNGKey = jax.random.PRNGKey
+from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
+from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 
 class BaseMLP:
     def __init__(
         self,
         output_dim: int,
-        hidden_dim: int,
+        hidden_dims: List[int],
     ):
         self.output_dim = output_dim
-        self.hidden_dim = hidden_dim
+        self.hidden_dims = hidden_dims
 
     def __call__(
         self,
         X: jnp.ndarray,
     ) -> jnp.ndarray:
-        mlp = hk.Sequential(
-            [hk.Linear(self.hidden_dim), jnp.tanh, hk.Linear(self.output_dim)]
-        )
-        return mlp(X)
+        layers = []
+        for d_o in self.hidden_dims:
+            layers.append(hk.Linear(d_o))
+            layers.append(jnp.tanh)
+        layers.append(hk.Linear(self.output_dim))
+
+        return hk.Sequential(layers)(X)
 
 
 class DecoderNN:
-    def __init__(self, output_dim: int, hidden_dim: int):
-        mlp = BaseMLP(output_dim=output_dim, hidden_dim=hidden_dim)
+    def __init__(self, output_dim: int, hidden_dims: List[int]):
+        mlp = BaseMLP(output_dim=output_dim, hidden_dims=hidden_dims)
         self.mlp = mlp
 
     def __call__(self, X: jnp.ndarray) -> jnp.ndarray:
@@ -57,9 +53,9 @@ class EncoderNN:
     def __init__(
         self,
         latent_dim: int,
-        hidden_dim: int,
+        hidden_dims: List[int],
     ):
-        self.mlp = BaseMLP(2 * latent_dim, hidden_dim)
+        self.mlp = BaseMLP(2 * latent_dim, hidden_dims)
         self.latent_dim = latent_dim
 
     def __call__(
@@ -87,16 +83,16 @@ class MultVAE:
         self,
         n_obs: int,
         latent_dim: int,
-        enc_hidden_dim: int,
-        dec_hidden_dim: int,
+        enc_hidden_dims: List[int],
+        dec_hidden_dims: List[int],
         dropout_p: float = 0.5,
         l2_reg: float = 0.01,
     ):
         self.encoder_network = EncoderNN(
             latent_dim,
-            enc_hidden_dim,
+            enc_hidden_dims,
         )
-        self.decoder_network = DecoderNN(n_obs, dec_hidden_dim)
+        self.decoder_network = DecoderNN(n_obs, dec_hidden_dims)
         self._kl_coeff: float = 0.0
         self.dropout_p = dropout_p
         self.l2_reg = l2_reg
@@ -116,8 +112,13 @@ class MultVAE:
         KL: jnp.ndarray = 0.5 * (-log_var + std ** 2 + mu ** 2 - 1)
         KL = KL.sum(axis=1).mean(axis=0)
 
-        eps = jax.random.normal(hk.next_rng_key(), mu.shape)  # self.rng.rand
-        z: jnp.ndarray = mu + eps * std
+        if train:
+            eps = jax.random.normal(
+                hk.next_rng_key(), mu.shape
+            )  # self.rng.rand
+            z: jnp.ndarray = mu + eps * std
+        else:
+            z = mu
         log_softmax: jnp.ndarray = self.decoder_network(z)
 
         return MultVAEOutput(log_softmax, mu, log_var * 0.5, KL)
@@ -155,8 +156,8 @@ class MultVAETrainer(TrainerBase):
             lambda X, p, train: MultVAE(
                 n_item,
                 dim_z,
-                enc_hidden_dim,
-                dec_hidden_dim,
+                [enc_hidden_dim],
+                [dec_hidden_dim],
                 dropout_p=dropout_p,
                 l2_reg=l2_regularizer,
             )(X, p, train)
@@ -211,7 +212,7 @@ class MultVAETrainer(TrainerBase):
 
         update = jax.jit(update, static_argnums=(5,))
         self.opt_state = self.opt_state
-        self.update_function = (update,)
+        self.update_function = update
         self.vae_f = vae_f
         self.params = params
 
@@ -244,7 +245,7 @@ class MultVAETrainer(TrainerBase):
             if sps.issparse(X):
                 X = X.toarray()
             X_jax = jnp.asarray(X, dtype=jnp.float32)
-            self.params, self.opt_state = self.update_function[0](
+            self.params, self.opt_state = self.update_function(
                 self.params,
                 next(self.rng_seq),
                 self.opt_state,

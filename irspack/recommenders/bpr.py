@@ -3,8 +3,6 @@ from typing import IO, Optional
 
 import numpy as np
 from lightfm import LightFM
-
-from .. import parameter_tuning
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
