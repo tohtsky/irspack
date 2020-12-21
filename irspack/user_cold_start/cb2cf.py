@@ -10,6 +10,7 @@ from ..utils.nn import MLPOptimizer, MLP, MLPSearchConfig, MLPTrainingConfig
 from ..recommenders.base import BaseRecommenderWithUserEmbedding
 from ..definitions import (
     DenseMatrix,
+    DenseScoreArray,
     InteractionMatrix,
     ProfileMatrix,
 )
@@ -18,21 +19,26 @@ from ..parameter_tuning import Suggestion
 from ..evaluator import Evaluator as Evaluator_hot
 from ..optimizers.base_optimizer import BaseOptimizer
 from ..optimizers import BPRFMOptimizer, IALSOptimizer, TruncatedSVDOptimizer
-from ..recommenders import BPRFMRecommender, IALSRecommender, TruncatedSVDRecommender
-from .base import UserColdStartRecommenderBase
+from ..recommenders import (
+    BPRFMRecommender,
+    IALSRecommender,
+    TruncatedSVDRecommender,
+)
+from .base import BaseUserColdStartRecommender
 
 
-class CB2CFUserColdStartRecommender(UserColdStartRecommenderBase):
+class CB2CFUserColdStartRecommender(BaseUserColdStartRecommender):
     def __init__(self, cf_rec: BaseRecommenderWithUserEmbedding, mlp: MLP):
         self.cf_rec = cf_rec
         self.mlp = mlp
-        self.mlp.eval()
 
     def _learn(self) -> None:
         pass
 
-    def get_score(self, profile: sps.csr_matrix):
-        user_embedding: DenseMatrix = self.mlp(profile).detach().numpy()
+    def get_score(self, profile: sps.csr_matrix) -> DenseScoreArray:
+        user_embedding: DenseMatrix = self.mlp.predict(
+            profile.astype(np.float32).toarray()
+        )
         return self.cf_rec.get_score_from_user_embedding(user_embedding).astype(
             np.float64
         )
@@ -40,15 +46,15 @@ class CB2CFUserColdStartRecommender(UserColdStartRecommenderBase):
 
 class CB2CFUserOptimizerBase(object):
     recommender_class: Type[BaseRecommenderWithUserEmbedding]
-    optimizer_class: Type[BaseOptimizer]
+    cf_optimizer_class: Type[BaseOptimizer]
 
     def __init__(
         self,
         X_train: InteractionMatrix,
         X_profile: ProfileMatrix,
-        evaluator_config=dict(cutoff=20, n_thread=4),
+        evaluator_config: Dict[str, Any] = dict(cutoff=20, n_thread=4),
         target_metric: str = "ndcg",
-    ):
+    ) -> None:
         assert X_train.shape[0] == X_profile.shape[0]
         self.X_train = X_train
         self.X_profile = X_profile
@@ -72,7 +78,9 @@ class CB2CFUserOptimizerBase(object):
         logger: Optional[Logger] = None,
         timeout: Optional[int] = None,
         reconstruction_search_config: Optional[MLPSearchConfig] = None,
-    ) -> Tuple[CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig]:
+    ) -> Tuple[
+        CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
+    ]:
         if logger is not None:
             logger.info("Start learning the CB embedding.")
         recommender, best_config_recommender = self.search_embedding(
@@ -85,7 +93,10 @@ class CB2CFUserOptimizerBase(object):
             logger.info("Start learning feature -> embedding map.")
 
         mlp, best_config_mlp = self.search_reconstruction(
-            recommender, n_trials, logger=logger, config=reconstruction_search_config
+            recommender,
+            n_trials,
+            logger=logger,
+            config=reconstruction_search_config,
         )
 
         return (
@@ -101,15 +112,14 @@ class CB2CFUserOptimizerBase(object):
         timeout: Optional[int] = None,
         suggest_overwrite: List[Suggestion] = [],
     ) -> Tuple[BaseRecommenderWithUserEmbedding, Dict[str, Any]]:
-        searcher = self.optimizer_class(
+        searcher = self.cf_optimizer_class(
             self.X_tr_,
             self.val_eval_local,
             metric="ndcg",
-            n_trials=n_trials,
             logger=logger,
             suggest_overwrite=suggest_overwrite,
         )
-        best_params, _ = searcher.do_search(self.__class__.__name__, timeout=timeout)
+        best_params, _ = searcher.optimize(n_trials=n_trials, timeout=timeout)
         rec = self.recommender_class(self.X_train, **best_params)
         rec.learn()
         return rec, best_params
@@ -128,14 +138,14 @@ class CB2CFUserOptimizerBase(object):
 
 class CB2BPRFMOptimizer(CB2CFUserOptimizerBase):
     recommender_class = BPRFMRecommender
-    optimizer_class = BPRFMOptimizer
+    cf_optimizer_class = BPRFMOptimizer
 
 
 class CB2TruncatedSVDOptimizer(CB2CFUserOptimizerBase):
     recommender_class = TruncatedSVDRecommender
-    optimizer_class = TruncatedSVDOptimizer
+    cf_optimizer_class = TruncatedSVDOptimizer
 
 
 class CB2IALSOptimizer(CB2CFUserOptimizerBase):
     recommender_class = IALSRecommender
-    optimizer_class = IALSOptimizer
+    cf_optimizer_class = IALSOptimizer

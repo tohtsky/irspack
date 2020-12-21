@@ -3,18 +3,17 @@ import numpy as np
 from scipy import sparse as sps
 from typing import Optional
 
-from .base import UserColdStartRecommenderBase, ProfileMatrix, InteractionMatrix
-from ..recommenders._knn import CosineKNNComputer
+from .base import BaseUserColdStartRecommender, ProfileMatrix, InteractionMatrix
+from ..recommenders._knn import CosineSimilarityComputer
 from ..utils._util_cpp import sparse_mm_threaded
 from ..parameter_tuning import IntegerSuggestion, LogUniformSuggestion
 
 
-class UserCBKNNRecommender(UserColdStartRecommenderBase):
-    suggest_param_range = [
+class UserCBKNNRecommender(BaseUserColdStartRecommender):
+    default_tune_range = [
         IntegerSuggestion("top_k", 5, 2000),
         LogUniformSuggestion("shrink", 1e-2, 1e2),
     ]
-    sim_computer: Optional[CosineKNNComputer]
 
     def __init__(
         self,
@@ -32,11 +31,11 @@ class UserCBKNNRecommender(UserColdStartRecommenderBase):
         self.n_thread = n_thread
         super().__init__(X_interaction, X_profile)
         self.X_interaction_csc = X_interaction.astype(np.float64).tocsc()
-        self.sim_computer = None
+        self.sim_computer: Optional[CosineSimilarityComputer] = None
 
     def _learn(self) -> None:
-        self.sim_computer = CosineKNNComputer(
-            self.X_profile, self.n_thread, self.shrink
+        self.sim_computer = CosineSimilarityComputer(
+            self.X_profile, self.shrink, normalize=True, n_thread=self.n_thread
         )
 
     def get_score(self, profile: ProfileMatrix) -> DenseScoreArray:
@@ -44,6 +43,8 @@ class UserCBKNNRecommender(UserColdStartRecommenderBase):
             raise RuntimeError("'get_score' called before learn.")
         if not sps.issparse(profile):
             profile = sps.csr_matrix(profile)
-        similarity = self.sim_computer.compute_block(profile, self.top_k)
-        score = sparse_mm_threaded(similarity, self.X_interaction_csc, self.n_thread)
+        similarity = self.sim_computer.compute_similarity(profile, self.top_k)
+        score = sparse_mm_threaded(
+            similarity, self.X_interaction_csc, self.n_thread
+        )
         return score.astype(np.float64).toarray()

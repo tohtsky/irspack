@@ -1,16 +1,16 @@
-from ..definitions import InteractionMatrix
+from ..definitions import DenseScoreArray, InteractionMatrix
 import numpy as np
 from typing import Optional
 from scipy import linalg
 from scipy import sparse as sps
 
-from .base import UserColdStartRecommenderBase, ProfileMatrix
+from .base import BaseUserColdStartRecommender, ProfileMatrix
 from ..parameter_tuning import LogUniformSuggestion, CategoricalSuggestion
 
 
-class LinearRecommender(UserColdStartRecommenderBase):
-    suggest_param_range = [
-        LogUniformSuggestion("lambda_", 1e-1, 1e4),
+class LinearRecommender(BaseUserColdStartRecommender):
+    default_tune_range = [
+        LogUniformSuggestion("reg", 1e-1, 1e4),
         CategoricalSuggestion("fit_intercept", [True, False]),
     ]
     W: Optional[np.ndarray]
@@ -32,15 +32,15 @@ class LinearRecommender(UserColdStartRecommenderBase):
         self,
         X_interaction: InteractionMatrix,
         X_profile: ProfileMatrix,
-        lambda_: float = 1.0,
+        reg: float = 1.0,
         fit_intercept: bool = False,
     ):
         super().__init__(X_interaction, X_profile)
-        self.lambda_ = lambda_
+        self.reg = reg
         self.fit_intercept = fit_intercept
         self.W = None
 
-    def _learn(self):
+    def _learn(self) -> None:
         if self.fit_intercept:
             X_profile_local = self.enlarge_profile(self.X_profile)
         else:
@@ -50,7 +50,7 @@ class LinearRecommender(UserColdStartRecommenderBase):
             X_profile_local = X_profile_local.toarray()
         X_l = X_profile_local.T.dot(X_profile_local)
         index = np.arange(X_l.shape[0])
-        X_l[index, index] += self.lambda_
+        X_l[index, index] += self.reg
         inv = np.zeros_like(X_l)
         inv[index, index] = 1
         C_, lower = linalg.cho_factor(X_l, overwrite_a=True)
@@ -58,7 +58,7 @@ class LinearRecommender(UserColdStartRecommenderBase):
         self.W = inv.dot(self.X_interaction.T.dot(X_profile_local).T)
         self.W = self.W.reshape(self.W.shape, order="F")
 
-    def get_score(self, profile):
+    def get_score(self, profile: ProfileMatrix) -> DenseScoreArray:
         if self.W is None:
             raise RuntimeError("(get_score) called before learning")
         if self.fit_intercept:
