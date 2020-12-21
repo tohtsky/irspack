@@ -23,16 +23,22 @@ class Suggestion(ABC):
 
 
 def overwrite_suggestions(
-    base: List[Suggestion], overwrite: List[Suggestion], fixed: Dict[str, Any]
+    base: List[Suggestion],
+    suggest_overwrite: List[Suggestion],
+    fixed_param: Dict[str, Any],
 ) -> List[Suggestion]:
+    for suggest in suggest_overwrite:
+        if suggest.name in fixed_param:
+            raise ValueError("suggest_overwrite and fixe_param have overwrap.")
+
     overwritten_parameter_names = set(
-        [x.name for x in overwrite] + [x for x in fixed]
+        [x.name for x in suggest_overwrite] + [x for x in fixed_param]
     )
     suggestions = [
         suggest_base
         for suggest_base in base
         if suggest_base.name not in overwritten_parameter_names
-    ] + overwrite
+    ] + suggest_overwrite
     return suggestions
 
 
