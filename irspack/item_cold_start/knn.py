@@ -10,7 +10,7 @@ from ..parameter_tuning import IntegerSuggestion, LogUniformSuggestion
 
 
 class ItemCBKNNRecommender(ItemColdStartRecommenderBase):
-    suggest_param_range = [
+    default_tune_range = [
         IntegerSuggestion("top_k", 5, 2000),
         LogUniformSuggestion("shrink", 1e-2, 1e2),
     ]
