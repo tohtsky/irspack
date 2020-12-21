@@ -3,7 +3,6 @@ import numpy as np
 import time
 from abc import ABC
 from datetime import datetime
-from logging import Logger, getLogger
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 import optuna
@@ -28,19 +27,20 @@ class BaseOptimizer(ABC):
         data: InteractionMatrix,
         val_evaluator: Evaluator,
         metric: str = "ndcg",
-        logger: Optional[Logger] = None,
-        n_trials: int = 20,
+        logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
         fixed_param: Dict[str, Any] = dict(),
     ):
         if logger is None:
-            logger = getLogger(__name__)
+            logger = logging.getLogger(__name__)
             logger.setLevel(logging.DEBUG)
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
+            logger.addHandler(handler)
         self.logger = logger
         self._data = data
         self.val_evaluator = val_evaluator
         self.metric = metric
-        self.n_trials = n_trials
 
         self.current_trial: int = 0
         self.best_trial_index: Optional[int] = None
@@ -52,23 +52,15 @@ class BaseOptimizer(ABC):
 
         self.valid_results: List[Dict[str, float]] = []
         self.tried_configs: List[Dict[str, Any]] = []
-        for suggest in suggest_overwrite:
-            if suggest.name in fixed_param:
-                raise ValueError(
-                    "suggest_overwrite and fixe_param have overwrap."
-                )
-        self.suggest_overwrite = suggest_overwrite
+        self.suggestions = overwrite_suggestions(
+            self.default_tune_range, suggest_overwrite, fixed_param
+        )
         self.fixed_param = fixed_param
 
-    def suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
+    def _suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
         parameters: Dict[str, Any] = dict()
-        suggestions = overwrite_suggestions(
-            self.default_tune_range,
-            self.suggest_overwrite,
-            self.fixed_param,
-        )
-        for c in suggestions:
-            parameters[c.name] = c.suggest(trial)
+        for s in self.suggestions:
+            parameters[s.name] = s.suggest(trial)
         return parameters
 
     def get_model_arguments(
@@ -76,12 +68,13 @@ class BaseOptimizer(ABC):
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return args, kwargs
 
-    def do_search(
-        self, name: Optional[str] = None, timeout: Optional[int] = None
+    def optimize(
+        self, n_trials: int = 20, timeout: Optional[int] = None
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
-        if name is None:
-            name = f"{self.__class__.__name__}-{datetime.now().isoformat()}"
-        self.logger.info(f"Start serching for {name}.")
+        self.logger.info(
+            f"""Start parameter search for {self.recommender_class.__name__} over following range:"""
+        )
+        self.logger.info("\n".join([repr(s) for s in self.suggestions]))
         study = optuna.create_study()
         self.current_trial = -1
         self.best_val = float("inf")
@@ -92,17 +85,17 @@ class BaseOptimizer(ABC):
         def objective_func(trial: optuna.Trial) -> float:
             self.current_trial += 1  # for pruning
             start = time.time()
-            params = dict(**self.suggest(trial), **self.fixed_param)
+            params = dict(**self._suggest(trial), **self.fixed_param)
             self.logger.info(f"\nTrial {self.current_trial}:")
             self.logger.info(f"parameter = {params}")
 
             arg, parameters = self.get_model_arguments(**params)
 
             self.tried_configs.append(parameters)
-            model = self.recommender_class(self._data, *arg, **parameters)
-            model.learn_with_optimizer(self.val_evaluator, trial)
+            recommender = self.recommender_class(self._data, *arg, **parameters)
+            recommender.learn_with_optimizer(self.val_evaluator, trial)
 
-            score = self.val_evaluator.get_score(model)
+            score = self.val_evaluator.get_score(recommender)
             end = time.time()
 
             time_spent = end - start
@@ -111,18 +104,18 @@ class BaseOptimizer(ABC):
             self.logger.info(
                 f"Config {self.current_trial} obtained the following scores: {score} within {time_spent} seconds."
             )
-            target_score = score[self.metric]
-            if (-target_score) < self.best_val:
-                self.best_val = -target_score
+            val_score = score[self.metric]
+            if (-val_score) < self.best_val:
+                self.best_val = -val_score
                 self.best_time = time_spent
                 self.best_params = parameters
-                self.learnt_config_best = dict(**model.learnt_config)
+                self.learnt_config_best = dict(**recommender.learnt_config)
                 self.logger.info(f"Found best {self.metric} using this config.")
                 self.best_trial_index = self.current_trial
 
-            return -target_score
+            return -val_score
 
-        study.optimize(objective_func, n_trials=self.n_trials, timeout=timeout)
+        study.optimize(objective_func, n_trials=n_trials, timeout=timeout)
         if self.best_params is None:
             raise RuntimeError("best parameter not found.")
         best_params = dict(**self.best_params)
@@ -150,8 +143,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         data: InteractionMatrix,
         val_evaluator: Evaluator,
         metric: str = "ndcg",
-        logger: Optional[Logger] = None,
-        n_trials: int = 20,
+        logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
         fixed_param: Dict[str, Any] = dict(),
         max_epoch: int = 512,
@@ -164,7 +156,6 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
             val_evaluator,
             metric,
             logger=logger,
-            n_trials=n_trials,
             suggest_overwrite=suggest_overwrite,
             fixed_param=fixed_param,
         )
@@ -192,8 +183,7 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
         data: InteractionMatrix,
         val_evaluator: Evaluator,
         metric: str = "ndcg",
-        logger: Optional[Logger] = None,
-        n_trials: int = 20,
+        logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
         fixed_param: Dict[str, Any] = dict(),
         n_thread: Optional[int] = None,
@@ -204,7 +194,6 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
             val_evaluator,
             metric,
             logger,
-            n_trials,
             suggest_overwrite=suggest_overwrite,
             fixed_param=fixed_param,
         )
