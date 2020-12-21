@@ -1,15 +1,34 @@
+from functools import partial
 from dataclasses import dataclass
 from logging import Logger
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any, Callable, Iterator
+from jax._src.random import PRNGKey
 
 import numpy as np
 import optuna
-import torch
 from optuna import exceptions
 from scipy import sparse as sps
+from scipy._lib.six import BytesIO
+from scipy.sparse import data
 from sklearn.model_selection import train_test_split
 from torch import nn
+import haiku as hk
+import jax.numpy as jnp
+import jax
+import optax
 from tqdm import tqdm
+
+
+@dataclass
+class MLP:
+    predict_function: Callable[[hk.Params, jnp.ndarray, bool], jnp.ndarray]
+    params: hk.Params
+
+    def predict(self, X: jnp.ndarray) -> np.ndarray:
+        f: Callable[[hk.Params, jnp.ndarray, bool], jnp.ndarray] = getattr(
+            self, "predict_function"
+        )
+        return np.asarray(f(self.params, X, False), dtype=np.float32)
 
 
 @dataclass
@@ -18,6 +37,8 @@ class MLPTrainingConfig:
     dropout: float = 0.0
     weight_decay: float = 0.0
     best_epoch: Optional[int] = None
+    activation: Callable[[jnp.ndarray], jnp.ndarray] = jnp.tanh
+    learning_rate: float = 1e-3
 
 
 @dataclass
@@ -35,37 +56,27 @@ class MLPSearchConfig:
         if not self.tune_dropout:
             dropout = 0.0
         else:
-            dropout = trial.suggest_float("dropout", 0, 1)
+            dropout = trial.suggest_uniform("dropout", 0, 1)
 
-        if not self.tune_weight_decay:
-            weight_decay = 0.0
-        else:
-            weight_decay = trial.suggest_loguniform("weight_decay", 1e-10, 1)
-
-        return MLPTrainingConfig(layer_dims, dropout, weight_decay)
+        return MLPTrainingConfig(layer_dims, dropout)
 
 
-class MLP(nn.Module):
-    def __init__(self, dim_in: int, dim_out: int, config: MLPTrainingConfig):
-        self.config = config
-        super().__init__()
-        dim_ins = [dim_in] + config.intermediate_dims
-        dim_outs = config.intermediate_dims + [dim_out]
-        layers: List[nn.Module] = []
-        for din, dout in zip(dim_ins[:-1], dim_outs[:-1]):
-            layers.extend(
-                [nn.Dropout(p=config.dropout), nn.Linear(din, dout), nn.ReLU()]
-            )
-        layers.append(nn.Linear(dim_ins[-1], dim_outs[-1]))
-        self.layers = nn.Sequential(*layers)
+def create_mlp(
+    dim_out: int, config: MLPTrainingConfig
+) -> Callable[[jnp.ndarray, bool], Any]:
+    def mlp_function(X: jnp.ndarray, training: bool) -> Any:
+        layers: List[Any] = []
+        for d_o in config.intermediate_dims:
+            if training:
+                layers.append(
+                    lambda x: hk.dropout(hk.next_rng_key(), config.dropout, x)
+                )
+            layers.append(hk.Linear(d_o))
+            layers.append(config.activation)
+        layers.append(hk.Linear(dim_out))
+        return hk.Sequential(layers)(X)
 
-    def forward(self, x) -> torch.Tensor:
-        if sps.issparse(x):
-            x_tensor = torch.tensor(x.astype(np.float32).toarray())
-        else:
-            x_tensor = torch.tensor(x.astype(np.float32))
-        output = self.layers(x_tensor)
-        return output
+    return mlp_function
 
 
 class MLPOptimizer(object):
@@ -74,7 +85,9 @@ class MLPOptimizer(object):
     best_config: Optional[MLPTrainingConfig]
 
     @staticmethod
-    def stream(X: sps.csr_matrix, Y: sps.csc_matrix, mb_size: int, shuffle=True):
+    def stream(
+        X: sps.csr_matrix, Y: sps.csc_matrix, mb_size: int, shuffle: bool = True
+    ) -> Iterator[Tuple[jnp.ndarray, jnp.ndarray, int]]:
         assert X.shape[0] == Y.shape[0]
         shape_all: int = X.shape[0]
         index = np.arange(shape_all)
@@ -83,7 +96,11 @@ class MLPOptimizer(object):
         for start in range(0, shape_all, mb_size):
             end = min(shape_all, start + mb_size)
             mb_indices = index[start:end]
-            yield X[mb_indices], Y[mb_indices], (end - start)
+            yield (
+                jnp.asarray(X[mb_indices].toarray(), dtype=jnp.float32),
+                jnp.asarray(Y[mb_indices], dtype=jnp.float32),
+                (end - start),
+            )
 
     def __init__(
         self,
@@ -92,20 +109,29 @@ class MLPOptimizer(object):
         search_config: Optional[MLPSearchConfig] = None,
     ):
 
-        profile_train, profile_test, embedding_train, embedding_test = train_test_split(
-            profile.astype(np.float32), embedding.astype(np.float32), random_state=42
+        (
+            profile_train,
+            profile_test,
+            embedding_train,
+            embedding_test,
+        ) = train_test_split(
+            profile.astype(np.float32),
+            embedding.astype(np.float32),
+            random_state=42,
         )
         self.profile_train = profile_train
         self.profile_test = profile_test
-        self.embedding_train = torch.tensor(embedding_train)
-        self.embedding_test = torch.tensor(embedding_test)
+        self.embedding_train = jnp.asarray(embedding_train, dtype=jnp.float32)
+        self.embedding_test = jnp.asarray(embedding_test, dtype=jnp.float32)
         if search_config is None:
             self.search_config = MLPSearchConfig()
         else:
             self.search_config = search_config
 
     def search_best_config(
-        self, n_trials: int = 10, logger: Optional[Logger] = None,
+        self,
+        n_trials: int = 10,
+        logger: Optional[Logger] = None,
     ) -> Optional[MLPTrainingConfig]:
         self.best_trial_score = float("inf")
         self.best_config = None
@@ -116,10 +142,17 @@ class MLPOptimizer(object):
 
         def objective(trial: optuna.Trial) -> float:
             config = self.search_config.suggest(trial)
-            mlp = MLP(
-                self.profile_train.shape[1], self.embedding_train.shape[1], config
+            mlp_function = hk.transform(
+                lambda x, training: (
+                    create_mlp(
+                        self.embedding_train.shape[1],
+                        config,
+                    )
+                )(x, training)
             )
-            score, epoch = self._ran_nn(mlp, trial=trial)
+            score, epoch = self._train_nn_with_trial(
+                mlp_function, config=config, trial=trial
+            )
             config.best_epoch = epoch
             if score < self.best_trial_score:
                 self.best_trial_score = score
@@ -130,56 +163,97 @@ class MLPOptimizer(object):
         return self.best_config
 
     def search_param_fit_all(
-        self, n_trials: int = 10, logger: Optional[Logger] = None,
+        self,
+        n_trials: int = 10,
+        logger: Optional[Logger] = None,
     ) -> Tuple[MLP, MLPTrainingConfig]:
         best_param = self.search_best_config(n_trials, logger=logger)
 
         if best_param is None:
-            raise RuntimeError("An error occurred during the optimization step.")
+            raise RuntimeError(
+                "An error occurred during the optimization step."
+            )
 
         mlp = self.fit_full(best_param)
         return mlp, best_param
 
-    def _ran_nn(
-        self, mlp: MLP, weight_decay: float = 0.0, trial: Optional[optuna.Trial] = None
+    def _train_nn_with_trial(
+        self,
+        mlp: hk.Transformed,
+        config: MLPTrainingConfig,
+        trial: Optional[optuna.Trial] = None,
     ) -> Tuple[float, int]:
-        optimizer = torch.optim.Adam(mlp.parameters(), weight_decay=weight_decay)
+
+        rng_key = jax.random.PRNGKey(0)
+        rng_key, sub_key = jax.random.split(rng_key)
+        params = mlp.init(
+            sub_key,
+            jnp.zeros((1, self.profile_train.shape[1]), dtype=jnp.float32),
+            False,
+        )
+        opt = optax.adam(config.learning_rate)
+        opt_state = opt.init(params)
+
+        rng_key, sub_key = jax.random.split(rng_key)
+
+        @partial(jax.jit, static_argnums=(3,))
+        def predict(
+            params: hk.Params, rng: PRNGKey, X: jnp.ndarray, training: bool
+        ) -> jnp.ndarray:
+            return mlp.apply(params, rng, X, training)
+
+        @partial(jax.jit, static_argnums=(4,))
+        def loss_fn(
+            params: hk.Params,
+            rng: PRNGKey,
+            X: jnp.ndarray,
+            Y: jnp.ndarray,
+            training: bool,
+        ) -> jnp.ndarray:
+            prediction = predict(params, rng, X, training)
+            return ((Y - prediction) ** 2).mean(axis=1).sum()
+
+        @jax.jit
+        def update(
+            params: hk.Params,
+            rng: PRNGKey,
+            opt_state: optax.OptState,
+            X: jnp.ndarray,
+            Y: jnp.ndarray,
+        ) -> Tuple[jnp.ndarray, hk.Params, optax.OptState]:
+            loss_value = loss_fn(params, rng, X, Y, True)
+            grad = jax.grad(loss_fn)(params, rng, X, Y, True)
+            updates, opt_state = opt.update(grad, opt_state)
+            new_params = optax.apply_updates(params, updates)
+            return loss_value, new_params, opt_state
+
         best_val_score = float("inf")
-        best_model_filename = "best_model.pkl"
         n_epochs = 512
-        train_index = np.arange(self.embedding_train.shape[0])
         mb_size = 128
-        val_index = np.arange(self.embedding_test.shape[0])
         score_degradation_count = 0
         val_score_degradation_max = 10
         best_epoch = 0
         for epoch in tqdm(range(n_epochs)):
-            mean_loss: List[float] = []
-            mlp.train()
-            for X_mb, y_mb, size in self.stream(
-                self.profile_train, self.embedding_train, 128
+            train_loss = 0
+            for X_mb, y_mb, _ in self.stream(
+                self.profile_train, self.embedding_train, mb_size
             ):
-                prediction = mlp(X_mb)
-                optimizer.zero_grad()
-                loss_train = (
-                    ((prediction - torch.tensor(y_mb)) ** 2).sum(dim=1).mean(dim=0)
+                rng_key, sub_key = jax.random.split(rng_key)
+
+                loss_value, params, opt_state = update(
+                    params, sub_key, opt_state, X_mb, y_mb
                 )
-                mean_loss.append(loss_train.detach().numpy())
-                loss_train.backward()
-                optimizer.step()
+                train_loss += loss_value
+            train_loss /= self.profile_train.shape[0]
 
-            mlp.eval()
+            val_loss = 0
             for X_mb, y_mb, size in self.stream(
-                self.profile_test, self.embedding_test, 128, shuffle=False
+                self.profile_test, self.embedding_test, mb_size, shuffle=False
             ):
-                prediction = mlp(X_mb)
-                optimizer.zero_grad()
-                loss_val: torch.Tensor = ((prediction - torch.tensor(y_mb)) ** 2).sum(
-                    dim=1
-                ).mean(dim=0)
-                mean_loss.append(loss_val.item())
-
-            val_loss: float = np.mean(mean_loss)
+                val_loss += loss_fn(
+                    params, rng_key, X_mb, y_mb, False
+                )  # rng key will not be used
+            val_loss /= self.profile_test.shape[0]
             if trial is not None:
                 trial.report(val_loss, epoch)
                 if trial.should_prune():
@@ -188,7 +262,6 @@ class MLPOptimizer(object):
             if val_loss < best_val_score:
                 best_epoch = epoch + 1
                 best_val_score = val_loss
-                torch.save(mlp.state_dict(), best_model_filename)
                 score_degradation_count = 0
             else:
                 score_degradation_count += 1
@@ -196,27 +269,74 @@ class MLPOptimizer(object):
             if score_degradation_count >= val_score_degradation_max:
                 break
 
-        mlp.load_state_dict(torch.load("best_model.pkl"))
-        mlp.eval()
         return best_val_score, best_epoch
 
-    def fit_full(self, configs: MLPTrainingConfig):
-        if configs.best_epoch is None:
+    def fit_full(self, config: MLPTrainingConfig) -> MLP:
+        if config.best_epoch is None:
             raise ValueError("best epoch not specified by MLP Config")
-        mlp = MLP(self.profile_train.shape[1], self.embedding_train.shape[1], configs)
+        rng_key = jax.random.PRNGKey(0)
 
-        optimizer = torch.optim.Adam(
-            mlp.parameters(), weight_decay=configs.weight_decay
+        mlp_function = hk.transform(
+            lambda x, training: (
+                create_mlp(
+                    self.embedding_train.shape[1],
+                    config,
+                )
+            )(x, training)
         )
+
         X = sps.vstack([self.profile_train, self.profile_test])
-        y = torch.cat([self.embedding_train, self.embedding_test], 0)
+        y = jnp.concatenate([self.embedding_train, self.embedding_test], axis=0)
         mb_size = 128
-        for _ in tqdm(range(configs.best_epoch)):
-            mlp.train()
-            for X_mb, y_mb, size in self.stream(X, y, mb_size, True):
-                prediction = mlp(X_mb)
-                optimizer.zero_grad()
-                loss = ((prediction - torch.tensor(y_mb)) ** 2).sum(dim=1).mean(dim=0)
-                loss.backward()
-                optimizer.step()
-        return mlp
+
+        rng_key, sub_key = jax.random.split(rng_key)
+        params = mlp_function.init(
+            sub_key,
+            jnp.zeros((1, self.profile_train.shape[1]), dtype=jnp.float32),
+            True,
+        )
+        opt = optax.adam(config.learning_rate)
+        opt_state = opt.init(params)
+
+        @partial(jax.jit, static_argnums=(2,))
+        def predict(
+            params: hk.Params, rng: PRNGKey, X: jnp.ndarray, training: bool
+        ) -> jnp.ndarray:
+            return mlp_function.apply(params, rng, X, training)
+
+        @partial(jax.jit, static_argnums=(3,))
+        def loss_fn(
+            params: hk.Params,
+            rng: PRNGKey,
+            X: jnp.ndarray,
+            Y: jnp.ndarray,
+            training: bool,
+        ) -> jnp.ndarray:
+            prediction = predict(params, rng, X, training)
+            return ((Y - prediction) ** 2).mean(axis=1).sum()
+
+        @jax.jit
+        def update(
+            params: hk.Params,
+            rng: PRNGKey,
+            opt_state: optax.OptState,
+            X: jnp.ndarray,
+            Y: jnp.ndarray,
+        ) -> Tuple[jnp.ndarray, hk.Params, optax.OptState]:
+            loss_value = loss_fn(params, rng, X, Y, True)
+            grad = jax.grad(loss_fn)(params, rng, X, Y, True)
+            updates, opt_state = opt.update(grad, opt_state)
+            new_params = optax.apply_updates(params, updates)
+            return loss_value, new_params, opt_state
+
+        mb_size = 128
+        for _ in tqdm(range(config.best_epoch)):
+            train_loss = 0
+            for X_mb, y_mb, _ in self.stream(X, y, mb_size):
+                rng_key, sub_key = jax.random.split(rng_key)
+                loss_value, params, opt_state = update(
+                    params, sub_key, opt_state, X_mb, y_mb
+                )
+                train_loss += loss_value
+            train_loss /= self.profile_train.shape[0]
+        return MLP(predict, params)

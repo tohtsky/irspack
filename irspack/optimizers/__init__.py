@@ -158,6 +158,11 @@ try:
     from ..recommenders.multvae import MultVAERecommender
 
     class MultVAEOptimizer(BaseOptimizerWithEarlyStopping):
+        default_tune_range = [
+            CategoricalSuggestion("dim_z", [32, 64, 128, 256]),
+            CategoricalSuggestion("enc_hidden_dims", [128, 256, 512]),
+            CategoricalSuggestion("kl_anneal_goal", [0.1, 0.2, 0.4]),
+        ]
         recommender_class = MultVAERecommender
 
 

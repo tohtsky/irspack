@@ -8,15 +8,13 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 
 import optuna
 import pandas as pd
-from pandas.core.frame import DataFrame
 
-from ..parameter_tuning import overwrite_suggestions
+from ..parameter_tuning import overwrite_suggestions, Suggestion
 from ..evaluator import Evaluator
 from ..recommenders.base import (
     BaseRecommender,
     BaseRecommenderWithThreadingSupport,
     InteractionMatrix,
-    Suggestion,
 )
 from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 

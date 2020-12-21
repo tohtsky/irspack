@@ -21,6 +21,7 @@ METRIC_NAMES = [
     "hit",
     "recall",
     "ndcg",
+    "map",
     "gini_index",
     "entropy",
     "appeared_item",
@@ -41,7 +42,7 @@ class Evaluator(object):
         ground_truth.sort_indices()
         self.core = EvaluatorCore(ground_truth)
         self.offset = offset
-        self.n_users = ground_truth.shape[0]
+        self.n_user = ground_truth.shape[0]
         self.target_metric = TargetMetric(target_metric)
         self.cutoff = cutoff
         self.n_thread = n_thread
@@ -71,7 +72,7 @@ class Evaluator(object):
             metrics.append(Metrics(n_item))
 
         block_start = self.offset
-        n_validated = self.n_users
+        n_validated = self.n_user
         block_end = block_start + n_validated
         mb_size = self.mb_size
 
@@ -123,7 +124,7 @@ class EvaluatorWithColdUser(Evaluator):
             metrics.append(Metrics(n_item))
 
         block_start = self.offset
-        n_validated = self.n_users
+        n_validated = self.n_user
         block_end = block_start + n_validated
         mb_size = self.mb_size
 

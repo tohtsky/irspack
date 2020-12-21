@@ -45,10 +45,16 @@ rec_classes: List[Type[BaseRecommender]] = [
     DenseSLIMRecommender,
     SLIMRecommender,
 ]
+try:
+    from irspack.recommenders.multvae import MultVAERecommender
+
+    rec_classes.append(MultVAERecommender)
+except:
+    pass
 
 
 @pytest.mark.parametrize("RecommenderClass", rec_classes)
-def test_recs(RecommenderClass) -> None:
+def test_recs(RecommenderClass: Type[BaseRecommender]) -> None:
     rec = RecommenderClass(X_train)
     rec.learn()
     scores = rec.get_score(np.arange(X_train.shape[0]))

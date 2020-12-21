@@ -3,6 +3,7 @@ from typing import IO, Optional
 
 import numpy as np
 from lightfm import LightFM
+
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
@@ -10,9 +11,9 @@ from ..definitions import (
     UserIndexArray,
 )
 from .base import (
+    BaseRecommenderWithItemEmbedding,
     BaseRecommenderWithThreadingSupport,
     BaseRecommenderWithUserEmbedding,
-    BaseRecommenderWithItemEmbedding,
 )
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
