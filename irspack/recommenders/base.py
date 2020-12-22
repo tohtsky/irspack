@@ -23,8 +23,8 @@ class CallBeforeFitError(Exception):
 class BaseRecommender(ABC):
     def __init__(self, X_all: InteractionMatrix, **kwargs: Any) -> None:
         self.X_all = sps.csr_matrix(X_all).astype(np.float64)
-        self.n_user: int = self.X_all.shape[0]
-        self.n_item: int = self.X_all.shape[1]
+        self.n_users: int = self.X_all.shape[0]
+        self.n_items: int = self.X_all.shape[1]
         self.X_all.sort_indices()
 
         # this will store configurable parameters learnt during the training,
@@ -52,9 +52,7 @@ class BaseRecommender(ABC):
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         raise NotImplementedError("get_score_block not implemented!")
 
-    def get_score_remove_seen_block(
-        self, begin: int, end: int
-    ) -> DenseScoreArray:
+    def get_score_remove_seen_block(self, begin: int, end: int) -> DenseScoreArray:
         scores = self.get_score_block(begin, end)
         if sps.issparse(scores):
             scores = scores.toarray()
@@ -64,9 +62,7 @@ class BaseRecommender(ABC):
             scores = scores.astype(np.float64)
         return scores
 
-    def get_score_remove_seen(
-        self, user_indices: np.ndarray
-    ) -> DenseScoreArray:
+    def get_score_remove_seen(self, user_indices: np.ndarray) -> DenseScoreArray:
         scores = self.get_score(user_indices)
         if sps.issparse(scores):
             scores = scores.toarray()
@@ -81,9 +77,7 @@ class BaseRecommender(ABC):
             f"get_score_cold_user is not implemented for {self.__class__.__name__}!"
         )
 
-    def get_score_cold_user_remove_seen(
-        self, X: InteractionMatrix
-    ) -> DenseScoreArray:
+    def get_score_cold_user_remove_seen(self, X: InteractionMatrix) -> DenseScoreArray:
         score = self.get_score_cold_user(X)
         score[X.nonzero()] = -np.inf
         return score
@@ -93,9 +87,8 @@ class BaseRecommenderWithThreadingSupport(BaseRecommender):
     def __init__(
         self, X_all: InteractionMatrix, n_thread: Optional[int], **kwargs: Any
     ):
-        super(BaseRecommenderWithThreadingSupport, self).__init__(
-            X_all, **kwargs
-        )
+
+        super(BaseRecommenderWithThreadingSupport, self).__init__(X_all, **kwargs)
         if n_thread is not None:
             self.n_thread = n_thread
         else:

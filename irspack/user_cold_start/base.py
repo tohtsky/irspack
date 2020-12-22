@@ -16,8 +16,8 @@ class BaseUserColdStartRecommender(ABC):
         **kwargs: Any
     ):
         assert X_interaction.shape[0] == X_profile.shape[0]
-        self.n_user = X_profile.shape[0]
-        self.n_item = X_interaction.shape[1]
+        self.n_users= X_profile.shape[0]
+        self.n_items= X_interaction.shape[1]
         self.profile_dimension = X_profile.shape[1]
         self.X_profile = X_profile
         self.X_interaction = X_interaction

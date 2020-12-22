@@ -42,15 +42,13 @@ class Evaluator(object):
         ground_truth.sort_indices()
         self.core = EvaluatorCore(ground_truth)
         self.offset = offset
-        self.n_user = ground_truth.shape[0]
+        self.n_users = ground_truth.shape[0]
         self.target_metric = TargetMetric(target_metric)
         self.cutoff = cutoff
         self.n_thread = n_thread
         self.mb_size = mb_size
 
-    def get_score(
-        self, model: "base_recommender.BaseRecommender"
-    ) -> Dict[str, float]:
+    def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
         return self.get_scores_as_list(model, [self.cutoff])[0]
 
     def get_scores(
@@ -66,13 +64,13 @@ class Evaluator(object):
     def get_scores_as_list(
         self, model: "base_recommender.BaseRecommender", cutoffs: List[int]
     ) -> List[Dict[str, float]]:
-        n_item = model.n_item
+        n_items = model.n_items
         metrics: List[Metrics] = []
         for c in cutoffs:
-            metrics.append(Metrics(n_item))
+            metrics.append(Metrics(n_items))
 
         block_start = self.offset
-        n_validated = self.n_user
+        n_validated = self.n_users
         block_end = block_start + n_validated
         mb_size = self.mb_size
 
@@ -80,14 +78,10 @@ class Evaluator(object):
             chunk_end = min(chunk_start + mb_size, block_end)
             try:
                 # try faster method
-                scores = model.get_score_remove_seen_block(
-                    chunk_start, chunk_end
-                )
+                scores = model.get_score_remove_seen_block(chunk_start, chunk_end)
             except NotImplementedError:
                 # block-by-block
-                scores = model.get_score_remove_seen(
-                    np.arange(chunk_start, chunk_end)
-                )
+                scores = model.get_score_remove_seen(np.arange(chunk_start, chunk_end))
             for i, c in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
                     scores, c, chunk_start - self.offset, self.n_thread, False
@@ -118,13 +112,13 @@ class EvaluatorWithColdUser(Evaluator):
         cutoffs: List[int],
     ) -> List[Dict[str, float]]:
 
-        n_item = model.n_item
+        n_items = model.n_items
         metrics: List[Metrics] = []
         for c in cutoffs:
-            metrics.append(Metrics(n_item))
+            metrics.append(Metrics(n_items))
 
         block_start = self.offset
-        n_validated = self.n_user
+        n_validated = self.n_users
         block_end = block_start + n_validated
         mb_size = self.mb_size
 

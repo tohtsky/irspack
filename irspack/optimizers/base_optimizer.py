@@ -46,9 +46,7 @@ class BaseOptimizer(ABC):
         self.best_trial_index: Optional[int] = None
         self.best_val = float("inf")
         self.best_params: Optional[Dict[str, Any]] = None
-        self.learnt_config_best: Dict[
-            str, Any
-        ] = dict()  # to store early-stopped epoch
+        self.learnt_config_best: Dict[str, Any] = dict()  # to store early-stopped epoch
 
         self.valid_results: List[Dict[str, float]] = []
         self.tried_configs: List[Dict[str, Any]] = []
@@ -202,6 +200,4 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
     def get_model_arguments(
         self, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super().get_model_arguments(
-            *args, n_thread=self.n_thread, **kwargs
-        )
+        return super().get_model_arguments(*args, n_thread=self.n_thread, **kwargs)

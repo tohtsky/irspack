@@ -17,13 +17,13 @@ class DenseSLIMRecommender(BaseSimilarityRecommender):
         P = X_all_f32.T.dot(X_all_f32)
         P_dense: np.ndarray = P.todense()
         del P
-        P_dense[np.arange(self.n_item), np.arange(self.n_item)] += self.reg
+        P_dense[np.arange(self.n_items), np.arange(self.n_items)] += self.reg
         gc.collect()
         P_dense = linalg.inv(P_dense, overwrite_a=True)
 
         gc.collect()
         diag_P_inv = 1 / np.diag(P_dense)
         P_dense *= -diag_P_inv[np.newaxis, :]
-        range_ = np.arange(self.n_item)
+        range_ = np.arange(self.n_items)
         P_dense[range_, range_] = 0
         self.W_ = P_dense

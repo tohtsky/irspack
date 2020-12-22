@@ -103,9 +103,7 @@ class MultVAE:
     def kl_coeff(self) -> float:
         return self._kl_coeff
 
-    def __call__(
-        self, X: jnp.ndarray, p: jnp.ndarray, train: bool
-    ) -> MultVAEOutput:
+    def __call__(self, X: jnp.ndarray, p: jnp.ndarray, train: bool) -> MultVAEOutput:
         mu, log_var = self.encoder_network(X, p, train)
         std = jnp.exp(log_var * 0.5)
         # log_var = 2 * log (std)
@@ -113,9 +111,7 @@ class MultVAE:
         KL = KL.sum(axis=1).mean(axis=0)
 
         if train:
-            eps = jax.random.normal(
-                hk.next_rng_key(), mu.shape
-            )  # self.rng.rand
+            eps = jax.random.normal(hk.next_rng_key(), mu.shape)  # self.rng.rand
             z: jnp.ndarray = mu + eps * std
         else:
             z = mu
@@ -139,8 +135,8 @@ class MultVAETrainer(TrainerBase):
         learning_rate: float,
     ):
         self.X = X
-        self.n_user = X.shape[0]
-        self.n_item = X.shape[1]
+        self.n_users = X.shape[0]
+        self.n_items = X.shape[1]
         self.minibatch_size = minibatch_size
         self.kl_anneal_goal = kl_anneal_goal
         self.anneal_end_epoch = anneal_end_epoch
@@ -151,10 +147,10 @@ class MultVAETrainer(TrainerBase):
         if dec_hidden_dim is None:
             dec_hidden_dim = enc_hidden_dim
 
-        n_item = self.n_item
+        n_items = self.n_items
         vae_f = hk.transform(
             lambda X, p, train: MultVAE(
-                n_item,
+                n_items,
                 dim_z,
                 [enc_hidden_dim],
                 [dec_hidden_dim],
@@ -171,9 +167,7 @@ class MultVAETrainer(TrainerBase):
             True,
         )
         self.opt_state = optimizer.init(params)
-        self.total_anneal_step = (
-            anneal_end_epoch * self.n_user
-        ) / minibatch_size
+        self.total_anneal_step = (anneal_end_epoch * self.n_users) / minibatch_size
         self.recommend_with_randomness = False
         self._update_count = 0
 
@@ -185,9 +179,7 @@ class MultVAETrainer(TrainerBase):
             dropout: float,
             train: bool,
         ) -> jnp.ndarray:
-            mvresult: MultVAEOutput = vae_f.apply(
-                params, rng, X, dropout, train
-            )
+            mvresult: MultVAEOutput = vae_f.apply(params, rng, X, dropout, train)
             neg_ll = -(mvresult.log_softmax * X).sum(axis=1).mean()
             neg_elbo = neg_ll + kl_coeff * mvresult.KL
             return neg_elbo
@@ -233,14 +225,14 @@ class MultVAETrainer(TrainerBase):
         return score_concat
 
     def run_epoch(self) -> None:
-        user_indices = np.arange(self.n_user)
+        user_indices = np.arange(self.n_users)
         np.random.shuffle(user_indices)
-        for mb_start in range(0, self.n_user, self.minibatch_size):
+        for mb_start in range(0, self.n_users, self.minibatch_size):
             current_kl_coeff = jnp.asarray(
                 self.kl_anneal_goal
                 * min(1, self._update_count / self.total_anneal_step)
             )
-            mb_end = min(self.n_user, mb_start + self.minibatch_size)
+            mb_end = min(self.n_users, mb_start + self.minibatch_size)
             X = self.X[user_indices[mb_start:mb_end]].astype(np.float32)
             if sps.issparse(X):
                 X = X.toarray()

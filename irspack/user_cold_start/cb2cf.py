@@ -78,9 +78,7 @@ class CB2CFUserOptimizerBase(object):
         logger: Optional[Logger] = None,
         timeout: Optional[int] = None,
         reconstruction_search_config: Optional[MLPSearchConfig] = None,
-    ) -> Tuple[
-        CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
-    ]:
+    ) -> Tuple[CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig]:
         if logger is not None:
             logger.info("Start learning the CB embedding.")
         recommender, best_config_recommender = self.search_embedding(

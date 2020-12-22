@@ -29,8 +29,8 @@ class UserDataSet(object):
         self.user_ids = user_ids
         self.X_learn = X_learn
         self.X_predict = X_predict
-        self.n_user: int = self.X_learn.shape[0]
-        self.n_item: int = self.X_learn.shape[1]
+        self.n_users: int = self.X_learn.shape[0]
+        self.n_items: int = self.X_learn.shape[1]
 
     @property
     def X_all(self) -> InteractionMatrix:

@@ -19,8 +19,8 @@ class ItemColdStartRecommenderBase(ABC):
         self, X_interaction: InteractionMatrix, X_profile: ProfileMatrix, **kwargs
     ):
         assert X_interaction.shape[1] == X_profile.shape[0]
-        self.n_user = X_interaction.shape[0]
-        self.n_item = X_interaction.shape[1]
+        self.n_users= X_interaction.shape[0]
+        self.n_items= X_interaction.shape[1]
         self.profile_dimension = X_profile.shape[1]
         self.X_profile = X_profile
         self.X_interaction = X_interaction.tocsr()
@@ -45,7 +45,7 @@ class ItemColdStartRecommenderBase(ABC):
         cls,
         X_train: InteractionMatrix,
         X_profile: ProfileMatrix,
-        n_trials: int,
+        n_trial: int,
         target_metric="ndcg",
         other_args=dict(),
         split_config: Dict[str, Any] = dict(test_size=0.2, random_state=42),
@@ -74,6 +74,6 @@ class ItemColdStartRecommenderBase(ABC):
             return -result
 
         study = optuna.create_study()
-        study.optimize(objective, n_trials, timeout=timeout)
+        study.optimize(objective, n_trial, timeout=timeout)
         return study.best_params
 

@@ -59,9 +59,8 @@ class BaseKNNRecommender(
 
         computer = self._create_computer(X_weighted.T)
         self.W_ = computer.compute_similarity(self.X_all.T, self.top_k).tocsc()
-
         # to do make this faster
-        self.W_[np.arange(self.n_item), np.arange(self.n_item)] = 0.0
+        self.W_[np.arange(self.n_items), np.arange(self.n_items)] = 0.0
 
 
 class CosineKNNRecommender(BaseKNNRecommender):
@@ -83,9 +82,7 @@ class CosineKNNRecommender(BaseKNNRecommender):
         )
         self.normalize = normalize
 
-    def _create_computer(
-        self, X: InteractionMatrix
-    ) -> CosineSimilarityComputer:
+    def _create_computer(self, X: InteractionMatrix) -> CosineSimilarityComputer:
         return CosineSimilarityComputer(
             X, self.shrinkage, self.normalize, self.n_thread
         )
@@ -119,9 +116,7 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
 
 
 class JaccardKNNRecommender(BaseKNNRecommender):
-    def _create_computer(
-        self, X: InteractionMatrix
-    ) -> JaccardSimilarityComputer:
+    def _create_computer(self, X: InteractionMatrix) -> JaccardSimilarityComputer:
         return JaccardSimilarityComputer(X, self.shrinkage, self.n_thread)
 
 
@@ -144,9 +139,7 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         )
         self.alpha = alpha
 
-    def _create_computer(
-        self, X: InteractionMatrix
-    ) -> AsymmetricSimilarityComputer:
+    def _create_computer(self, X: InteractionMatrix) -> AsymmetricSimilarityComputer:
         return AsymmetricSimilarityComputer(
             X, self.shrinkage, self.alpha, self.n_thread
         )

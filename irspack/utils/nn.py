@@ -170,9 +170,7 @@ class MLPOptimizer(object):
         best_param = self.search_best_config(n_trials, logger=logger)
 
         if best_param is None:
-            raise RuntimeError(
-                "An error occurred during the optimization step."
-            )
+            raise RuntimeError("An error occurred during the optimization step.")
 
         mlp = self.fit_full(best_param)
         return mlp, best_param

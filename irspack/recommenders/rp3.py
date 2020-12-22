@@ -35,13 +35,13 @@ class RP3betaRecommender(BaseSimilarityRecommender):
         discount_factor = Piu.sum(axis=1).A1.astype(np.float64)
         mask_ = discount_factor != 0
         discount_factor[mask_] = np.power(discount_factor[mask_], -self.beta)
-        n_item = self.X_all.shape[1]
+        n_items = self.X_all.shape[1]
 
         # chunking
         MB_size = 1000
         Ws: List[sps.csc_matrix] = []
-        for start in range(0, n_item, MB_size):
-            end = min(n_item, start + MB_size)
+        for start in range(0, n_items, MB_size):
+            end = min(n_items, start + MB_size)
             W_mb = Piu.dot(Pui[:, start:end]).tocoo()
             W_mb.data *= discount_factor[start + W_mb.col]
             W_mb = W_mb.tocsc()

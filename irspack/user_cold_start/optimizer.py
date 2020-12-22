@@ -59,7 +59,7 @@ class BaseOptimizer:
 
     def optimize(
         self,
-        n_trials: int = 20,
+        n_trial: int = 20,
         timeout: Optional[int] = None,
     ) -> Dict[str, Any]:
         def objective(trial: optuna.Trial) -> float:
@@ -68,19 +68,17 @@ class BaseOptimizer:
                 self.X_train, self.profile_train, **param_dict
             )
             recommender.learn()
-            val_score: float = self.evaluator.get_score(recommender)[
-                self.target_metric
-            ]
+            val_score: float = self.evaluator.get_score(recommender)[self.target_metric]
             if (-val_score) < self.best_val:
                 self.best_val = -val_score
                 self.best_params = param_dict
-                self.logger.info(f"Found best {self.metric} using this config.")
+                self.logger.info(f"Found best {self.target_metric} using this config.")
                 self.best_trial_index = self.current_trial
 
             return -val_score
 
         study = optuna.create_study()
-        study.optimize(objective, n_trials, timeout=timeout)
+        study.optimize(objective, n_trial, timeout=timeout)
         if self.best_params is None:
             raise RuntimeError(
                 "best parameter not found (possibly because no trial has been made)"
@@ -93,7 +91,7 @@ class BaseOptimizer:
         cls,
         X_train: InteractionMatrix,
         X_profile: ProfileMatrix,
-        n_trials: int = 20,
+        n_trial: int = 20,
         target_metric: str = "ndcg",
         split_config: Dict[str, Any] = dict(test_size=0.2, random_state=42),
         timeout: Optional[int] = None,
@@ -118,4 +116,4 @@ class BaseOptimizer:
             fixed_param=fixed_param,
             logger=logger,
         )
-        return optimizer.optimize(n_trials=n_trials, timeout=timeout)
+        return optimizer.optimize(n_trial=n_trial, timeout=timeout)

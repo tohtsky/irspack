@@ -8,5 +8,5 @@ class TopPopularRecommender(BaseUserColdStartRecommender):
         self.popularity = self.X_interaction.sum(axis=0).astype(np.float64)
 
     def get_score(self, profile: ProfileMatrix) -> DenseScoreArray:
-        target_n_user = profile.shape[0]
-        return np.repeat(self.popularity, target_n_user, axis=0)
+        target_n_users = profile.shape[0]
+        return np.repeat(self.popularity, target_n_users, axis=0)

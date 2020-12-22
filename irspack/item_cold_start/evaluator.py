@@ -16,17 +16,17 @@ class ItemColdStartEvaluator(object):
 
         self.core = EvaluatorCore(X.astype(np.float64))
         self.profiles = profiles
-        self.n_user = X.shape[0]
-        self.n_item = X.shape[1]
+        self.n_users: int = X.shape[0]
+        self.n_items: int = X.shape[1]
         self.dim_profile = profiles.shape[1]
         self.mb_size = mb_size
 
     def get_score(
         self, model: "base.ItemColdStartRecommenderBase", cutoff=20
     ) -> Dict[str, Any]:
-        metric_base = Metrics(self.n_item)
-        for start in range(0, self.n_user, self.mb_size):
-            end = min(start + 1024, self.n_user)
+        metric_base = Metrics(self.n_items)
+        for start in range(0, self.n_users, self.mb_size):
+            end = min(start + 1024, self.n_users)
             score_mb = model.get_score_for_user_range(
                 np.arange(start, end), self.profiles
             )
