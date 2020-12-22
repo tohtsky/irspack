@@ -11,7 +11,7 @@ from ._knn import (
     TverskyIndexComputer,
 )
 
-from ..utils import tf_idf_weight, okapi_BM_25_weight
+from ..utils import tf_idf_weight, okapi_BM_25_weight, remove_diagonal
 
 
 class FeatureWeightingScheme(str, enum.Enum):
@@ -58,9 +58,9 @@ class BaseKNNRecommender(
             raise RuntimeError("Unknown weighting scheme.")
 
         computer = self._create_computer(X_weighted.T)
-        self.W_ = computer.compute_similarity(self.X_all.T, self.top_k).tocsc()
-        # to do make this faster
-        self.W_[np.arange(self.n_items), np.arange(self.n_items)] = 0.0
+        self.W_ = remove_diagonal(
+            computer.compute_similarity(self.X_all.T, self.top_k)
+        ).tocsc()
 
 
 class CosineKNNRecommender(BaseKNNRecommender):

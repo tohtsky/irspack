@@ -11,6 +11,7 @@ namespace py = pybind11;
 using namespace irspack;
 PYBIND11_MODULE(_util_cpp, m) {
 
+  m.def("remove_diagonal", &sparse_util::remove_diagonal<double>);
   m.def("sparse_mm_threaded", &sparse_util::parallel_sparse_product<double>);
   m.def("rowwise_train_test_split_d",
         &sparse_util::train_test_split_rowwise<double>);

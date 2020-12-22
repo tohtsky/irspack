@@ -8,6 +8,8 @@
 #include <tuple>
 #include <unordered_map>
 
+#include "argcheck.hpp"
+
 namespace irspack {
 namespace sparse_util {
 
@@ -25,9 +27,7 @@ inline CSRMatrix<Real> parallel_sparse_product(const CSRMatrix<Real> &left,
                                                const CSCMatrix<Real> &right,
                                                const size_t n_thread) {
   CSRMatrix<Real> result(left.rows(), right.cols());
-  if (n_thread == 0) {
-    throw std::invalid_argument("n_thread must be > 0");
-  }
+  check_arg(n_thread > 0, "n_thraed must be > 0");
   const int n_row = left.rows();
   const int rows_per_block = n_row / n_thread;
   const int remnant = n_row % n_thread;
@@ -63,8 +63,8 @@ train_test_split_rowwise(const CSRMatrix<Real> &X, const double test_ratio,
                          std::int64_t random_seed) {
   using Triplet = Eigen::Triplet<Integer>;
   std::mt19937 random_state(random_seed);
-  if (test_ratio > 1.0 || test_ratio < 0)
-    throw std::invalid_argument("test_ratio must be within [0, 1]");
+  check_arg(((test_ratio <= 1.0 && (test_ratio >= 0.0))),
+            "test_ratio must be within [0, 1]");
   std::vector<Integer> col_buffer;
   std::vector<Real> data_buffer;
   std::vector<uint64_t> index_;
@@ -148,6 +148,23 @@ CSRMatrix<Real> tf_idf_weight(const CSRMatrix<Real> &X, bool smooth) {
   for (int i = 0; i < N; i++) {
     for (itertype iter(result, i); iter; ++iter) {
       iter.valueRef() *= idf(iter.col());
+    }
+  }
+  return result;
+}
+
+template <typename Real>
+CSRMatrix<Real> remove_diagonal(const CSRMatrix<Real> &X) {
+  check_arg(X.rows() == X.cols(), "X must be square");
+  CSRMatrix<Real> result(X);
+  using itertype = typename CSRMatrix<Real>::InnerIterator;
+  const int N = X.rows();
+  result.makeCompressed();
+  for (int i = 0; i < N; i++) {
+    for (itertype iter(result, i); iter; ++iter) {
+      if (i == iter.col()) {
+        iter.valueRef() = static_cast<Real>(0);
+      }
     }
   }
   return result;
