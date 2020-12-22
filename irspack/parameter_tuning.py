@@ -21,6 +21,10 @@ class Suggestion(ABC):
     def suggest(self, trial: Trial) -> Any:
         pass
 
+    @abstractmethod
+    def __repr__(self) -> str:
+        raise NotImplementedError("__repr__ must be implemented.")
+
 
 def overwrite_suggestions(
     base: List[Suggestion],
@@ -54,6 +58,9 @@ class UniformSuggestion(Suggestion):
     def suggest(self, trial: Trial) -> Any:
         return trial.suggest_uniform(self.name, self.low, self.high)
 
+    def __repr__(self) -> str:
+        return f"UniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
+
 
 class LogUniformSuggestion(Suggestion):
     def __init__(self, name: str, low: float, high: float):
@@ -66,6 +73,9 @@ class LogUniformSuggestion(Suggestion):
 
     def suggest(self, trial: Trial) -> Any:
         return trial.suggest_loguniform(self.name, self.low, self.high)
+
+    def __repr__(self) -> str:
+        return f"LogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
 
 
 class IntegerSuggestion(Suggestion):
@@ -81,6 +91,9 @@ class IntegerSuggestion(Suggestion):
     def suggest(self, trial: Trial) -> Any:
         return trial.suggest_int(self.name, self.low, self.high, step=self.step)
 
+    def __repr__(self) -> str:
+        return f"IntegerSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
+
 
 class IntegerLogUniformSuggestion(Suggestion):
     def __init__(self, name: str, low: int, high: int):
@@ -94,6 +107,9 @@ class IntegerLogUniformSuggestion(Suggestion):
     def suggest(self, trial: Trial) -> Any:
         return round(trial.suggest_loguniform(self.name, self.low, self.high))
 
+    def __repr__(self) -> str:
+        return f"IntegerLogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
+
 
 class CategoricalSuggestion(Suggestion):
     def __init__(self, name: str, choices: List[Any]):
@@ -102,3 +118,8 @@ class CategoricalSuggestion(Suggestion):
 
     def suggest(self, trial: Trial) -> Any:
         return trial.suggest_categorical(self.name, self.choices)
+
+    def __repr__(self) -> str:
+        return (
+            f"IntegerLogUniformSuggestion(name={self.name!r}, choices={self.choices!r})"
+        )
