@@ -1,17 +1,21 @@
-from .base_optimizer import BaseOptimizer
-from irspack.user_cold_start.recommenders.linear import LinearMethodRecommender
-from irspack.user_cold_start.recommenders.cb_knn import UserCBCosineKNNRecommender
-from irspack.user_cold_start.recommenders.popular import TopPopularRecommender
+from typing import List
+
 from irspack.parameter_tuning import (
+    CategoricalSuggestion,
     IntegerSuggestion,
     LogUniformSuggestion,
-    CategoricalSuggestion,
+    Suggestion,
 )
+from irspack.user_cold_start.recommenders.cb_knn import UserCBCosineKNNRecommender
+from irspack.user_cold_start.recommenders.linear import LinearMethodRecommender
+from irspack.user_cold_start.recommenders.popular import TopPopularRecommender
+
+from .base_optimizer import BaseOptimizer
 
 
 class TopPopularOptimizer(BaseOptimizer):
     recommender_class = TopPopularRecommender
-    default_tune_range = []
+    default_tune_range: List[Suggestion] = []
 
 
 class LinearMethodOptimizer(BaseOptimizer):

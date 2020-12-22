@@ -4,7 +4,7 @@ from collections import OrderedDict
 from ..evaluator import METRIC_NAMES, EvaluatorCore, Metrics
 from ..recommenders.base import InteractionMatrix
 
-from . import base
+from irspack.user_cold_start.recommenders import base
 
 
 class UserColdStartEvaluator:

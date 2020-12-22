@@ -1,16 +1,25 @@
-from irspack.user_cold_start.cb2cf import CB2BPRFMOptimizer
-from .base import BaseUserColdStartRecommender
 from .evaluator import UserColdStartEvaluator
-from .linear import LinearRecommender
-from .popular import TopPopularRecommender
-from .cb_knn import UserCBKNNRecommender
+from irspack.user_cold_start.recommenders import (
+    BaseUserColdStartRecommender,
+    TopPopularRecommender,
+    UserCBCosineKNNRecommender,
+    LinearMethodRecommender,
+)
+from irspack.user_cold_start.optimizers import (
+    UserCBCosineKNNOptimizer,
+    TopPopularOptimizer,
+    LinearMethodOptimizer,
+)
 
 __all__ = [
     "BaseUserColdStartRecommender",
     "UserColdStartEvaluator",
-    "LinearRecommender",
+    "LinearMethodRecommender",
     "TopPopularRecommender",
-    "UserCBKNNRecommender",
+    "UserCBCosineKNNRecommender",
+    "UserCBCosineKNNOptimizer",
+    "TopPopularOptimizer",
+    "LinearMethodOptimizer",
 ]
 try:
     from .cb2cf import CB2IALSOptimizer, CB2TruncatedSVDOptimizer

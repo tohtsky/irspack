@@ -29,7 +29,7 @@ class BaseOptimizer(ABC):
         metric: str = "ndcg",
         logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
-        fixed_param: Dict[str, Any] = dict(),
+        fixed_params: Dict[str, Any] = dict(),
     ):
         if logger is None:
             logger = logging.getLogger(__name__)
@@ -51,9 +51,9 @@ class BaseOptimizer(ABC):
         self.valid_results: List[Dict[str, float]] = []
         self.tried_configs: List[Dict[str, Any]] = []
         self.suggestions = overwrite_suggestions(
-            self.default_tune_range, suggest_overwrite, fixed_param
+            self.default_tune_range, suggest_overwrite, fixed_params
         )
-        self.fixed_param = fixed_param
+        self.fixed_params = fixed_params
 
     def _suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
         parameters: Dict[str, Any] = dict()
@@ -83,7 +83,7 @@ class BaseOptimizer(ABC):
         def objective_func(trial: optuna.Trial) -> float:
             self.current_trial += 1  # for pruning
             start = time.time()
-            params = dict(**self._suggest(trial), **self.fixed_param)
+            params = dict(**self._suggest(trial), **self.fixed_params)
             self.logger.info(f"\nTrial {self.current_trial}:")
             self.logger.info(f"parameter = {params}")
 
@@ -143,7 +143,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         metric: str = "ndcg",
         logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
-        fixed_param: Dict[str, Any] = dict(),
+        fixed_params: Dict[str, Any] = dict(),
         max_epoch: int = 512,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
@@ -155,7 +155,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
             metric,
             logger=logger,
             suggest_overwrite=suggest_overwrite,
-            fixed_param=fixed_param,
+            fixed_params=fixed_params,
         )
         self.max_epoch = max_epoch
         self.validate_epoch = validate_epoch
@@ -183,7 +183,7 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
         metric: str = "ndcg",
         logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
-        fixed_param: Dict[str, Any] = dict(),
+        fixed_params: Dict[str, Any] = dict(),
         n_thread: Optional[int] = None,
         **kwargs: Any,
     ):
@@ -193,7 +193,7 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
             metric,
             logger,
             suggest_overwrite=suggest_overwrite,
-            fixed_param=fixed_param,
+            fixed_params=fixed_params,
         )
         self.n_thread = n_thread
 

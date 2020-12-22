@@ -48,7 +48,9 @@ class Evaluator(object):
         self.n_thread = n_thread
         self.mb_size = mb_size
 
-    def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
+    def get_score(
+        self, model: "base_recommender.BaseRecommender"
+    ) -> Dict[str, float]:
         return self.get_scores_as_list(model, [self.cutoff])[0]
 
     def get_scores(
@@ -78,10 +80,14 @@ class Evaluator(object):
             chunk_end = min(chunk_start + mb_size, block_end)
             try:
                 # try faster method
-                scores = model.get_score_remove_seen_block(chunk_start, chunk_end)
+                scores = model.get_score_remove_seen_block(
+                    chunk_start, chunk_end
+                )
             except NotImplementedError:
                 # block-by-block
-                scores = model.get_score_remove_seen(np.arange(chunk_start, chunk_end))
+                scores = model.get_score_remove_seen(
+                    np.arange(chunk_start, chunk_end)
+                )
             for i, c in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
                     scores, c, chunk_start - self.offset, self.n_thread, False

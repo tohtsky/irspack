@@ -1,3 +1,5 @@
+from numpy.lib.ufunclike import _fix_and_maybe_deprecate_out_named_y
+from examples.movielens.ml_1m_new import X_train_all
 import logging
 from logging import Logger
 from typing import Type, Optional, List, Tuple, Dict, Any
@@ -24,7 +26,9 @@ from ..recommenders import (
     IALSRecommender,
     TruncatedSVDRecommender,
 )
-from .base import BaseUserColdStartRecommender
+from irspack.user_cold_start.recommenders.base import (
+    BaseUserColdStartRecommender,
+)
 
 
 class CB2CFUserColdStartRecommender(BaseUserColdStartRecommender):
@@ -50,19 +54,46 @@ class CB2CFUserOptimizerBase(object):
 
     def __init__(
         self,
-        X_train: InteractionMatrix,
+        X_all: InteractionMatrix,
+        X_cf_train_all: InteractionMatrix,
+        hot_evaluator: Evaluator_hot,
+        X_profile: ProfileMatrix,
+        nn_search_config: Optional[MLPSearchConfig] = None,
+    ):
+        self.X_all = X_all
+        self.X_profile = X_profile
+        self.X_cf_train_all = X_cf_train_all
+        self.hot_evaluator = hot_evaluator
+        if nn_search_config is None:
+            nn_search_config = MLPSearchConfig()
+        self.nn_search_config = nn_search_config
+
+    @classmethod
+    def split_and_optimize(
+        cls,
+        X_all: InteractionMatrix,
         X_profile: ProfileMatrix,
         evaluator_config: Dict[str, Any] = dict(cutoff=20, n_thread=4),
         target_metric: str = "ndcg",
-    ) -> None:
-        assert X_train.shape[0] == X_profile.shape[0]
-        self.X_train = X_train
-        self.X_profile = X_profile
-        self.X_tr_, self.X_val_ = rowwise_train_test_split(
-            X_train, random_seed=42, test_ratio=0.2
+        cf_split_config: Dict[str, Any] = dict(random_seed=42, test_ratio=0),
+        nn_search_config: Optional[MLPSearchConfig] = None,
+    ) -> Tuple[
+        CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
+    ]:
+        evaluator_config = dict(**evaluator_config, target_metric=target_metric)
+        assert X_all.shape[0] == X_profile.shape[0]
+        X_all = X_all
+        X_profile = X_profile
+        X_tr_, X_val_ = rowwise_train_test_split(X_all, **cf_split_config)
+        hot_evaluator = Evaluator_hot(X_val_, 0, **evaluator_config)
+        optimizer = cls(
+            X_all,
+            X_train_all,
+            hot_evaluator,
+            X_profile,
+            nn_search_config=nn_search_config,
         )
-        self.val_eval_local = Evaluator_hot(self.X_val_, 0, **evaluator_config)
-        self.target_metric = target_metric
+        return optimizer.search_all()
 
     def get_default_logger(self) -> logging.Logger:
         logger = logging.getLogger(self.__class__.__name__)
@@ -78,13 +109,19 @@ class CB2CFUserOptimizerBase(object):
         logger: Optional[Logger] = None,
         timeout: Optional[int] = None,
         reconstruction_search_config: Optional[MLPSearchConfig] = None,
-    ) -> Tuple[CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig]:
+        cf_suggest_overwrite: List[Suggestion] = [],
+        cf_fixed_params: Dict[str, Any] = dict(),
+    ) -> Tuple[
+        CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
+    ]:
         if logger is not None:
             logger.info("Start learning the CB embedding.")
         recommender, best_config_recommender = self.search_embedding(
             n_trials,
             logger,
             timeout=timeout,
+            suggest_overwrite=cf_suggest_overwrite,
+            fixed_params=cf_fixed_params,
         )
 
         if logger is not None:
@@ -109,16 +146,18 @@ class CB2CFUserOptimizerBase(object):
         logger: Optional[Logger] = None,
         timeout: Optional[int] = None,
         suggest_overwrite: List[Suggestion] = [],
+        fixed_params: Dict[str, Any] = dict(),
     ) -> Tuple[BaseRecommenderWithUserEmbedding, Dict[str, Any]]:
         searcher = self.cf_optimizer_class(
-            self.X_tr_,
-            self.val_eval_local,
+            self.X_cf_train_all,
+            self.hot_evaluator,
             metric="ndcg",
             logger=logger,
             suggest_overwrite=suggest_overwrite,
+            fixed_params=fixed_params,
         )
         best_params, _ = searcher.optimize(n_trials=n_trials, timeout=timeout)
-        rec = self.recommender_class(self.X_train, **best_params)
+        rec = self.recommender_class(self.X_all, **best_params)
         rec.learn()
         return rec, best_params
 

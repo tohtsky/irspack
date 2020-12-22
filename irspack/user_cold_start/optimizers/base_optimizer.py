@@ -25,7 +25,7 @@ class BaseOptimizer:
         evaluator: UserColdStartEvaluator,
         target_metric: str = "ndcg",
         suggest_overwrite: List[Suggestion] = list(),
-        fixed_param: Dict[str, Any] = dict(),
+        fixed_params: Dict[str, Any] = dict(),
         logger: Optional[logging.Logger] = None,
     ):
         if logger is None:
@@ -49,9 +49,9 @@ class BaseOptimizer:
         self.valid_results: List[Dict[str, float]] = []
         self.tried_configs: List[Dict[str, Any]] = []
         self.suggestions = overwrite_suggestions(
-            self.default_tune_range, suggest_overwrite, fixed_param
+            self.default_tune_range, suggest_overwrite, fixed_params
         )
-        self.fixed_param = fixed_param
+        self.fixed_params = fixed_params
 
     def _suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
         parameters: Dict[str, Any] = dict()
@@ -65,7 +65,7 @@ class BaseOptimizer:
         timeout: Optional[int] = None,
     ) -> Dict[str, Any]:
         def objective(trial: optuna.Trial) -> float:
-            param_dict = dict(**self._suggest(trial), **self.fixed_param)
+            param_dict = dict(**self._suggest(trial), **self.fixed_params)
             recommender = self.recommender_class(
                 self.X_train, self.profile_train, **param_dict
             )
@@ -98,7 +98,7 @@ class BaseOptimizer:
         split_config: Dict[str, Any] = dict(test_size=0.2, random_state=42),
         timeout: Optional[int] = None,
         suggest_overwrite: List[Suggestion] = [],
-        fixed_param: Dict[str, Any] = dict(),
+        fixed_params: Dict[str, Any] = dict(),
         logger: Optional[logging.Logger] = None,
     ) -> Dict[str, Any]:
         X_tt, X_tv, profile_tt, profile_tv = train_test_split(
@@ -115,7 +115,7 @@ class BaseOptimizer:
             evaluator,
             target_metric=target_metric,
             suggest_overwrite=suggest_overwrite,
-            fixed_param=fixed_param,
+            fixed_params=fixed_params,
             logger=logger,
         )
         return optimizer.optimize(n_trial=n_trial, timeout=timeout)

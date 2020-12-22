@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod, abstractmethod
-from typing import Optional, IO
+from typing import Optional, Any
 from zipfile import ZipFile
 from io import BytesIO
 import os
