@@ -1,32 +1,32 @@
-from ..definitions import DenseScoreArray, InteractionMatrix
-import numpy as np
 from typing import Optional
+
+import numpy as np
+from irspack.definitions import DenseScoreArray, InteractionMatrix
+from irspack.parameter_tuning import CategoricalSuggestion, LogUniformSuggestion
 from scipy import linalg
 from scipy import sparse as sps
 
-from .base import BaseUserColdStartRecommender, ProfileMatrix
-from ..parameter_tuning import LogUniformSuggestion, CategoricalSuggestion
+from irspack.user_cold_start.recommenders.base import (
+    BaseUserColdStartRecommender,
+    ProfileMatrix,
+)
 
 
-class LinearRecommender(BaseUserColdStartRecommender):
-    default_tune_range = [
-        LogUniformSuggestion("reg", 1e-1, 1e4),
-        CategoricalSuggestion("fit_intercept", [True, False]),
-    ]
+def enlarge_profile(X_profile: ProfileMatrix) -> ProfileMatrix:
+    X_profile_enlarged = np.zeros(
+        (X_profile.shape[0], 1 + X_profile.shape[1]), dtype=np.float32
+    )
+    X_profile_enlarged[:, 0] = 1
+    if sps.issparse(X_profile):
+        coo = X_profile.tocoo()
+        X_profile_enlarged[coo.row, coo.col + 1] = coo.data
+    else:
+        X_profile_enlarged[:, 1:] = X_profile
+    return X_profile_enlarged
+
+
+class LinearMethodRecommender(BaseUserColdStartRecommender):
     W: Optional[np.ndarray]
-
-    @classmethod
-    def enlarge_profile(cls, X_profile: ProfileMatrix) -> ProfileMatrix:
-        X_profile_enlarged = np.zeros(
-            (X_profile.shape[0], 1 + X_profile.shape[1]), dtype=np.float32
-        )
-        X_profile_enlarged[:, 0] = 1
-        if sps.issparse(X_profile):
-            coo = X_profile.tocoo()
-            X_profile_enlarged[coo.row, coo.col + 1] = coo.data
-        else:
-            X_profile_enlarged[:, 1:] = X_profile
-        return X_profile_enlarged
 
     def __init__(
         self,
@@ -42,7 +42,7 @@ class LinearRecommender(BaseUserColdStartRecommender):
 
     def _learn(self) -> None:
         if self.fit_intercept:
-            X_profile_local = self.enlarge_profile(self.X_profile)
+            X_profile_local = enlarge_profile(self.X_profile)
         else:
             X_profile_local = self.X_profile
 
@@ -62,7 +62,7 @@ class LinearRecommender(BaseUserColdStartRecommender):
         if self.W is None:
             raise RuntimeError("(get_score) called before learning")
         if self.fit_intercept:
-            profile = self.enlarge_profile(profile)
+            profile = enlarge_profile(profile)
         if sps.issparse(profile):
             profile = profile.toarray()
         return profile.dot(self.W)

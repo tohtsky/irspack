@@ -25,9 +25,8 @@ class MovieLens1MDataManager(BaseMovieLenstDataLoader):
             df["timestamp"] = pd.to_datetime(df.timestamp, unit="s")
             return df
 
-    def _read_item_info(self, byte_stream: bytes) -> pd.DataFrame:
-        assert self.zf is not None
-        with BytesIO(byte_stream) as ifs:
+    def read_item_info(self) -> pd.DataFrame:
+        with self._read_as_istream(self.ITEM_INFO_PATH) as ifs:
             data = pd.read_csv(
                 ifs,
                 sep="::",
@@ -36,15 +35,13 @@ class MovieLens1MDataManager(BaseMovieLenstDataLoader):
                 names=["movieId", "title", "genres"],
             )
             release_year = pd.to_numeric(
-                data.title.str.extract(
-                    r"^.*\((?P<release_year>\d+)\)\s*$"
-                ).release_year
+                data.title.str.extract(r"^.*\((?P<release_year>\d+)\)\s*$").release_year
             )
             data["release_year"] = release_year
             return data.set_index("movieId")
 
-    def _read_user_info(self, byte_stream: bytes) -> pd.DataFrame:
-        with BytesIO(byte_stream) as ifs:
+    def read_user_info(self) -> pd.DataFrame:
+        with self._read_as_istream(self.USER_INFO_PATH) as ifs:
             return pd.read_csv(
                 ifs,
                 sep="::",

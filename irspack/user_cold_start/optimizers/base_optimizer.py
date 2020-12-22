@@ -1,4 +1,3 @@
-from irspack import recommenders
 import logging
 from operator import __xor__
 from typing import Any, Dict, List, Optional, Type
@@ -6,10 +5,13 @@ import optuna
 
 from sklearn.model_selection import train_test_split
 
-from ..definitions import InteractionMatrix
-from ..parameter_tuning import Suggestion, overwrite_suggestions
-from .base import BaseUserColdStartRecommender, ProfileMatrix
-from .evaluator import UserColdStartEvaluator
+from irspack.definitions import InteractionMatrix
+from irspack.parameter_tuning import Suggestion, overwrite_suggestions
+from irspack.user_cold_start.recommenders.base import (
+    BaseUserColdStartRecommender,
+    ProfileMatrix,
+)
+from irspack.user_cold_start.evaluator import UserColdStartEvaluator
 
 
 class BaseOptimizer:

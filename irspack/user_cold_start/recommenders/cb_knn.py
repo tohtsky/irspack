@@ -1,20 +1,16 @@
-from ..recommenders.base import DenseScoreArray
 import numpy as np
 from scipy import sparse as sps
 from typing import Optional
 
+
+from irspack.definitions import DenseScoreArray
 from .base import BaseUserColdStartRecommender, ProfileMatrix, InteractionMatrix
-from ..recommenders._knn import CosineSimilarityComputer
-from ..utils._util_cpp import sparse_mm_threaded
-from ..parameter_tuning import IntegerSuggestion, LogUniformSuggestion
+from irspack.recommenders._knn import CosineSimilarityComputer
+from irspack.utils._util_cpp import sparse_mm_threaded
+from irspack.parameter_tuning import IntegerSuggestion, LogUniformSuggestion
 
 
-class UserCBKNNRecommender(BaseUserColdStartRecommender):
-    default_tune_range = [
-        IntegerSuggestion("top_k", 5, 2000),
-        LogUniformSuggestion("shrink", 1e-2, 1e2),
-    ]
-
+class UserCBCosineKNNRecommender(BaseUserColdStartRecommender):
     def __init__(
         self,
         X_interaction: InteractionMatrix,
@@ -44,7 +40,5 @@ class UserCBKNNRecommender(BaseUserColdStartRecommender):
         if not sps.issparse(profile):
             profile = sps.csr_matrix(profile)
         similarity = self.sim_computer.compute_similarity(profile, self.top_k)
-        score = sparse_mm_threaded(
-            similarity, self.X_interaction_csc, self.n_thread
-        )
+        score = sparse_mm_threaded(similarity, self.X_interaction_csc, self.n_thread)
         return score.astype(np.float64).toarray()
