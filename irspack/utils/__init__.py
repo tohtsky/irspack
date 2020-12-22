@@ -9,6 +9,7 @@ from ._util_cpp import (
     sparse_mm_threaded,
     okapi_BM_25_weight,
     tf_idf_weight,
+    remove_diagonal,
 )
 from ..definitions import InteractionMatrix
 
@@ -45,4 +46,5 @@ __all__ = [
     "sparse_mm_threaded",
     "okapi_BM_25_weight",
     "tf_idf_weight",
+    "remove_diagonal",
 ]
