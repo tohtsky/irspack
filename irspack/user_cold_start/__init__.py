@@ -6,6 +6,7 @@ from irspack.user_cold_start.recommenders import (
     LinearMethodRecommender,
 )
 from irspack.user_cold_start.optimizers import (
+    BaseOptimizer as BaseUserColdStartOptimizer,
     UserCBCosineKNNOptimizer,
     TopPopularOptimizer,
     LinearMethodOptimizer,

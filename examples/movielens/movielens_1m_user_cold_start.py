@@ -1,35 +1,38 @@
-from typing import Type, List, Tuple
-from scipy import sparse as sps
-import numpy as np
-from irspack.dataset.movielens import MovieLens1MDataManager
-from irspack.utils.encoders import (
-    CategoricalValueEncoder,
-    DataFrameEncoder,
-    BinningEncoder,
-)
+import json
+from typing import Any, Dict, List, Tuple, Type
 
+import numpy as np
+import pandas as pd
+from irspack.dataset.movielens import MovieLens1MDataManager
+from irspack.definitions import UserIndexArray
 from irspack.user_cold_start import (
-    UserColdStartRecommenderBase,
-    UserColdStartEvaluator,
-    UserCBKNNRecommender,
-    LinearRecommender,
-    TopPopularRecommender,
+    BaseUserColdStartOptimizer,
+    CB2BPRFMOptimizer,
     CB2IALSOptimizer,
     CB2TruncatedSVDOptimizer,
-    CB2BPRFMOptimizer,
+    LinearMethodOptimizer,
+    TopPopularOptimizer,
+    UserCBCosineKNNOptimizer,
+    UserColdStartEvaluator,
 )
-
+from irspack.utils.encoders import (
+    BinningEncoder,
+    CategoricalValueEncoder,
+    DataFrameEncoder,
+)
+from scipy import sparse as sps
 from sklearn.model_selection import train_test_split
 
 if __name__ == "__main__":
+    BASE_CUTOFF = 20
     loader = MovieLens1MDataManager()
     user_df = loader.read_user_info()
-    ratings = loader.load_rating()
-    user_ids_unique = np.unique(ratings.userId)
-    movie_ids_unique = np.unique(ratings.movieId)
+    ratings = loader.read_interaction()
+    user_ids_unique: List[int] = np.unique(ratings.userId)
+    movie_ids_unique: List[int] = np.unique(ratings.movieId)
     movie_id_to_index = {id_: i for i, id_ in enumerate(movie_ids_unique)}
 
-    def df_to_sparse(df):
+    def df_to_sparse(df: pd.DataFrame) -> Tuple[UserIndexArray, sps.csr_matrix]:
         unique_uids, row = np.unique(df.userId, return_inverse=True)
         col = df.movieId.map(movie_id_to_index)
         return (
@@ -48,12 +51,13 @@ if __name__ == "__main__":
 
     ### Preprocess use data
     user_df["zip_first"] = user_df.zipcode.str[0]
-
     columns = ["occupation", "zip_first"]
     encoder_all = DataFrameEncoder()
     encoder_all.add_column(
         "gender", CategoricalValueEncoder(user_df["gender"])
-    ).add_column("age", BinningEncoder(user_df["age"], n_percentiles=10)).add_column(
+    ).add_column(
+        "age", BinningEncoder(user_df["age"], n_percentiles=10)
+    ).add_column(
         "occupation", CategoricalValueEncoder(user_df["occupation"])
     ).add_column(
         "zip_first", CategoricalValueEncoder(user_df["zip_first"])
@@ -64,20 +68,35 @@ if __name__ == "__main__":
 
     test_evaluator = UserColdStartEvaluator(X_test, user_info_test)
 
-    trial_configurations: List[Tuple[Type[UserColdStartRecommenderBase], int]] = [
-        (TopPopularRecommender, 1),
-        (UserCBKNNRecommender, 20),
-        (LinearRecommender, 10),
+    trial_configurations: List[Tuple[Type[BaseUserColdStartOptimizer], int]] = [
+        (TopPopularOptimizer, 1),
+        (UserCBCosineKNNOptimizer, 20),
+        (LinearMethodOptimizer, 10),
     ]
-    for recommender_class, n_trial in trial_configurations:
-        best_param = recommender_class.optimize(
-            X_train, user_info_train, n_trials=n_trial
+    test_results: List[Dict[str, Any]] = []
+    for optimizer_class, n_trials in trial_configurations:
+        best_param = optimizer_class.split_and_optimize(
+            X_train, user_info_train, n_trials=n_trials
         )
-        rec = recommender_class(X_train, user_info_train, **best_param)
+        rec = optimizer_class.recommender_class(
+            X_train, user_info_train, **best_param
+        )
         rec.learn()
-        print(test_evaluator.get_score(rec, 20))
-
+        test_results.append(
+            dict(
+                recommender_name=optimizer_class.recommender_class.__name__,
+                test_result=test_evaluator.get_score(rec),
+            )
+        )
     for cboptim_class in [CB2TruncatedSVDOptimizer]:
-        optimizer = cboptim_class(X_train, user_info_train)
-        rec, best_cf_config, best_nn_config = optimizer.search_all(n_trials=20)
-        print(test_evaluator.get_score(rec))
+        rec, best_config, best_nn_config = cboptim_class.split_and_optimize(
+            X_train, user_info_train, n_trials=20
+        )
+        test_results.append(
+            dict(
+                recommender_name=cboptim_class.recommender_class.__name__,
+                test_result=test_evaluator.get_score(rec),
+            )
+        )
+    with open("test_results.json", "w") as ofs:
+        json.dump(test_results, ofs, indent=2)

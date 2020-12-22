@@ -1,15 +1,15 @@
 import logging
-import numpy as np
 import time
 from abc import ABC
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Type
 
+import numpy as np
 import optuna
 import pandas as pd
+from irspack.utils.default_logger import get_default_logger
 
-from ..parameter_tuning import overwrite_suggestions, Suggestion
 from ..evaluator import Evaluator
+from ..parameter_tuning import Suggestion, overwrite_suggestions
 from ..recommenders.base import (
     BaseRecommender,
     BaseRecommenderWithThreadingSupport,
@@ -20,7 +20,7 @@ from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
 class BaseOptimizer(ABC):
     recommender_class: Type[BaseRecommender]
-    default_tune_range: List[Suggestion]
+    default_tune_range: List[Suggestion] = []
 
     def __init__(
         self,
@@ -32,11 +32,8 @@ class BaseOptimizer(ABC):
         fixed_params: Dict[str, Any] = dict(),
     ):
         if logger is None:
-            logger = logging.getLogger(__name__)
-            logger.setLevel(logging.DEBUG)
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
-            logger.addHandler(handler)
+            logger = get_default_logger()
+
         self.logger = logger
         self._data = data
         self.val_evaluator = val_evaluator
@@ -46,7 +43,9 @@ class BaseOptimizer(ABC):
         self.best_trial_index: Optional[int] = None
         self.best_val = float("inf")
         self.best_params: Optional[Dict[str, Any]] = None
-        self.learnt_config_best: Dict[str, Any] = dict()  # to store early-stopped epoch
+        self.learnt_config_best: Dict[
+            str, Any
+        ] = dict()  # to store early-stopped epoch
 
         self.valid_results: List[Dict[str, float]] = []
         self.tried_configs: List[Dict[str, Any]] = []
@@ -70,9 +69,10 @@ class BaseOptimizer(ABC):
         self, n_trials: int = 20, timeout: Optional[int] = None
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         self.logger.info(
-            f"""Start parameter search for {self.recommender_class.__name__} over following range:"""
+            """Start parameter search for %s over the range: %s""",
+            type(self).recommender_class.__name__,
+            self.suggestions,
         )
-        self.logger.info("\n".join([repr(s) for s in self.suggestions]))
         study = optuna.create_study()
         self.current_trial = -1
         self.best_val = float("inf")
@@ -84,8 +84,8 @@ class BaseOptimizer(ABC):
             self.current_trial += 1  # for pruning
             start = time.time()
             params = dict(**self._suggest(trial), **self.fixed_params)
-            self.logger.info(f"\nTrial {self.current_trial}:")
-            self.logger.info(f"parameter = {params}")
+            self.logger.info("Trial %s:", self.current_trial)
+            self.logger.info("parameter = %s", params)
 
             arg, parameters = self.get_model_arguments(**params)
 
@@ -100,7 +100,10 @@ class BaseOptimizer(ABC):
             score["time"] = time_spent
             self.valid_results.append(score)
             self.logger.info(
-                f"Config {self.current_trial} obtained the following scores: {score} within {time_spent} seconds."
+                "Config %d obtained the following scores: %s within %f seconds.",
+                self.current_trial,
+                score,
+                time_spent,
             )
             val_score = score[self.metric]
             if (-val_score) < self.best_val:
@@ -108,7 +111,9 @@ class BaseOptimizer(ABC):
                 self.best_time = time_spent
                 self.best_params = parameters
                 self.learnt_config_best = dict(**recommender.learnt_config)
-                self.logger.info(f"Found best {self.metric} using this config.")
+                self.logger.info(
+                    "Found best %s using this config.", self.metric
+                )
                 self.best_trial_index = self.current_trial
 
             return -val_score
@@ -200,4 +205,6 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
     def get_model_arguments(
         self, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super().get_model_arguments(*args, n_thread=self.n_thread, **kwargs)
+        return super().get_model_arguments(
+            *args, n_thread=self.n_thread, **kwargs
+        )

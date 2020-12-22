@@ -1,5 +1,4 @@
-from numpy.lib.ufunclike import _fix_and_maybe_deprecate_out_named_y
-from examples.movielens.ml_1m_new import X_train_all
+from irspack.utils.default_logger import get_default_logger
 import logging
 from logging import Logger
 from typing import Type, Optional, List, Tuple, Dict, Any
@@ -16,13 +15,15 @@ from ..definitions import (
     InteractionMatrix,
     ProfileMatrix,
 )
-from ..parameter_tuning import Suggestion
+from irspack.parameter_tuning import Suggestion
 
-from ..evaluator import Evaluator as Evaluator_hot
-from ..optimizers.base_optimizer import BaseOptimizer
-from ..optimizers import BPRFMOptimizer, IALSOptimizer, TruncatedSVDOptimizer
-from ..recommenders import (
-    BPRFMRecommender,
+from irspack.evaluator import Evaluator as Evaluator_hot
+from irspack.optimizers.base_optimizer import BaseOptimizer as HotBaseOptimizer
+from irspack.optimizers import (
+    IALSOptimizer,
+    TruncatedSVDOptimizer,
+)
+from irspack.recommenders import (
     IALSRecommender,
     TruncatedSVDRecommender,
 )
@@ -50,7 +51,7 @@ class CB2CFUserColdStartRecommender(BaseUserColdStartRecommender):
 
 class CB2CFUserOptimizerBase(object):
     recommender_class: Type[BaseRecommenderWithUserEmbedding]
-    cf_optimizer_class: Type[BaseOptimizer]
+    cf_optimizer_class: Type[HotBaseOptimizer]
 
     def __init__(
         self,
@@ -91,8 +92,8 @@ class CB2CFUserOptimizerBase(object):
             ],
             format="csr",
         )
-
         self.X_all = X_all
+
         if nn_search_config is None:
             nn_search_config = MLPSearchConfig()
         self.nn_search_config = nn_search_config
@@ -102,35 +103,27 @@ class CB2CFUserOptimizerBase(object):
         cls,
         X_all: InteractionMatrix,
         X_profile: ProfileMatrix,
-        evaluator_config: Dict[str, Any] = dict(cutoff=20, n_thread=4),
-        target_metric: str = "ndcg",
-        cf_split_config: Dict[str, Any] = dict(random_seed=42, test_ratio=0),
+        evaluator_config: Dict[str, Any] = dict(
+            cutoff=20, n_thread=4, target_metric="ndcg"
+        ),
+        cf_split_config: Dict[str, Any] = dict(random_seed=42, test_ratio=0.2),
         nn_search_config: Optional[MLPSearchConfig] = None,
+        n_trials: int = 20,
     ) -> Tuple[
         CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
     ]:
-        evaluator_config = dict(**evaluator_config)
-        evaluator_config["target_metric"] = target_metric
         assert X_all.shape[0] == X_profile.shape[0]
         X_all = X_all
         X_profile = X_profile
         X_tr_, X_val_ = rowwise_train_test_split(X_all, **cf_split_config)
         hot_evaluator = Evaluator_hot(X_val_, 0, **evaluator_config)
-        optimizer = CB2CFUserOptimizerBase(
+        optimizer = cls(
             X_tr_,
             hot_evaluator,
             X_profile,
             nn_search_config=nn_search_config,
         )
-        return optimizer.search_all()
-
-    def get_default_logger(self) -> logging.Logger:
-        logger = logging.getLogger(self.__class__.__name__)
-        logger.setLevel(logging.INFO)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler()
-            logger.addHandler(handler)
-        return logger
+        return optimizer.search_all(n_trials=n_trials)
 
     def search_all(
         self,
@@ -143,8 +136,8 @@ class CB2CFUserOptimizerBase(object):
     ) -> Tuple[
         CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
     ]:
-        if logger is not None:
-            logger.info("Start learning the CB embedding.")
+        if logger is None:
+            logger = get_default_logger()
         recommender, best_config_recommender = self.search_embedding(
             n_trials,
             logger,
@@ -202,11 +195,6 @@ class CB2CFUserOptimizerBase(object):
         return searcher.search_param_fit_all(n_trials=n_trials, logger=logger)
 
 
-class CB2BPRFMOptimizer(CB2CFUserOptimizerBase):
-    recommender_class = BPRFMRecommender
-    cf_optimizer_class = BPRFMOptimizer
-
-
 class CB2TruncatedSVDOptimizer(CB2CFUserOptimizerBase):
     recommender_class = TruncatedSVDRecommender
     cf_optimizer_class = TruncatedSVDOptimizer
@@ -215,3 +203,24 @@ class CB2TruncatedSVDOptimizer(CB2CFUserOptimizerBase):
 class CB2IALSOptimizer(CB2CFUserOptimizerBase):
     recommender_class = IALSRecommender
     cf_optimizer_class = IALSOptimizer
+
+
+__all__ = [
+    "CB2CFUserOptimizerBase",
+    "CB2IALSOptimizer",
+    "CB2TruncatedSVDOptimizer",
+]
+
+try:
+    from irspack.recommenders.bpr import BPRFMRecommender
+    from irspack.optimizers import BPRFMOptimizer
+
+    class CB2BPRFMOptimizer(CB2CFUserOptimizerBase):
+        recommender_class = BPRFMRecommender
+        cf_optimizer_class = BPRFMOptimizer
+
+    __all__.append("CB2BPRFMOptimizer")
+
+
+except:
+    pass

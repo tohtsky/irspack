@@ -13,6 +13,7 @@ install_requires = (
         "pandas>=1.0.0",
         "scikit-learn>=0.21.0",
         "scipy>=1.0",
+        "colorlog>=4"
         # "lightfm>=1.15",
     ],
 )

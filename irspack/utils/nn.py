@@ -1,5 +1,6 @@
 from functools import partial
 from dataclasses import dataclass
+from irspack.utils.default_logger import get_default_logger
 from logging import Logger
 from typing import List, Optional, Tuple, Any, Callable, Iterator
 from jax._src.random import PRNGKey
@@ -8,10 +9,7 @@ import numpy as np
 import optuna
 from optuna import exceptions
 from scipy import sparse as sps
-from scipy._lib.six import BytesIO
-from scipy.sparse import data
 from sklearn.model_selection import train_test_split
-from torch import nn
 import haiku as hk
 import jax.numpy as jnp
 import jax
@@ -23,12 +21,15 @@ from tqdm import tqdm
 class MLP:
     predict_function: Callable[[hk.Params, jnp.ndarray, bool], jnp.ndarray]
     params: hk.Params
+    rng_key = PRNGKey(0)
 
     def predict(self, X: jnp.ndarray) -> np.ndarray:
-        f: Callable[[hk.Params, jnp.ndarray, bool], jnp.ndarray] = getattr(
-            self, "predict_function"
+        f: Callable[
+            [hk.Params, PRNGKey, jnp.ndarray, bool], jnp.ndarray
+        ] = getattr(self, "predict_function")
+        return np.asarray(
+            f(self.params, self.rng_key, X, False), dtype=np.float32
         )
-        return np.asarray(f(self.params, X, False), dtype=np.float32)
 
 
 @dataclass
@@ -136,9 +137,10 @@ class MLPOptimizer(object):
         self.best_trial_score = float("inf")
         self.best_config = None
         study = optuna.create_study()
-        if logger is not None:
-            r2 = (self.embedding_test.detach().numpy() ** 2).sum(axis=1).mean()
-            logger.info(f"r2 baseline is {r2}")
+        if logger is None:
+            logger = get_default_logger()
+        r2 = (self.embedding_test ** 2).mean(axis=1).mean()
+        logger.info("MSE baseline is %f", r2)
 
         def objective(trial: optuna.Trial) -> float:
             config = self.search_config.suggest(trial)
@@ -170,7 +172,9 @@ class MLPOptimizer(object):
         best_param = self.search_best_config(n_trials, logger=logger)
 
         if best_param is None:
-            raise RuntimeError("An error occurred during the optimization step.")
+            raise RuntimeError(
+                "An error occurred during the optimization step."
+            )
 
         mlp = self.fit_full(best_param)
         return mlp, best_param
@@ -296,13 +300,13 @@ class MLPOptimizer(object):
         opt = optax.adam(config.learning_rate)
         opt_state = opt.init(params)
 
-        @partial(jax.jit, static_argnums=(2,))
+        @partial(jax.jit, static_argnums=(3,))
         def predict(
             params: hk.Params, rng: PRNGKey, X: jnp.ndarray, training: bool
         ) -> jnp.ndarray:
             return mlp_function.apply(params, rng, X, training)
 
-        @partial(jax.jit, static_argnums=(3,))
+        @partial(jax.jit, static_argnums=(4,))
         def loss_fn(
             params: hk.Params,
             rng: PRNGKey,
