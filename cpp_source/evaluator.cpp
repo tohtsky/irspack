@@ -121,6 +121,8 @@ struct EvaluatorCore {
     return overall;
   }
 
+  inline SparseMatrix get_ground_truth() const { return this->X_; }
+
 private:
   inline Metrics get_metrics_local(const Eigen::Ref<DenseMatrix> &scores,
                                    const std::vector<int> &user_set,
@@ -222,5 +224,6 @@ PYBIND11_MODULE(_evaluator, m) {
            py::arg("grount_truth"))
       .def("get_metrics", &EvaluatorCore::get_metrics, py::arg("score_array"),
            py::arg("cutoff"), py::arg("offset"), py::arg("n_thread"),
-           py::arg("recall_with_cutoff") = false);
+           py::arg("recall_with_cutoff") = false)
+      .def("get_ground_truth", &EvaluatorCore::get_ground_truth);
 }
