@@ -54,16 +54,45 @@ class CB2CFUserOptimizerBase(object):
 
     def __init__(
         self,
-        X_all: InteractionMatrix,
         X_cf_train_all: InteractionMatrix,
         hot_evaluator: Evaluator_hot,
         X_profile: ProfileMatrix,
         nn_search_config: Optional[MLPSearchConfig] = None,
     ):
-        self.X_all = X_all
+        assert X_cf_train_all.shape[0] == X_profile.shape[0]
+
+        X_val_ground_truth = hot_evaluator.core.get_ground_truth()
+        assert X_val_ground_truth.shape[1] == X_cf_train_all.shape[1]
+        assert (
+            hot_evaluator.offset + X_val_ground_truth.shape[0]
+            <= X_cf_train_all.shape[0]
+        )
         self.X_profile = X_profile
         self.X_cf_train_all = X_cf_train_all
         self.hot_evaluator = hot_evaluator
+
+        # reconstruct all the available interaction
+        X_all = X_cf_train_all + sps.vstack(
+            [
+                sps.csr_matrix(
+                    (hot_evaluator.offset, X_cf_train_all.shape[1]),
+                    dtype=np.float64,
+                ),
+                X_val_ground_truth,
+                sps.csr_matrix(
+                    (
+                        X_cf_train_all.shape[0]
+                        - hot_evaluator.offset
+                        - X_val_ground_truth.shape[0],
+                        X_cf_train_all.shape[1],
+                    ),
+                    dtype=np.float64,
+                ),
+            ],
+            format="csr",
+        )
+
+        self.X_all = X_all
         if nn_search_config is None:
             nn_search_config = MLPSearchConfig()
         self.nn_search_config = nn_search_config
@@ -80,15 +109,15 @@ class CB2CFUserOptimizerBase(object):
     ) -> Tuple[
         CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
     ]:
-        evaluator_config = dict(**evaluator_config, target_metric=target_metric)
+        evaluator_config = dict(**evaluator_config)
+        evaluator_config["target_metric"] = target_metric
         assert X_all.shape[0] == X_profile.shape[0]
         X_all = X_all
         X_profile = X_profile
         X_tr_, X_val_ = rowwise_train_test_split(X_all, **cf_split_config)
         hot_evaluator = Evaluator_hot(X_val_, 0, **evaluator_config)
-        optimizer = cls(
-            X_all,
-            X_train_all,
+        optimizer = CB2CFUserOptimizerBase(
+            X_tr_,
             hot_evaluator,
             X_profile,
             nn_search_config=nn_search_config,

@@ -21,7 +21,9 @@ IRSPACK_TESTING = os.environ.get("IRSPACK_TESTING", None) is not None
 
 
 class get_eigen_include(object):
-    EIGEN3_URL = "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
+    EIGEN3_URL = (
+        "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
+    )
     EIGEN3_DIRNAME = "eigen-3.3.7"
 
     def __str__(self):
@@ -109,7 +111,6 @@ ext_modules = [
         ],
         language="c++",
     ),
-
     Extension(
         "irspack.utils._util_cpp",
         ["cpp_source/util.cpp"],
@@ -150,7 +151,9 @@ def cpp_flag(compiler):
         if has_flag(compiler, flag):
             return flag
 
-    raise RuntimeError("Unsupported compiler -- at least C++11 support " "is needed!")
+    raise RuntimeError(
+        "Unsupported compiler -- at least C++11 support " "is needed!"
+    )
 
 
 class BuildExt(build_ext):
@@ -190,7 +193,9 @@ class BuildExt(build_ext):
             if has_flag(self.compiler, "-fvisibility=hidden"):
                 opts.append("-fvisibility=hidden")
         elif ct == "msvc":
-            opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
+            opts.append(
+                '/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version()
+            )
         for ext in self.extensions:
             ext.extra_compile_args = opts
             ext.extra_link_args = link_opts
@@ -215,7 +220,7 @@ setup(
         "irspack.user_cold_start",
         "irspack.dataset",
         "irspack.dataset.movielens",
-        "irspack.item_cold_start",
+        # "irspack.item_cold_start",
         "irspack.utils",
         "irspack.utils.encoders",
     ],
