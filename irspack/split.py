@@ -13,11 +13,40 @@ def split_train_test_userwise(
     df_: pd.DataFrame,
     user_colname: str,
     item_colname: str,
-    item_id_to_iid: Dict[Any, int],
+    item_id_to_iid: Optional[Dict[Any, int]],
     heldout_ratio: float,
     rns: np.random.RandomState,
     rating_column: Optional[str] = None,
 ) -> UserDataSet:
+    """Split the user x item data frame into a pair of sparse matrix (represented as a UserDataSet).
+
+    Parameters
+    ----------
+    df_ : pd.DataFrame
+        user x item interaction matrix.
+    user_colname : str
+        The column name for the users.
+    item_colname : str
+        The column name for the items.
+    item_id_to_iid : Optional[Dict[Any, int]]
+        The mapper from item id to item index. If not supplied, create own mapping from df_.
+    heldout_ratio : float
+        The percentage of items (per-user) to be held out as a test(validation) ones.
+    rns : np.random.RandomState
+        The random state
+    rating_column : Optional[str], optional
+        The column for the rating values. If None, the rating values will be all equal (1), by default None
+
+    Returns
+    -------
+    UserDataSet
+        Resulting train-test split dataset.
+    """
+
+    if item_id_to_iid is None:
+        item_id_to_iid = {
+            id: i for i, id in enumerate(np.unique(df_[item_colname]))
+        }
     df_ = df_[df_[item_colname].isin(item_id_to_iid.keys())]
 
     item_indices = df_[item_colname].map(item_id_to_iid)
@@ -41,7 +70,7 @@ def split_train_test_userwise(
     return UserDataSet(user_ids, X_learn.tocsr(), X_predict.tocsr())
 
 
-def split(
+def dataframe_split_user_level(
     df_all: pd.DataFrame,
     user_column: str,
     item_column: str,
@@ -54,7 +83,6 @@ def split(
     heldout_ratio_test: float = 0.5,
     random_state: int = 42,
 ) -> Tuple[Dict[str, UserDataSet], List[Any]]:
-
     """
     df: contains user & item_id and rating (if any)
     user_column: column name for user_id

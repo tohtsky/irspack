@@ -11,9 +11,10 @@ from irspack.dataset.movielens import (
     MovieLens20MDataManager,
 )
 from irspack.optimizers import (
+    AsymmetricCosineKNNOptimizer,
     BaseOptimizer,
+    CosineKNNOptimizer,
     DenseSLIMOptimizer,
-    RandomWalkWithRestartOptimizer,
     IALSOptimizer,
     MultVAEOptimizer,
     P3alphaOptimizer,
@@ -22,9 +23,12 @@ from irspack.optimizers import (
     SLIMOptimizer,
     TopPopOptimizer,
 )
-from irspack.split import split
+from irspack.split import dataframe_split_user_level
 
-os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["OMP_NUM_THREADS"] = "8"
+
+# This will set the number of thread to be 8 where it is possible.
+# You can also controll the number of threads for each recommender.
 os.environ["RS_THREAD_DEFAULT"] = "8"
 
 if __name__ == "__main__":
@@ -36,6 +40,7 @@ if __name__ == "__main__":
     logger.addHandler(logging.FileHandler(f"search.log"))
     logger.addHandler(logging.StreamHandler())
 
+    # We follow the preprocessing of Mult-VAE implementation (https://github.com/dawenl/vae_cf)
     data_manager = MovieLens20MDataManager()
     df_all = data_manager.read_interaction()
     df_all = df_all[df_all.rating >= 4]
@@ -43,7 +48,7 @@ if __name__ == "__main__":
     user_cnt = user_cnt[user_cnt >= 5]
     df_all = df_all[df_all.userId.isin(user_cnt.index)]
 
-    data_all, _ = split(
+    data_all, _ = dataframe_split_user_level(
         df_all,
         "userId",
         "movieId",
@@ -77,11 +82,13 @@ if __name__ == "__main__":
     validation_results = []
 
     test_configs: List[Tuple[Type[BaseOptimizer], int, Dict[str, Any]]] = [
-        # (TopPopOptimizer, 1),
-        # (IALSOptimizer, 40),
+        (TopPopOptimizer, 1, dict()),
+        (CosineKNNOptimizer, 40, dict()),
+        (AsymmetricCosineKNNOptimizer, 40, dict()),
         (DenseSLIMOptimizer, 20, dict()),
         (P3alphaOptimizer, 30, dict(alpha=1)),
-        # (RP3betaOptimizer, 40),
+        (IALSOptimizer, 40, dict()),
+        (RP3betaOptimizer, 40, dict(alpha=1)),
         (
             MultVAEOptimizer,
             1,
@@ -97,17 +104,16 @@ if __name__ == "__main__":
             data_train.X_all,
             valid_evaluator,
             metric="ndcg",
-            n_trials=n_trials,
             logger=logger,
             fixed_params=config,
         )
-        (best_param, validation_result_df) = optimizer.do_search(timeout=14400)
+        (best_param, validation_result_df) = optimizer.optimize(
+            n_trials=n_trials, timeout=14400
+        )
         validation_result_df["recommender_name"] = recommender_name
         validation_results.append(validation_result_df)
         pd.concat(validation_results).to_csv(f"validation_scores.csv")
-        test_recommender = optimizer.recommender_class(
-            X_train_val_all, **best_param
-        )
+        test_recommender = optimizer.recommender_class(X_train_val_all, **best_param)
         test_recommender.learn()
         test_scores = test_evaluator.get_scores(test_recommender, [20, 50, 100])
 

@@ -1,25 +1,115 @@
-# Implicit Feedback Recommender Systems
+# irspack
 
-Notable features include:
+irspack is a Python package to train, evaluate, and optimize recommender systems based on implicit feedback.
 
-- Use of [optuna](https://github.com/optuna/optuna) for more efficient parameter search. In particular, if an early stopping scheme is available, optuna can prune unpromising trial based on the intermediate validation score.
-- multi-thread C++ implemantations are available for a number of algorithms
-- Implement CB2CF strategy for cold-start scenarios.
+While there are already many other great packages for this purpose, like
+
+- [implicit](https://github.com/benfred/implicit)
+- [daisyRec](https://github.com/AmazingDD/daisyRec)
+- [RecSys2019_DeepLearning_Evaluation](https://github.com/MaurizioFD/RecSys2019_DeepLearning_Evaluation) (which has influenced this project the most)
+
+I have decided to implement my own one to
+
+- Use [optuna](https://github.com/optuna/optuna) for more efficient parameter search. In particular, if an early stopping scheme is available, optuna can prune unpromising trial based on the intermediate validation score, which drastically reduces overall running time for tuning.
+- Use multi-threaded implementations of the number of algorithms (KNN and IALS) in C++.
+- Deal with user cold-start scenarios using [CB2CF strategy](https://dl.acm.org/doi/10.1145/3298689.3347038), which I found very convenient in practice.
 
 # Installation
 
-```
-python setup.py install
-```
+(To appear soon on PyPI)
 
-If you want to use Mult-VAE, install pytorch by
-
-```
-pip install torch
+```sh
+pip install git+https://github.com/tohtsky/irspack
 ```
 
-# Usage
+If you want to use Mult-VAE and CB2CF features in cold-start scenarios, you'll need the following additional (pip-installable) packages:
 
-See `examples/`
+- [jax](https://github.com/google/jax)
+- [jaxlib](https://github.com/google/jax)
+  - If you want to use GPU, follow the installation guide [https://github.com/google/jax#installation](https://github.com/google/jax#installation)
+- [dm-haiku](https://github.com/deepmind/dm-haiku)
+- [optax](https://github.com/deepmind/optax)
 
-## Todo
+# Basic Usage
+
+## Train a recommender
+
+```Python
+import numpy as np
+import scipy.sparse as sps
+from irspack.recommenders import P3alphaRecommender
+from irspack.dataset.movielens import MovieLens100KDataManager
+
+df = MovieLens100KDataManager().read_interaction()
+unique_user_id, user_index = np.unique(df.userId, return_inverse=True)
+unique_movie_id, movie_index = np.unique(df.movieId, return_inverse=True)
+X_interaction = sps.csr_matrix(
+  (np.ones(df.shape[0]), (user_index, movie_index))
+)
+
+recommender = P3alphaRecommender(X_interaction)
+recommender.learn()
+
+# get the masked score (i.e., already seen item have score -inf)
+# of user 0 (whose userId is unique_user_id[0]) for items.
+recommender.get_score_remove_seen([0])
+```
+
+## Evaluation on a validation set
+
+We have to split the dataset to train and validation set
+
+```Python
+from irspack.split import rowwise_train_test_split
+from irspack.evaluator import Evaluator
+X_train, X_val = rowwise_train_test_split(
+    X_interaction, test_ratio=0.2, random_seed=0
+)
+
+# often, X_val is defined for a subset of users.
+# `offset` specifies where the validated user blocks begin.
+# In this split, X_val is defined for the same users as X_train,
+# so offset = 0
+evaluator = Evaluator(ground_truth=X_val, offset=0)
+
+recommender = P3alphaRecommender(X_train)
+recommender.learn()
+evaluator.get_score(recommender)
+```
+
+This will print something like
+
+```Python
+{
+  'appeared_item': 106.0,
+  'entropy': 3.840445116672292,
+  'gini_index': 0.9794929280523742,
+  'hit': 0.8854718981972428,
+  'map': 0.11283343078231302,
+  'n_items': 1682.0,
+  'ndcg': 0.3401244303579389,
+  'precision': 0.27560975609756017,
+  'recall': 0.19399215770339678,
+  'total_user': 943.0,
+  'valid_user': 943.0
+}
+```
+
+## Hyperparameter tunings
+
+Now that we can evaluate the recommenders' performance against
+validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
+
+```Python
+from irspack.optimizers import P3alphaOptimizer
+
+optimizer = P3alphaOptimizer(X_train, evaluator)
+best_params, trial_dfs  = optimizer.optimize(n_trials=20)
+
+# maximal ndcg around 0.38 ~ 0.39
+trial_dfs.ndcg.max()
+```
+
+Of course, we have to hold-out another interaction set for test,
+and measure the performance of tuned recommender against the test set.
+See `examples`.

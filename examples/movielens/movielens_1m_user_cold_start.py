@@ -55,9 +55,7 @@ if __name__ == "__main__":
     encoder_all = DataFrameEncoder()
     encoder_all.add_column(
         "gender", CategoricalValueEncoder(user_df["gender"])
-    ).add_column(
-        "age", BinningEncoder(user_df["age"], n_percentiles=10)
-    ).add_column(
+    ).add_column("age", BinningEncoder(user_df["age"], n_percentiles=10)).add_column(
         "occupation", CategoricalValueEncoder(user_df["occupation"])
     ).add_column(
         "zip_first", CategoricalValueEncoder(user_df["zip_first"])
@@ -78,9 +76,7 @@ if __name__ == "__main__":
         best_param = optimizer_class.split_and_optimize(
             X_train, user_info_train, n_trials=n_trials
         )
-        rec = optimizer_class.recommender_class(
-            X_train, user_info_train, **best_param
-        )
+        rec = optimizer_class.recommender_class(X_train, user_info_train, **best_param)
         rec.learn()
         test_results.append(
             dict(
@@ -88,7 +84,11 @@ if __name__ == "__main__":
                 test_result=test_evaluator.get_score(rec),
             )
         )
-    for cboptim_class in [CB2TruncatedSVDOptimizer]:
+    for cboptim_class in [
+        CB2TruncatedSVDOptimizer,
+        CB2IALSOptimizer,
+        CB2BPRFMOptimizer,
+    ]:
         rec, best_config, best_nn_config = cboptim_class.split_and_optimize(
             X_train, user_info_train, n_trials=20
         )

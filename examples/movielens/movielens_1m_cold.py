@@ -7,21 +7,24 @@ import pandas as pd
 from scipy import sparse as sps
 
 from irspack.evaluator import EvaluatorWithColdUser
-from irspack.dataset.movielens import MovieLens100KDataManager
+from irspack.dataset.movielens import MovieLens1MDataManager
 from irspack.optimizers import (
     BaseOptimizer,
+    CosineKNNOptimizer,
+    AsymmetricCosineKNNOptimizer,
+    TverskyIndexKNNOptimizer,
     DenseSLIMOptimizer,
     IALSOptimizer,
-    MultVAEOptimizer,
     P3alphaOptimizer,
     RP3betaOptimizer,
-    SLIMOptimizer,
     TopPopOptimizer,
+    # SLIMOptimizer,
+    # MultVAEOptimizer,
 )
-from irspack.split import split
+from irspack.split import dataframe_split_user_level
 
-os.environ["OMP_NUM_THREADS"] = "4"
-os.environ["RS_THREAD_DEFAULT"] = "4"
+os.environ["OMP_NUM_THREADS"] = "8"
+os.environ["RS_THREAD_DEFAULT"] = "8"
 
 if __name__ == "__main__":
 
@@ -32,11 +35,17 @@ if __name__ == "__main__":
     logger.addHandler(logging.FileHandler(f"search.log"))
     logger.addHandler(logging.StreamHandler())
 
-    data_manager = MovieLens100KDataManager()
-    df_all = data_manager.load_rating()
+    data_manager = MovieLens1MDataManager()
+    df_all = data_manager.read_interaction()
 
-    data_all, _ = split(
-        df_all, "movieId", "userId", split_ratio_test=0.5, split_ratio_val=0.5,
+    data_all, _ = dataframe_split_user_level(
+        df_all,
+        "userId",
+        "movieId",
+        test_user_ratio=0.2,
+        val_user_ratio=0.2,
+        heldout_ratio_test=0.5,
+        heldout_ratio_val=0.5,
     )
 
     data_train = data_all["train"]
@@ -50,11 +59,13 @@ if __name__ == "__main__":
         input_interaction=data_val.X_learn,
         ground_truth=data_val.X_predict,
         cutoff=BASE_CUTOFF,
+        n_thread=8,
     )
     test_evaluator = EvaluatorWithColdUser(
         input_interaction=data_test.X_learn,
         ground_truth=data_test.X_predict,
         cutoff=BASE_CUTOFF,
+        n_thread=8,
     )
 
     test_results = []
@@ -62,23 +73,27 @@ if __name__ == "__main__":
 
     test_configs: List[Tuple[Type[BaseOptimizer], int]] = [
         (TopPopOptimizer, 1),
-        (IALSOptimizer, 40),
-        (DenseSLIMOptimizer, 10),
-        (P3alphaOptimizer, 10),
+        (CosineKNNOptimizer, 40),
+        (AsymmetricCosineKNNOptimizer, 40),
+        (TverskyIndexKNNOptimizer, 40),
+        (P3alphaOptimizer, 40),
         (RP3betaOptimizer, 40),
-        (MultVAEOptimizer, 5),
-        (SLIMOptimizer, 40),
+        (IALSOptimizer, 40),
+        (DenseSLIMOptimizer, 20),
+        # (SLIMOptimizer, 40), time consuming
+        # (MultVAEOptimizer, 5),
     ]
-    for optimizer_class, n_trial in test_configs:
+    for optimizer_class, n_trials in test_configs:
         recommender_name = optimizer_class.recommender_class.__name__
         optimizer: BaseOptimizer = optimizer_class(
             data_train.X_all,
             valid_evaluator,
             metric="ndcg",
-            n_trials=n_trial,
             logger=logger,
         )
-        (best_param, validation_result_df) = optimizer.do_search(timeout=14400)
+        (best_param, validation_result_df) = optimizer.optimize(
+            timeout=14400, n_trials=n_trials
+        )
         validation_result_df["recommender_name"] = recommender_name
         validation_results.append(validation_result_df)
         pd.concat(validation_results).to_csv(f"validation_scores.csv")
