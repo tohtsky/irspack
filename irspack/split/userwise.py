@@ -5,8 +5,8 @@ import pandas as pd
 from scipy import sparse as sps
 from sklearn.model_selection import train_test_split
 
-from .definitions import UserDataSet
-from .utils import rowwise_train_test_split
+from irspack.definitions import UserDataSet
+from irspack.utils import rowwise_train_test_split
 
 
 def split_train_test_userwise(
