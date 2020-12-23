@@ -72,7 +72,7 @@ class MockOptimizer(BaseOptimizerWithEarlyStopping):
 
 
 @pytest.mark.parametrize(
-    "X, target_epoch", [(X_small, 40), (X_small, 15), (X_large, 5)]
+    "X, target_epoch", [(X_small, 20), (X_small, 15), (X_large, 5)]
 )
 def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
     X_train, X_val = rowwise_train_test_split(X)
