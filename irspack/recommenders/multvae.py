@@ -1,6 +1,6 @@
 import pickle
 from dataclasses import dataclass
-from typing import IO, List, Optional, Tuple, Any
+from typing import IO, Any, Dict, List, Optional, Tuple
 
 import haiku as hk
 import jax
@@ -103,7 +103,9 @@ class MultVAE:
     def kl_coeff(self) -> float:
         return self._kl_coeff
 
-    def __call__(self, X: jnp.ndarray, p: jnp.ndarray, train: bool) -> MultVAEOutput:
+    def __call__(
+        self, X: jnp.ndarray, p: jnp.ndarray, train: bool
+    ) -> MultVAEOutput:
         mu, log_var = self.encoder_network(X, p, train)
         std = jnp.exp(log_var * 0.5)
         # log_var = 2 * log (std)
@@ -111,7 +113,9 @@ class MultVAE:
         KL = KL.sum(axis=1).mean(axis=0)
 
         if train:
-            eps = jax.random.normal(hk.next_rng_key(), mu.shape)  # self.rng.rand
+            eps = jax.random.normal(
+                hk.next_rng_key(), mu.shape
+            )  # self.rng.rand
             z: jnp.ndarray = mu + eps * std
         else:
             z = mu
@@ -153,7 +157,9 @@ class MultVAETrainer(TrainerBase):
         self.dec_hidden_dim = dec_hidden_dim
         self.dim_z = dim_z
 
-        self.total_anneal_step = (anneal_end_epoch * self.n_users) / minibatch_size
+        self.total_anneal_step = (
+            anneal_end_epoch * self.n_users
+        ) / minibatch_size
         self._setup_jax_funcs()
 
         self._update_count = 0
@@ -189,7 +195,9 @@ class MultVAETrainer(TrainerBase):
             dropout: float,
             train: bool,
         ) -> jnp.ndarray:
-            mvresult: MultVAEOutput = vae_f.apply(params, rng, X, dropout, train)
+            mvresult: MultVAEOutput = vae_f.apply(
+                params, rng, X, dropout, train
+            )
             neg_ll = -(mvresult.log_softmax * X).sum(axis=1).mean()
             neg_elbo = neg_ll + kl_coeff * mvresult.KL
             return neg_elbo
@@ -268,7 +276,7 @@ class MultVAETrainer(TrainerBase):
         serealized.pop("optimizer")
         return serealized
 
-    def __setstate__(self, state) -> Any:
+    def __setstate__(self, state: Dict[str, Any]) -> Any:
         self.__dict__.update(state)
         self._setup_jax_funcs()
 
