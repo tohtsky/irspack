@@ -76,36 +76,6 @@ public:
     return result;
   }
 
-  ReturnValue run_with_fixed_step(size_t n_step, size_t n_count,
-                                  size_t n_worker, int random_seed) const {
-    using Triplet = Eigen::Triplet<int32_t>;
-    std::vector<std::future<std::vector<Triplet>>> futures;
-    for (size_t thread_id = 0; thread_id < n_worker; thread_id++) {
-      futures.push_back(std::async(
-          [this, random_seed, thread_id, n_worker, n_step, n_count]() {
-            std::mt19937 rns(random_seed + thread_id);
-            vector<Triplet> d;
-            for (size_t i = thread_id; i < this->n_item; i += n_worker) {
-              auto counts = _run_item_walk_fixed_step(i, n_step, n_count, rns);
-              for (auto &iter : counts) {
-                d.emplace_back(i, iter.first, iter.second);
-              }
-            }
-            return d;
-          }));
-    }
-    vector<Triplet> d;
-    for (size_t thread_id = 0; thread_id < n_worker; thread_id++) {
-      vector<Triplet> _ = futures[thread_id].get();
-      d.insert(d.end(), _.begin(), _.end());
-    }
-
-    ReturnValue result(n_item, n_item);
-    result.setFromTriplets(d.begin(), d.end());
-    result.makeCompressed();
-    return result;
-  }
-
 protected:
   inline map<size_t, int> _run_item_walk_fixed_step(size_t item_start_index,
                                                     size_t n_step,
@@ -168,6 +138,5 @@ PYBIND11_MODULE(_rwr, m) {
   m.doc() = "Backend C++ inplementation for Random walk with restart.";
   py::class_<RandomWalkGenerator>(m, "RandomWalkGenerator")
       .def(py::init<CSRMatrix &>())
-      .def("run_with_fixed_step", &RandomWalkGenerator::run_with_fixed_step)
       .def("run_with_restart", &RandomWalkGenerator::run_with_restart);
 }

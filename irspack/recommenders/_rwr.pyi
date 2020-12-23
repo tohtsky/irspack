@@ -9,19 +9,9 @@ import scipy.sparse
 
 __all__ = ["RandomWalkGenerator"]
 
-
 class RandomWalkGenerator:
-    def __init__(self, arg0: scipy.sparse.csr_matrix[float32]) -> None:
-        ...
-
-    def run_with_fixed_step(
-        self, arg0: int, arg1: int, arg2: int, arg3: int
-    ) -> scipy.sparse.csr_matrix[int32]:
-        ...
-
+    def __init__(self, arg0: scipy.sparse.csr_matrix[float32]) -> None: ...
     def run_with_restart(
         self, arg0: float, arg1: int, arg2: int, arg3: int, arg4: int
-    ) -> scipy.sparse.csr_matrix[int32]:
-        ...
-
+    ) -> scipy.sparse.csr_matrix[int32]: ...
     pass
