@@ -35,8 +35,10 @@ RUN pip install numpy>=1.11 \
     jax \
     jaxlib \
     dm-haiku \
-    optax
-RUN pip install pytest pytest-cov
+    optax \
+    pytest \
+    pytest-cov
+RUN wget http://files.grouplens.org/datasets/movielens/ml-100k.zip -O $HOME/.ml-100k.zip
 COPY irspack /work/irspack
 COPY cpp_source /work/cpp_source
 COPY setup.py /work/setup.py
