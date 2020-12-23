@@ -21,3 +21,6 @@ stubs/*
 settings.json
 **.ipynb_checkpoints**
 coverage_result
+Pipfile
+Pipfile.lock
+pybind11
