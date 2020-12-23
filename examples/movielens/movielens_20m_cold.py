@@ -80,10 +80,10 @@ if __name__ == "__main__":
         (TopPopOptimizer, 1, dict()),
         (CosineKNNOptimizer, 40, dict()),
         (AsymmetricCosineKNNOptimizer, 40, dict()),
-        (DenseSLIMOptimizer, 20, dict()),
         (P3alphaOptimizer, 30, dict(alpha=1)),
-        (IALSOptimizer, 40, dict()),
         (RP3betaOptimizer, 40, dict(alpha=1)),
+        (IALSOptimizer, 40, dict()),
+        (DenseSLIMOptimizer, 20, dict()),
         (
             MultVAEOptimizer,
             1,

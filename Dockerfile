@@ -31,7 +31,11 @@ RUN pip install numpy>=1.11 \
     pandas>=1.0.0 \
     scikit-learn>=0.21.0 \
     scipy>=1.0 \
-    lightfm>=1.15
+    lightfm>=1.15 \
+    jax \
+    jaxlib \
+    dm-haiku \
+    optax
 RUN pip install pytest pytest-cov
 COPY irspack /work/irspack
 COPY cpp_source /work/cpp_source

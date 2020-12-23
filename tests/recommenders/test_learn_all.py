@@ -12,6 +12,7 @@ from irspack.recommenders import (
     JaccardKNNRecommender,
     P3alphaRecommender,
     RP3betaRecommender,
+    BPRFMRecommender,
     TruncatedSVDRecommender,
     RandomWalkWithRestartRecommender,
     IALSRecommender,
@@ -40,6 +41,7 @@ rec_classes: List[Type[BaseRecommender]] = [
     RandomWalkWithRestartRecommender,
     IALSRecommender,
     DenseSLIMRecommender,
+    BPRFMRecommender,
     SLIMRecommender,
 ]
 try:

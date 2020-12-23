@@ -10,4 +10,4 @@ services:
         mv htmlcov /work/coverage_result/pycov 
         lcov -d `pwd` -c -o coverage.info 
         lcov -e coverage.info */cpp_source/* -o coverageFiltered.info
-        genhtml -o /work/coverage_result/cpp_coverage coverage.info'
+        genhtml -o /work/coverage_result/cpp_coverage coverageFiltered.info'
