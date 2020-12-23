@@ -4,17 +4,11 @@ from typing import IO, Optional
 import numpy as np
 from lightfm import LightFM
 
-from ..definitions import (
-    DenseMatrix,
-    DenseScoreArray,
-    InteractionMatrix,
-    UserIndexArray,
-)
-from .base import (
-    BaseRecommenderWithItemEmbedding,
-    BaseRecommenderWithThreadingSupport,
-    BaseRecommenderWithUserEmbedding,
-)
+from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
+                           UserIndexArray)
+from .base import (BaseRecommenderWithItemEmbedding,
+                   BaseRecommenderWithThreadingSupport,
+                   BaseRecommenderWithUserEmbedding)
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 
@@ -117,9 +111,7 @@ class BPRFMRecommender(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
         if self.trainer is None:
-            raise RuntimeError(
-                "'get_score_from_user_embedding' called before training"
-            )
+            raise RuntimeError("'get_score_from_user_embedding' called before training")
         return (
             user_embedding.dot(self.trainer.fm.item_embeddings.T)
             + self.trainer.fm.item_biases[np.newaxis, :]
@@ -134,9 +126,7 @@ class BPRFMRecommender(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
         if self.trainer is None:
-            raise RuntimeError(
-                "'get_score_from_item_embedding' called before training"
-            )
+            raise RuntimeError("'get_score_from_item_embedding' called before training")
         # ignore bias
         return (
             self.trainer.fm.user_embeddings[user_indices]

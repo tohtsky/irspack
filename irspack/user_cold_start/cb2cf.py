@@ -1,35 +1,24 @@
-from irspack.utils.default_logger import get_default_logger
 import logging
 from logging import Logger
-from typing import Type, Optional, List, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import numpy as np
-from ..utils import rowwise_train_test_split
 from scipy import sparse as sps
-from ..utils.nn import MLPOptimizer, MLP, MLPSearchConfig, MLPTrainingConfig
-
-from ..recommenders.base import BaseRecommenderWithUserEmbedding
-from ..definitions import (
-    DenseMatrix,
-    DenseScoreArray,
-    InteractionMatrix,
-    ProfileMatrix,
-)
-from irspack.parameter_tuning import Suggestion
 
 from irspack.evaluator import Evaluator as Evaluator_hot
+from irspack.optimizers import IALSOptimizer, TruncatedSVDOptimizer
 from irspack.optimizers.base_optimizer import BaseOptimizer as HotBaseOptimizer
-from irspack.optimizers import (
-    IALSOptimizer,
-    TruncatedSVDOptimizer,
-)
-from irspack.recommenders import (
-    IALSRecommender,
-    TruncatedSVDRecommender,
-)
-from irspack.user_cold_start.recommenders.base import (
-    BaseUserColdStartRecommender,
-)
+from irspack.parameter_tuning import Suggestion
+from irspack.recommenders import IALSRecommender, TruncatedSVDRecommender
+from irspack.user_cold_start.recommenders.base import \
+    BaseUserColdStartRecommender
+from irspack.utils.default_logger import get_default_logger
+
+from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
+                           ProfileMatrix)
+from ..recommenders.base import BaseRecommenderWithUserEmbedding
+from ..utils import rowwise_train_test_split
+from ..utils.nn import MLP, MLPOptimizer, MLPSearchConfig, MLPTrainingConfig
 
 
 class CB2CFUserColdStartRecommender(BaseUserColdStartRecommender):
@@ -109,9 +98,7 @@ class CB2CFUserOptimizerBase(object):
         cf_split_config: Dict[str, Any] = dict(random_seed=42, test_ratio=0.2),
         nn_search_config: Optional[MLPSearchConfig] = None,
         n_trials: int = 20,
-    ) -> Tuple[
-        CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
-    ]:
+    ) -> Tuple[CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig]:
         assert X_all.shape[0] == X_profile.shape[0]
         X_all = X_all
         X_profile = X_profile
@@ -133,9 +120,7 @@ class CB2CFUserOptimizerBase(object):
         reconstruction_search_config: Optional[MLPSearchConfig] = None,
         cf_suggest_overwrite: List[Suggestion] = [],
         cf_fixed_params: Dict[str, Any] = dict(),
-    ) -> Tuple[
-        CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig
-    ]:
+    ) -> Tuple[CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig]:
         if logger is None:
             logger = get_default_logger()
         recommender, best_config_recommender = self.search_embedding(
@@ -212,8 +197,8 @@ __all__ = [
 ]
 
 try:
-    from irspack.recommenders.bpr import BPRFMRecommender
     from irspack.optimizers import BPRFMOptimizer
+    from irspack.recommenders.bpr import BPRFMRecommender
 
     class CB2BPRFMOptimizer(CB2CFUserOptimizerBase):
         recommender_class = BPRFMRecommender

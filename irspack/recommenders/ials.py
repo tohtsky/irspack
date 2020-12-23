@@ -3,19 +3,13 @@ from typing import IO, Optional
 
 import numpy as np
 
+from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
+                           UserIndexArray)
 from ._ials import IALSLearningConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
-from .base import (
-    BaseRecommenderWithThreadingSupport,
-    BaseRecommenderWithUserEmbedding,
-    BaseRecommenderWithItemEmbedding,
-)
-from ..definitions import (
-    DenseScoreArray,
-    DenseMatrix,
-    InteractionMatrix,
-    UserIndexArray,
-)
+from .base import (BaseRecommenderWithItemEmbedding,
+                   BaseRecommenderWithThreadingSupport,
+                   BaseRecommenderWithUserEmbedding)
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 
@@ -126,9 +120,7 @@ class IALSRecommender(
         user_vector = self.trainer.core_trainer.transform_user(
             X.astype(np.float32).tocsr()
         )
-        return user_vector.dot(self.trainer.core_trainer.item.T).astype(
-            np.float64
-        )
+        return user_vector.dot(self.trainer.core_trainer.item.T).astype(np.float64)
 
     def get_user_embedding(self) -> DenseMatrix:
         if self.trainer is None:
@@ -140,9 +132,7 @@ class IALSRecommender(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
         if self.trainer is None:
-            raise RuntimeError(
-                "'get_score_from_user_embedding' called before training"
-            )
+            raise RuntimeError("'get_score_from_user_embedding' called before training")
 
         return user_embedding.dot(self.trainer.core_trainer.item.T)
 
@@ -155,9 +145,7 @@ class IALSRecommender(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
         if self.trainer is None:
-            raise RuntimeError(
-                "'get_score_from_item_embedding' called before training"
-            )
+            raise RuntimeError("'get_score_from_item_embedding' called before training")
         return (
             self.trainer.core_trainer.user[user_indices]
             .dot(item_embedding.T)

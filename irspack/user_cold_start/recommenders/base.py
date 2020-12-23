@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, List
 
-from irspack.definitions import DenseScoreArray, InteractionMatrix, ProfileMatrix
+from irspack.definitions import (DenseScoreArray, InteractionMatrix,
+                                 ProfileMatrix)
 from irspack.parameter_tuning import Suggestion
 
 

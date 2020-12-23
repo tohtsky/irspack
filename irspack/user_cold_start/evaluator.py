@@ -1,10 +1,12 @@
-import numpy as np
-from typing import Dict, Any, List
 from collections import OrderedDict
-from ..evaluator import METRIC_NAMES, EvaluatorCore, Metrics
-from ..recommenders.base import InteractionMatrix
+from typing import Any, Dict, List
+
+import numpy as np
 
 from irspack.user_cold_start.recommenders import base
+
+from ..evaluator import METRIC_NAMES, EvaluatorCore, Metrics
+from ..recommenders.base import InteractionMatrix
 
 
 class UserColdStartEvaluator:

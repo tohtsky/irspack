@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from os import environ
-from typing import Any, Dict, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import numpy as np
 from optuna.trial import Trial
@@ -8,12 +8,9 @@ from scipy import sparse as sps
 
 if TYPE_CHECKING:
     from .. import evaluator
-from ..definitions import (
-    DenseMatrix,
-    DenseScoreArray,
-    InteractionMatrix,
-    UserIndexArray,
-)
+
+from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
+                           UserIndexArray)
 
 
 class CallBeforeFitError(Exception):
@@ -47,18 +44,14 @@ class BaseRecommender(ABC):
 
     @abstractmethod
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        raise NotImplementedError(
-            "get_score must be implemented"
-        )  # pragma: no cover
+        raise NotImplementedError("get_score must be implemented")  # pragma: no cover
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         raise NotImplementedError(
             "get_score_block not implemented!"
         )  # pragma: no cover
 
-    def get_score_remove_seen_block(
-        self, begin: int, end: int
-    ) -> DenseScoreArray:
+    def get_score_remove_seen_block(self, begin: int, end: int) -> DenseScoreArray:
         scores = self.get_score_block(begin, end)
         if sps.issparse(scores):
             scores = scores.toarray()
@@ -68,9 +61,7 @@ class BaseRecommender(ABC):
             scores = scores.astype(np.float64)
         return scores
 
-    def get_score_remove_seen(
-        self, user_indices: np.ndarray
-    ) -> DenseScoreArray:
+    def get_score_remove_seen(self, user_indices: np.ndarray) -> DenseScoreArray:
         scores = self.get_score(user_indices)
         if sps.issparse(scores):
             scores = scores.toarray()
@@ -85,9 +76,7 @@ class BaseRecommender(ABC):
             f"get_score_cold_user is not implemented for {self.__class__.__name__}!"
         )  # pragma: no cover
 
-    def get_score_cold_user_remove_seen(
-        self, X: InteractionMatrix
-    ) -> DenseScoreArray:
+    def get_score_cold_user_remove_seen(self, X: InteractionMatrix) -> DenseScoreArray:
         score = self.get_score_cold_user(X)
         score[X.nonzero()] = -np.inf
         return score
@@ -98,9 +87,7 @@ class BaseRecommenderWithThreadingSupport(BaseRecommender):
         self, X_all: InteractionMatrix, n_thread: Optional[int], **kwargs: Any
     ):
 
-        super(BaseRecommenderWithThreadingSupport, self).__init__(
-            X_all, **kwargs
-        )
+        super(BaseRecommenderWithThreadingSupport, self).__init__(X_all, **kwargs)
         if n_thread is not None:
             self.n_thread = n_thread
         else:

@@ -1,6 +1,6 @@
 import logging
-from colorlog import ColoredFormatter
 
+from colorlog import ColoredFormatter
 
 IRSPACK_LOGGER_NAME = "IRSPACK"
 _logger = logging.getLogger(IRSPACK_LOGGER_NAME)

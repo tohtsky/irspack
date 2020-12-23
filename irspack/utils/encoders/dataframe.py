@@ -11,13 +11,9 @@ from .multi_value import ManyToManyEncoder
 class DataFrameEncoder:
     def __init__(self) -> None:
         self.encoders: Dict[str, BaseEncoder] = OrderedDict()
-        self.multivalue_encoders: List[
-            Tuple[str, str, str, ManyToManyEncoder]
-        ] = []
+        self.multivalue_encoders: List[Tuple[str, str, str, ManyToManyEncoder]] = []
 
-    def add_column(
-        self, column: str, mapper: BaseEncoder
-    ) -> "DataFrameEncoder":
+    def add_column(self, column: str, mapper: BaseEncoder) -> "DataFrameEncoder":
         self.encoders[column] = mapper
         return self
 
@@ -36,9 +32,7 @@ class DataFrameEncoder:
     ) -> "DataFrameEncoder":
         if right_key is None:
             right_key = left_key
-        self.multivalue_encoders.append(
-            (left_key, target_column, right_key, encoder)
-        )
+        self.multivalue_encoders.append((left_key, target_column, right_key, encoder))
         return self
 
     def transform_sparse(

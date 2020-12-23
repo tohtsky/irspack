@@ -1,20 +1,21 @@
-from functools import partial
 from dataclasses import dataclass
-from irspack.utils.default_logger import get_default_logger
+from functools import partial
 from logging import Logger
-from typing import List, Optional, Tuple, Any, Callable, Iterator
-from jax._src.random import PRNGKey
+from typing import Any, Callable, Iterator, List, Optional, Tuple
 
+import haiku as hk
+import jax
+import jax.numpy as jnp
 import numpy as np
+import optax
 import optuna
+from jax._src.random import PRNGKey
 from optuna import exceptions
 from scipy import sparse as sps
 from sklearn.model_selection import train_test_split
-import haiku as hk
-import jax.numpy as jnp
-import jax
-import optax
 from tqdm import tqdm
+
+from irspack.utils.default_logger import get_default_logger
 
 
 @dataclass
@@ -24,12 +25,10 @@ class MLP:
     rng_key = PRNGKey(0)
 
     def predict(self, X: jnp.ndarray) -> np.ndarray:
-        f: Callable[
-            [hk.Params, PRNGKey, jnp.ndarray, bool], jnp.ndarray
-        ] = getattr(self, "predict_function")
-        return np.asarray(
-            f(self.params, self.rng_key, X, False), dtype=np.float32
+        f: Callable[[hk.Params, PRNGKey, jnp.ndarray, bool], jnp.ndarray] = getattr(
+            self, "predict_function"
         )
+        return np.asarray(f(self.params, self.rng_key, X, False), dtype=np.float32)
 
 
 @dataclass
@@ -172,9 +171,7 @@ class MLPOptimizer(object):
         best_param = self.search_best_config(n_trials, logger=logger)
 
         if best_param is None:
-            raise RuntimeError(
-                "An error occurred during the optimization step."
-            )
+            raise RuntimeError("An error occurred during the optimization step.")
 
         mlp = self.fit_full(best_param)
         return mlp, best_param

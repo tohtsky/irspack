@@ -1,7 +1,8 @@
 """Backend C++ inplementation for Random walk with restart."""
-from typing import *
 from typing import Iterable as iterable
 from typing import Iterator as iterator
+from typing import *
+
 from numpy import float32, float64, int32
 
 _Shape = Tuple[int, ...]

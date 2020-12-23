@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Any, Dict
+from typing import Any, Dict, List
+
 from optuna import Trial
 
 __all__ = [

@@ -1,7 +1,9 @@
 from typing import Optional
+
 from sklearn.decomposition import NMF
+
+from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
 from .base import BaseRecommender
-from ..definitions import InteractionMatrix, DenseScoreArray, UserIndexArray
 
 
 class NMFRecommender(BaseRecommender):

@@ -1,16 +1,14 @@
 import logging
 from typing import Any, Dict, List, Optional, Type
-import optuna
 
+import optuna
 from sklearn.model_selection import train_test_split
 
 from irspack.definitions import InteractionMatrix
 from irspack.parameter_tuning import Suggestion, overwrite_suggestions
-from irspack.user_cold_start.recommenders.base import (
-    BaseUserColdStartRecommender,
-    ProfileMatrix,
-)
 from irspack.user_cold_start.evaluator import UserColdStartEvaluator
+from irspack.user_cold_start.recommenders.base import (
+    BaseUserColdStartRecommender, ProfileMatrix)
 from irspack.utils.default_logger import get_default_logger
 
 
@@ -67,15 +65,11 @@ class BaseOptimizer:
                 self.X_train, self.profile_train, **param_dict
             )
             recommender.learn()
-            val_score: float = self.evaluator.get_score(recommender)[
-                self.target_metric
-            ]
+            val_score: float = self.evaluator.get_score(recommender)[self.target_metric]
             if (-val_score) < self.best_val:
                 self.best_val = -val_score
                 self.best_params = param_dict
-                self.logger.info(
-                    "Found best %s using this config.", self.target_metric
-                )
+                self.logger.info("Found best %s using this config.", self.target_metric)
                 self.best_trial_index = self.current_trial
 
             return -val_score

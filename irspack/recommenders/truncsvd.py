@@ -2,16 +2,10 @@ from typing import Optional
 
 from sklearn.decomposition import TruncatedSVD
 
-from ..definitions import (
-    DenseMatrix,
-    DenseScoreArray,
-    InteractionMatrix,
-    UserIndexArray,
-)
-from .base import (
-    BaseRecommenderWithUserEmbedding,
-    BaseRecommenderWithItemEmbedding,
-)
+from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
+                           UserIndexArray)
+from .base import (BaseRecommenderWithItemEmbedding,
+                   BaseRecommenderWithUserEmbedding)
 
 
 class TruncatedSVDRecommender(

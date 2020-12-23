@@ -1,5 +1,6 @@
-from typing import List, Any
 from abc import ABC, abstractmethod
+from typing import Any, List
+
 from scipy import sparse as sps
 from scipy.sparse.csr import csr_matrix
 

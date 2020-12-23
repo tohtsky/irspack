@@ -1,9 +1,9 @@
-from typing import List, TypeVar, Generic, Union, Optional
-import pandas as pd
-import numpy as np
-from scipy import sparse as sps
 from collections import Counter
+from typing import Generic, List, Optional, TypeVar, Union
 
+import numpy as np
+import pandas as pd
+from scipy import sparse as sps
 
 T = TypeVar("T")
 
@@ -40,7 +40,10 @@ class ManyToManyEncoder(Generic[T]):
             .values
         )
         result = sps.csr_matrix(
-            (np.ones(len(row), dtype=np.float64), (row, col),),
+            (
+                np.ones(len(row), dtype=np.float64),
+                (row, col),
+            ),
             shape=(len(unique_ids), len(self)),
         )[inverse]
         return result

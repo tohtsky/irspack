@@ -1,4 +1,5 @@
 from typing import List
+
 import numpy as np
 from scipy import sparse as sps
 

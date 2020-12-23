@@ -6,15 +6,14 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 import numpy as np
 import optuna
 import pandas as pd
+
 from irspack.utils.default_logger import get_default_logger
 
 from ..evaluator import Evaluator
 from ..parameter_tuning import Suggestion, overwrite_suggestions
-from ..recommenders.base import (
-    BaseRecommender,
-    BaseRecommenderWithThreadingSupport,
-    InteractionMatrix,
-)
+from ..recommenders.base import (BaseRecommender,
+                                 BaseRecommenderWithThreadingSupport,
+                                 InteractionMatrix)
 from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
 

@@ -1,35 +1,20 @@
-from typing import List
 import warnings
-from ..optimizers.base_optimizer import (
-    BaseOptimizer,
-    BaseOptimizerWithEarlyStopping,
-    BaseOptimizerWithThreadingSupport,
-)
+from typing import List
 
-from ..recommenders import (
-    BPRFMRecommender,
-    DenseSLIMRecommender,
-    IALSRecommender,
-    NMFRecommender,
-    P3alphaRecommender,
-    RandomWalkWithRestartRecommender,
-    RP3betaRecommender,
-    SLIMRecommender,
-    TopPopRecommender,
-    TruncatedSVDRecommender,
-    CosineKNNRecommender,
-    JaccardKNNRecommender,
-    TverskyIndexKNNRecommender,
-    AsymmetricCosineKNNRecommender,
-)
-
-from ..parameter_tuning import (
-    Suggestion,
-    UniformSuggestion,
-    LogUniformSuggestion,
-    IntegerSuggestion,
-    CategoricalSuggestion,
-)
+from ..optimizers.base_optimizer import (BaseOptimizer,
+                                         BaseOptimizerWithEarlyStopping,
+                                         BaseOptimizerWithThreadingSupport)
+from ..parameter_tuning import (CategoricalSuggestion, IntegerSuggestion,
+                                LogUniformSuggestion, Suggestion,
+                                UniformSuggestion)
+from ..recommenders import (AsymmetricCosineKNNRecommender, BPRFMRecommender,
+                            CosineKNNRecommender, DenseSLIMRecommender,
+                            IALSRecommender, JaccardKNNRecommender,
+                            NMFRecommender, P3alphaRecommender,
+                            RandomWalkWithRestartRecommender,
+                            RP3betaRecommender, SLIMRecommender,
+                            TopPopRecommender, TruncatedSVDRecommender,
+                            TverskyIndexKNNRecommender)
 
 default_tune_range_knn = [
     IntegerSuggestion("top_k", 4, 1000),
@@ -52,9 +37,7 @@ class P3alphaOptimizer(BaseOptimizerWithThreadingSupport):
     recommender_class = P3alphaRecommender
 
 
-class IALSOptimizer(
-    BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport
-):
+class IALSOptimizer(BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport):
     default_tune_range = [
         IntegerSuggestion("n_components", 4, 200),
         LogUniformSuggestion("alpha", 1, 50),
@@ -63,9 +46,7 @@ class IALSOptimizer(
     recommender_class = IALSRecommender
 
 
-class BPRFMOptimizer(
-    BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport
-):
+class BPRFMOptimizer(BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport):
     default_tune_range = [
         IntegerSuggestion("n_components", 4, 256),
         LogUniformSuggestion("item_alpha", 1e-9, 1e-2),
@@ -147,9 +128,7 @@ class TverskyIndexKNNOptimizer(BaseOptimizerWithThreadingSupport):
 
 
 class AsymmetricCosineKNNOptimizer(BaseOptimizerWithThreadingSupport):
-    default_tune_range = default_tune_range_knn + [
-        UniformSuggestion("alpha", 0, 1)
-    ]
+    default_tune_range = default_tune_range_knn + [UniformSuggestion("alpha", 0, 1)]
 
     recommender_class = AsymmetricCosineKNNRecommender
 

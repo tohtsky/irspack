@@ -1,9 +1,10 @@
-from typing import List, Any, TypeVar, Generic, Union
-from .base import BaseEncoder
 from collections import Counter
+from typing import Any, Generic, List, TypeVar, Union
 
 import numpy as np
 from scipy import sparse as sps
+
+from .base import BaseEncoder
 
 T = TypeVar("T")
 

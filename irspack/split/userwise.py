@@ -44,9 +44,7 @@ def split_train_test_userwise(
     """
 
     if item_id_to_iid is None:
-        item_id_to_iid = {
-            id: i for i, id in enumerate(np.unique(df_[item_colname]))
-        }
+        item_id_to_iid = {id: i for i, id in enumerate(np.unique(df_[item_colname]))}
     df_ = df_[df_[item_colname].isin(item_id_to_iid.keys())]
 
     item_indices = df_[item_colname].map(item_id_to_iid)
@@ -141,17 +139,13 @@ def dataframe_split_user_level(
 
     train_uids = df_train[user_column].unique()
     train_uid_to_iid = {uid: iid for iid, uid in enumerate(train_uids)}
-    X_train = sps.lil_matrix(
-        (len(train_uids), len(item_id_to_iid)), dtype=(np.int32)
+    X_train = sps.lil_matrix((len(train_uids), len(item_id_to_iid)), dtype=(np.int32))
+
+    X_train[(df_train[user_column].map(train_uid_to_iid).values, df_train.item_iid)] = (
+        1 if rating_column is None else df_train[rating_column]
     )
 
-    X_train[
-        (df_train[user_column].map(train_uid_to_iid).values, df_train.item_iid)
-    ] = (1 if rating_column is None else df_train[rating_column])
-
-    valid_data: Dict[str, Any] = dict(
-        train=(UserDataSet(train_uids, X_train, None))
-    )
+    valid_data: Dict[str, Any] = dict(train=(UserDataSet(train_uids, X_train, None)))
 
     for df_, dataset_name, heldout_ratio in [
         (df_val, "val", heldout_ratio_val),

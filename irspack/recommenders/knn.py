@@ -1,17 +1,15 @@
 import enum
-from typing import Optional, Union
-from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
-from ..definitions import InteractionMatrix
-import numpy as np
 from abc import abstractmethod
-from ._knn import (
-    CosineSimilarityComputer,
-    AsymmetricSimilarityComputer,
-    JaccardSimilarityComputer,
-    TverskyIndexComputer,
-)
+from typing import Optional, Union
 
-from ..utils import tf_idf_weight, okapi_BM_25_weight, remove_diagonal
+import numpy as np
+
+from ..definitions import InteractionMatrix
+from ..utils import okapi_BM_25_weight, remove_diagonal, tf_idf_weight
+from ._knn import (AsymmetricSimilarityComputer, CosineSimilarityComputer,
+                   JaccardSimilarityComputer, TverskyIndexComputer)
+from .base import (BaseRecommenderWithThreadingSupport,
+                   BaseSimilarityRecommender)
 
 
 class FeatureWeightingScheme(str, enum.Enum):

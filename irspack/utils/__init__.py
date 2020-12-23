@@ -1,17 +1,13 @@
-from typing import Optional, Tuple
 import random
+from typing import Optional, Tuple
+
 import numpy as np
 
-from ._util_cpp import (
-    rowwise_train_test_split_d,
-    rowwise_train_test_split_f,
-    rowwise_train_test_split_i,
-    sparse_mm_threaded,
-    okapi_BM_25_weight,
-    tf_idf_weight,
-    remove_diagonal,
-)
 from ..definitions import InteractionMatrix
+from ._util_cpp import (okapi_BM_25_weight, remove_diagonal,
+                        rowwise_train_test_split_d, rowwise_train_test_split_f,
+                        rowwise_train_test_split_i, sparse_mm_threaded,
+                        tf_idf_weight)
 
 
 def rowwise_train_test_split(

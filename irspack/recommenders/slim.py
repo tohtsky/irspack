@@ -5,9 +5,7 @@ from ..definitions import InteractionMatrix
 from .base import BaseSimilarityRecommender
 
 
-def slim_weight(
-    X: InteractionMatrix, alpha: float, l1_ratio: float
-) -> sps.csr_matrix:
+def slim_weight(X: InteractionMatrix, alpha: float, l1_ratio: float) -> sps.csr_matrix:
     model = ElasticNet(
         fit_intercept=False,
         positive=True,
@@ -47,6 +45,4 @@ class SLIMRecommender(BaseSimilarityRecommender):
         self.l1_ratio = l1_ratio
 
     def _learn(self) -> None:
-        self.W_ = slim_weight(
-            self.X_all, alpha=self.alpha, l1_ratio=self.l1_ratio
-        )
+        self.W_ = slim_weight(self.X_all, alpha=self.alpha, l1_ratio=self.l1_ratio)

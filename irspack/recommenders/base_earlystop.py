@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from io import BytesIO
-from typing import IO, Optional, Any
+from typing import IO, Any, Optional
 
 from optuna import Trial, exceptions
 from tqdm import tqdm
@@ -56,29 +56,21 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
 
     def run_epoch(self) -> None:
         if self.trainer is None:
-            raise RuntimeError(
-                "'run_epoch' called before initializing the trainer."
-            )
+            raise RuntimeError("'run_epoch' called before initializing the trainer.")
         self.trainer.run_epoch()
 
     def save_state(self) -> None:
         if self.trainer is None:
-            raise RuntimeError(
-                "'save_state' called before initializing the trainer."
-            )
+            raise RuntimeError("'save_state' called before initializing the trainer.")
         with BytesIO() as ofs:
             self.trainer.save_state(ofs)
             self.best_state = ofs.getvalue()
 
     def load_state(self) -> None:
         if self.trainer is None:
-            raise RuntimeError(
-                "'load_state' called before initializing the trainer."
-            )
+            raise RuntimeError("'load_state' called before initializing the trainer.")
         if self.best_state is None:
-            raise RuntimeError(
-                "'load_state' called before achieving any results."
-            )
+            raise RuntimeError("'load_state' called before achieving any results.")
         with BytesIO(self.best_state) as ifs:
             self.trainer.load_state(ifs)
 

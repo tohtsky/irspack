@@ -5,8 +5,9 @@ from scipy import sparse as sps
 from sklearn.preprocessing import normalize
 
 from ..definitions import InteractionMatrix
-from .base import BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
 from ._knn import RP3betaComputer
+from .base import (BaseRecommenderWithThreadingSupport,
+                   BaseSimilarityRecommender)
 
 
 class RP3betaRecommender(

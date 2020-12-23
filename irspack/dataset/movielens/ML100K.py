@@ -1,9 +1,10 @@
 import os
 import re
 from typing import List, Tuple
-from .base import BaseMovieLenstDataLoader
 
 import pandas as pd
+
+from .base import BaseMovieLenstDataLoader
 
 
 class MovieLens100KDataManager(BaseMovieLenstDataLoader):
