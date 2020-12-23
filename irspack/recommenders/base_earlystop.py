@@ -16,15 +16,15 @@ class TrainerBase(ABC):
 
     @abstractmethod
     def load_state(self, ifs: IO) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def save_state(self, ofs: IO) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def run_epoch(self) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
 
 class BaseRecommenderWithEarlyStopping(BaseRecommender):
@@ -49,7 +49,7 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
 
     @abstractmethod
     def create_trainer(self) -> TrainerBase:
-        pass
+        pass  # pragma: no cover
 
     def start_learning(self) -> None:
         self.trainer = self.create_trainer()

@@ -168,7 +168,7 @@ class MultVAETrainer(TrainerBase):
 
         self.opt_state = self.optimizer.init(self.params)
 
-    def _setup_jax_funcs(self):
+    def _setup_jax_funcs(self) -> None:
         vae_f = hk.transform(
             lambda X, p, train: MultVAE(
                 self.n_items,

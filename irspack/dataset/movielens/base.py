@@ -37,4 +37,4 @@ class BaseMovieLenstDataLoader(ABC):
 
     @abstractmethod
     def read_interaction(self) -> pd.DataFrame:
-        raise NotImplementedError("Not implemented")
+        raise NotImplementedError("Not implemented")  # pragma: no cover
