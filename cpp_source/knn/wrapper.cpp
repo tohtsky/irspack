@@ -53,4 +53,11 @@ PYBIND11_MODULE(_knn, m) {
            py::arg("X"), py::arg("alpha") = 0, py::arg("n_thread") = 1,
            py::arg("max_chunk_size") = 128)
       .def("compute_W", &KNN::P3alphaComputer<Real>::compute_W);
+
+  py::class_<KNN::RP3betaComputer<Real>>(m, "RP3betaComputer")
+      .def(py::init<const KNN::RP3betaComputer<Real>::CSRMatrix &, Real, Real,
+                    size_t, size_t>(),
+           py::arg("X"), py::arg("alpha") = 0, py::arg("beta") = 0,
+           py::arg("n_thread") = 1, py::arg("max_chunk_size") = 128)
+      .def("compute_W", &KNN::RP3betaComputer<Real>::compute_W);
 }

@@ -253,4 +253,99 @@ public:
   }
 };
 
+template <typename Real>
+struct RP3betaComputer : KNNComputer<Real, RP3betaComputer<Real>> {
+  using Base = KNNComputer<Real, RP3betaComputer>;
+  using CSCMatrix = typename Base::CSCMatrix;
+  using CSRMatrix = typename Base::CSRMatrix;
+  using DenseVector = typename Base::DenseVector;
+
+protected:
+  Real alpha, beta;
+
+public:
+  inline RP3betaComputer(const CSRMatrix &X_arg, Real alpha, Real beta,
+                         size_t n_thread, size_t max_chunk_size)
+      : Base(X_arg, 0, n_thread, max_chunk_size), alpha(alpha), beta(beta) {
+    irspack::check_arg_lower_bounded<Real>(alpha, 0, "alpha");
+    irspack::check_arg_lower_bounded<Real>(beta, 0, "beta");
+    // We want ItU * UtI
+    // and each rows to be normalized & each *columns* to be top-K constrained,
+    // so the computation should be
+    // (ItU * UtI) [:, start:end]
+    // = (UtI[start:end, : ] ^T ItU ^T  )^T
+    // So the argument should be ItU (rows sum to 1), and X_t should be ItU ^ T
+    // (cols sum to 1)
+
+    // this->X_t
+    DenseVector norm_temp(this->X_t.cols());       // n_users
+    DenseVector popularity_temp(this->X_t.cols()); // n_items
+
+    // compute popularity
+    popularity_temp.array() = 0;
+    for (int i = 0; i < this->X_t.cols(); i++) {
+      for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
+        popularity_temp(iter.col()) += iter.value();
+      }
+    }
+    popularity_temp.array() = popularity_temp.array().pow(beta);
+
+    norm_temp.array() = 0;
+    for (int i = 0; i < this->X_t.cols(); i++) {
+      for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
+        iter.valueRef() = std::pow(iter.valueRef(), this->alpha) /
+                          popularity_temp(iter.col());
+        norm_temp(iter.col()) += iter.valueRef();
+      }
+    }
+    for (int i = 0; i < this->X_t.cols(); i++) {
+      for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
+        iter.valueRef() /= norm_temp(iter.col());
+      }
+    }
+  }
+
+  inline CSCMatrix compute_W(const CSRMatrix &arg, size_t top_k) const {
+    // arg has n_item x n_user shape
+
+    CSRMatrix target(arg);
+    target.makeCompressed();
+
+    DenseVector popularity_temp(arg.rows()); // n_items
+    popularity_temp.array() = 0;
+    for (int i = 0; i < target.rows(); i++) {
+      for (typename CSRMatrix::InnerIterator iter(target, i); iter; ++iter) {
+        popularity_temp(iter.row()) += iter.value();
+      }
+    }
+    popularity_temp.array() = popularity_temp.array().pow(this->beta);
+    // normalize along column
+    DenseVector norm_temp(arg.cols()); // n_users
+    norm_temp.array() = 0;
+
+    for (int i = 0; i < target.rows(); i++) {
+      for (typename CSRMatrix::InnerIterator iter(target, i); iter; ++iter) {
+        iter.valueRef() = std::pow(iter.valueRef(), this->alpha) /
+                          popularity_temp(iter.row());
+        norm_temp(iter.col()) += iter.valueRef();
+      }
+    }
+    for (int i = 0; i < target.rows(); i++) {
+      for (typename CSRMatrix::InnerIterator iter(target, i); iter; ++iter) {
+        iter.valueRef() /= norm_temp(iter.col());
+      }
+    }
+    return this->compute_similarity(target, top_k).transpose();
+  }
+
+  inline CSRMatrix compute_similarity_imple(const CSRMatrix &target,
+                                            size_t start, size_t end) const {
+    // we will be given X_{IU}
+    int block_size = end - start;
+    CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
+    result.makeCompressed();
+    return result;
+  }
+};
+
 } // namespace KNN

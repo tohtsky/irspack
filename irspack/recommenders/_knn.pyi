@@ -10,6 +10,7 @@ __all__  = [
 "CosineSimilarityComputer",
 "JaccardSimilarityComputer",
 "P3alphaComputer",
+"RP3betaComputer",
 "TverskyIndexComputer"
 ]
 class AsymmetricSimilarityComputer():
@@ -26,6 +27,10 @@ class JaccardSimilarityComputer():
     pass
 class P3alphaComputer():
     def __init__(self, X: scipy.sparse.csr_matrix[float64], alpha: float = 0, n_thread: int = 1, max_chunk_size: int = 128) -> None: ...
+    def compute_W(self, arg0: scipy.sparse.csr_matrix[float64], arg1: int) -> scipy.sparse.csc_matrix[float64]: ...
+    pass
+class RP3betaComputer():
+    def __init__(self, X: scipy.sparse.csr_matrix[float64], alpha: float = 0, beta: float = 0, n_thread: int = 1, max_chunk_size: int = 128) -> None: ...
     def compute_W(self, arg0: scipy.sparse.csr_matrix[float64], arg1: int) -> scipy.sparse.csc_matrix[float64]: ...
     pass
 class TverskyIndexComputer():

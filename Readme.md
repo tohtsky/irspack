@@ -117,5 +117,6 @@ See `examples`.
 
 # TODOs
 
+- complete tests
 - complete documentation
 - more splitting schemes

@@ -7,6 +7,7 @@ from irspack.recommenders.knn import (
     AsymmetricCosineKNNRecommender,
 )
 from irspack.recommenders.p3 import P3alphaRecommender
+from irspack.recommenders.rp3 import RP3betaRecommender
 
 X_small = sps.csr_matrix(
     np.asfarray([[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])
@@ -105,6 +106,33 @@ def test_p3(X, alpha):
         X = X.copy()
         X[X == 0] = 1
         return X
+
+    P_ui /= zero_or_1(P_ui.sum(axis=1))[:, None]
+    P_iu /= zero_or_1(P_iu.sum(axis=1))[:, None]
+    W_man = P_iu.dot(P_ui)
+    np.testing.assert_allclose(W, W_man)
+
+
+@pytest.mark.parametrize(
+    "X, alpha, beta", [(X_small, 0.001, 10), (X_many_dense, 2, 10), (X_many, 1, 2)]
+)
+def test_rp3(X, alpha, beta):
+    rec = RP3betaRecommender(X, alpha=alpha, beta=beta, n_thread=4)
+    rec.learn()
+    W = rec.W.toarray()
+    W_sum = W.sum(axis=1)
+    W_sum = W_sum[W_sum >= 0]
+    np.testing.assert_allclose(W_sum, 1.0)
+
+    popularity = X.sum(axis=0).A1.ravel() ** beta
+
+    def zero_or_1(X):
+        X = X.copy()
+        X[X == 0] = 1
+        return X
+
+    P_ui = np.power(X.toarray(), alpha) / zero_or_1(popularity)[None, :]
+    P_iu = np.power(X.T.toarray(), alpha) / zero_or_1(popularity)[:, None]
 
     P_ui /= zero_or_1(P_ui.sum(axis=1))[:, None]
     P_iu /= zero_or_1(P_iu.sum(axis=1))[:, None]

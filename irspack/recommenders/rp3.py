@@ -5,11 +5,13 @@ from scipy import sparse as sps
 from sklearn.preprocessing import normalize
 
 from ..definitions import InteractionMatrix
-from .base import BaseSimilarityRecommender
-from .utils import restrict_topk_columnwise
+from .base import BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
+from ._knn import RP3betaComputer
 
 
-class RP3betaRecommender(BaseSimilarityRecommender):
+class RP3betaRecommender(
+    BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
+):
     def __init__(
         self,
         X_all: InteractionMatrix,
@@ -17,44 +19,22 @@ class RP3betaRecommender(BaseSimilarityRecommender):
         beta: float = 0.6,
         top_k: Optional[int] = None,
         normalize_weight: bool = False,
+        n_thread: Optional[int] = None,
     ):
-        super().__init__(X_all)
+        super().__init__(X_all, n_thread=n_thread)
         self.alpha = alpha
         self.beta = beta
         self.top_k = top_k
         self.normalize_weight = normalize_weight
 
     def _learn(self) -> None:
-        Pui = self.X_all.tocsc()
-        Pui.data = np.power(Pui.data, self.alpha)
-        Pui = normalize(Pui, norm="l1", axis=1)
-
-        Piu = self.X_all.transpose().tocsr()
-        Piu.data = np.power(Piu.data, self.alpha)
-        Piu = normalize(Piu, norm="l1", axis=1)
-        discount_factor = Piu.sum(axis=1).A1.astype(np.float64)
-        mask_ = discount_factor != 0
-        discount_factor[mask_] = np.power(discount_factor[mask_], -self.beta)
-        n_items = self.X_all.shape[1]
-
-        # chunking
-        MB_size = 1000
-        Ws: List[sps.csc_matrix] = []
-        for start in range(0, n_items, MB_size):
-            end = min(n_items, start + MB_size)
-            W_mb = Piu.dot(Pui[:, start:end]).tocoo()
-            W_mb.data *= discount_factor[start + W_mb.col]
-            W_mb = W_mb.tocsc()
-            if self.top_k is not None:
-                W_mb = restrict_topk_columnwise(W_mb, self.top_k)
-            Ws.append(W_mb)
-
-        W_un_normalized: sps.csc_matrix = sps.hstack(Ws, format="csc")
-
+        computer = RP3betaComputer(
+            self.X_all.T,
+            alpha=self.alpha,
+            beta=self.beta,
+            n_thread=self.n_thread,
+        )
+        top_k = self.X_all.shape[1] if self.top_k is None else self.top_k
+        self.W_ = computer.compute_W(self.X_all.T, top_k)
         if self.normalize_weight:
-            self.W_ = normalize(W_un_normalized, norm="l1", axis=1)
-        else:
-            self.W_ = W_un_normalized
-
-        self.W_.eliminate_zeros()
-        self.W_.sort_indices()
+            self.W_ = normalize(self.W_, norm="l1", axis=1)
