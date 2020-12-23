@@ -1,6 +1,6 @@
 import pickle
 from dataclasses import dataclass
-from typing import IO, List, Optional, Tuple
+from typing import IO, List, Optional, Tuple, Any
 
 import haiku as hk
 import jax
@@ -141,35 +141,45 @@ class MultVAETrainer(TrainerBase):
         self.kl_anneal_goal = kl_anneal_goal
         self.anneal_end_epoch = anneal_end_epoch
         self.dropout_p = dropout_p
+        self.l2_regularizer = l2_regularizer
+        self.learning_rate = learning_rate
 
         self.rng_seq = hk.PRNGSequence(42)
 
         if dec_hidden_dim is None:
             dec_hidden_dim = enc_hidden_dim
 
-        n_items = self.n_items
-        vae_f = hk.transform(
-            lambda X, p, train: MultVAE(
-                n_items,
-                dim_z,
-                [enc_hidden_dim],
-                [dec_hidden_dim],
-                dropout_p=dropout_p,
-                l2_reg=l2_regularizer,
-            )(X, p, train)
-        )
+        self.enc_hidden_dim = enc_hidden_dim
+        self.dec_hidden_dim = dec_hidden_dim
+        self.dim_z = dim_z
 
-        optimizer = adam(learning_rate=learning_rate)
-        params = vae_f.init(
+        self.total_anneal_step = (anneal_end_epoch * self.n_users) / minibatch_size
+        self._setup_jax_funcs()
+
+        self._update_count = 0
+        params = self.vae_f.init(
             next(self.rng_seq),
-            np.zeros((1, X.shape[1]), dtype=np.float32),
+            np.zeros((1, self.n_items), dtype=np.float32),
             self.dropout_p,
             True,
         )
-        self.opt_state = optimizer.init(params)
-        self.total_anneal_step = (anneal_end_epoch * self.n_users) / minibatch_size
-        self.recommend_with_randomness = False
-        self._update_count = 0
+
+        self.params = params
+
+        self.opt_state = self.optimizer.init(self.params)
+
+    def _setup_jax_funcs(self):
+        vae_f = hk.transform(
+            lambda X, p, train: MultVAE(
+                self.n_items,
+                self.dim_z,
+                [self.enc_hidden_dim],
+                [self.dec_hidden_dim],
+                dropout_p=self.dropout_p,
+                l2_reg=self.l2_regularizer,
+            )(X, p, train)
+        )
+        self.optimizer = adam(learning_rate=self.learning_rate)
 
         def loss_fn(
             params: hk.Params,
@@ -195,7 +205,7 @@ class MultVAETrainer(TrainerBase):
             dropout: float,
         ) -> Tuple[hk.Params, OptState]:
             grads = jax.grad(loss_fn)(params, rng, X, kl_coeff, dropout, True)
-            updates, new_optstate = optimizer.update(grads, opt_state)
+            updates, new_optstate = self.optimizer.update(grads, opt_state)
             new_params = optax.apply_updates(
                 params,
                 updates,
@@ -203,10 +213,8 @@ class MultVAETrainer(TrainerBase):
             return new_params, new_optstate
 
         update = jax.jit(update, static_argnums=(5,))
-        self.opt_state = self.opt_state
-        self.update_function = update
         self.vae_f = vae_f
-        self.params = params
+        self.update_function = update
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         mb_arrays: List[DenseScoreArray] = []
@@ -252,6 +260,17 @@ class MultVAETrainer(TrainerBase):
 
     def load_state(self, ifs: IO) -> None:
         self.params = pickle.load(ifs)
+
+    def __getstate__(self) -> Any:
+        serealized = dict(**self.__dict__)
+        serealized.pop("update_function", None)
+        serealized.pop("vae_f", None)
+        serealized.pop("optimizer")
+        return serealized
+
+    def __setstate__(self, state) -> Any:
+        self.__dict__.update(state)
+        self._setup_jax_funcs()
 
 
 class MultVAERecommender(BaseRecommenderWithEarlyStopping):
