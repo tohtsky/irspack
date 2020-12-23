@@ -30,11 +30,6 @@ if __name__ == "__main__":
 
     BASE_CUTOFF = 20
 
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.FileHandler(f"search.log"))
-    logger.addHandler(logging.StreamHandler())
-
     data_manager = MovieLens1MDataManager()
     df_all = data_manager.read_interaction()
 
@@ -93,7 +88,6 @@ if __name__ == "__main__":
             X_train_all,
             valid_evaluator,
             metric="ndcg",
-            logger=logger,
         )
         (best_param, validation_results) = optimizer.optimize(
             timeout=14400, n_trials=n_trials

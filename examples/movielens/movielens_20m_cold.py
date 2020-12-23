@@ -35,11 +35,6 @@ if __name__ == "__main__":
 
     BASE_CUTOFF = 100
 
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.FileHandler(f"search.log"))
-    logger.addHandler(logging.StreamHandler())
-
     # We follow the preprocessing of Mult-VAE implementation (https://github.com/dawenl/vae_cf)
     data_manager = MovieLens20MDataManager()
     df_all = data_manager.read_interaction()
@@ -104,7 +99,6 @@ if __name__ == "__main__":
             data_train.X_all,
             valid_evaluator,
             metric="ndcg",
-            logger=logger,
             fixed_params=config,
         )
         (best_param, validation_result_df) = optimizer.optimize(
