@@ -32,7 +32,7 @@ If you want to use Mult-VAE and CB2CF features in cold-start scenarios, you'll n
 
 # Basic Usage
 
-## Train a recommender
+## Step 1. Train a recommender
 
 ```Python
 import numpy as np
@@ -50,12 +50,13 @@ X_interaction = sps.csr_matrix(
 recommender = P3alphaRecommender(X_interaction)
 recommender.learn()
 
-# get the masked score (i.e., already seen item have score -inf)
-# of user 0 (whose userId is unique_user_id[0]) for items.
+# for user 0 (whose userId is unique_user_id[0]),
+# compute the masked score (i.e., already seen items have the score of negative infinity)
+# of items.
 recommender.get_score_remove_seen([0])
 ```
 
-## Evaluation on a validation set
+## Step 2. Evaluation on a validation set
 
 We have to split the dataset to train and validation set
 
@@ -95,7 +96,7 @@ This will print something like
 }
 ```
 
-## Hyperparameter tunings
+## Step 3. Hyperparameter tunings
 
 Now that we can evaluate the recommenders' performance against
 validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
@@ -113,3 +114,8 @@ trial_dfs.ndcg.max()
 Of course, we have to hold-out another interaction set for test,
 and measure the performance of tuned recommender against the test set.
 See `examples`.
+
+# TODOs
+
+- complete documentation
+- more splitting schemes
