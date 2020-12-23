@@ -43,9 +43,7 @@ class BaseOptimizer(ABC):
         self.best_trial_index: Optional[int] = None
         self.best_val = float("inf")
         self.best_params: Optional[Dict[str, Any]] = None
-        self.learnt_config_best: Dict[
-            str, Any
-        ] = dict()  # to store early-stopped epoch
+        self.learnt_config_best: Dict[str, Any] = dict()  # to store early-stopped epoch
 
         self.valid_results: List[Dict[str, float]] = []
         self.tried_configs: List[Dict[str, Any]] = []
@@ -66,14 +64,19 @@ class BaseOptimizer(ABC):
         return args, kwargs
 
     def optimize(
-        self, n_trials: int = 20, timeout: Optional[int] = None
+        self,
+        n_trials: int = 20,
+        timeout: Optional[int] = None,
+        random_seed: Optional[int] = None,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         self.logger.info(
             """Start parameter search for %s over the range: %s""",
             type(self).recommender_class.__name__,
             self.suggestions,
         )
-        study = optuna.create_study()
+        study = optuna.create_study(
+            sampler=optuna.samplers.RandomSampler(seed=random_seed)
+        )
         self.current_trial = -1
         self.best_val = float("inf")
         self.best_time = None
@@ -111,9 +114,7 @@ class BaseOptimizer(ABC):
                 self.best_time = time_spent
                 self.best_params = parameters
                 self.learnt_config_best = dict(**recommender.learnt_config)
-                self.logger.info(
-                    "Found best %s using this config.", self.metric
-                )
+                self.logger.info("Found best %s using this config.", self.metric)
                 self.best_trial_index = self.current_trial
 
             return -val_score
@@ -205,6 +206,4 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
     def get_model_arguments(
         self, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super().get_model_arguments(
-            *args, n_thread=self.n_thread, **kwargs
-        )
+        return super().get_model_arguments(*args, n_thread=self.n_thread, **kwargs)
