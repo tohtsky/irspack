@@ -168,7 +168,7 @@ class BuildExt(build_ext):
     else:
         c_opts = {
             "msvc": ["/EHsc"],
-            "unix": ["-march=native"],
+            "unix": [],
         }
         l_opts: Dict[str, List[str]] = {
             "msvc": [],
