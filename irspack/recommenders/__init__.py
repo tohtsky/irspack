@@ -47,5 +47,7 @@ try:
 
     __all__.append("BPRFMRecommender")
 except:
-    warnings.warn("Failed to import BPRFMRecommender")
+    warnings.warn(
+        "Failed to import BPRFMRecommender. To enable this feature, install `lightfm`."
+    )
     pass

@@ -22,6 +22,12 @@ I have decided to implement my own one to
 pip install git+https://github.com/tohtsky/irspack
 ```
 
+We have also prepared a wrapper class to train and optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately by e.g.,
+
+```sh
+pip install lightfm
+```
+
 If you want to use Mult-VAE and CB2CF features in cold-start scenarios, you'll need the following additional (pip-installable) packages:
 
 - [jax](https://github.com/google/jax)
@@ -56,7 +62,7 @@ recommender.learn()
 recommender.get_score_remove_seen([0])
 ```
 
-## Step 2. Evaluation on a validation set
+## Step 2. Evaluate on a validation set
 
 We have to split the dataset to train and validation set
 
@@ -96,7 +102,7 @@ This will print something like
 }
 ```
 
-## Step 3. Hyperparameter tunings
+## Step 3. Optimize the Hyperparameter
 
 Now that we can evaluate the recommenders' performance against
 validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
