@@ -25,13 +25,14 @@ jobs:
           wget http://files.grouplens.org/datasets/movielens/ml-100k.zip -O $HOME/.ml-100k.zip
           IRSPACK_TESTING="true" python setup.py develop
           rm -rf eigen-3.3.7
-          pytest --cov=./ --cov-report=xml
+          pytest --cov=./irspack --cov-report=xml
           lcov -d `pwd` -c -o coverage.info
           lcov -e coverage.info */cpp_source/* -o coverageFiltered.info
+          echo `ls -ltr`
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
-          files: ./coverage.xml, ./coverageFiltered.info
+          files: ./coverage.xml, ./coverage.info
           verbose: false
           env_vars: OS,PYTHON
           name: codecov-umbrella
