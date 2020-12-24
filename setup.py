@@ -216,6 +216,7 @@ setup(
         "irspack.dataset",
         "irspack.dataset.movielens",
         # "irspack.item_cold_start",
+        "irspack.split",
         "irspack.utils",
         "irspack.utils.encoders",
     ],
