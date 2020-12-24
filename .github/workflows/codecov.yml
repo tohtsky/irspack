@@ -17,7 +17,7 @@ jobs:
           python-version: 3.7
       - name: Generate coverage report
         run: |
-          apt install wget lcov
+          sudo apt-get install wget lcov
           pip install pytest pytest-cov
           pip install lightfm jaxlib jax dm-haiku optax
           wget http://files.grouplens.org/datasets/movielens/ml-100k.zip -O $HOME/.ml-100k.zip
