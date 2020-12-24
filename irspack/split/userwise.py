@@ -9,7 +9,7 @@ from irspack.definitions import InteractionMatrix
 from irspack.utils import rowwise_train_test_split
 
 
-class UserWiseValidationDataset(object):
+class UserSplitLearnPredictPair(object):
     def __init__(
         self,
         user_ids: List[Any],
@@ -44,7 +44,7 @@ def split_train_test_userwise(
     heldout_ratio: float,
     rns: np.random.RandomState,
     rating_column: Optional[str] = None,
-) -> UserWiseValidationDataset:
+) -> UserSplitLearnPredictPair:
     """Split the user x item data frame into a pair of sparse matrix (represented as a UserDataSet).
 
     Parameters
@@ -92,7 +92,7 @@ def split_train_test_userwise(
         random_seed=rns.randint(-(2 ** 32), 2 ** 32 - 1),
     )
 
-    return UserWiseValidationDataset(user_ids, X_learn.tocsr(), X_predict.tocsr())
+    return UserSplitLearnPredictPair(user_ids, X_learn.tocsr(), X_predict.tocsr())
 
 
 def dataframe_split_user_level(
@@ -107,7 +107,7 @@ def dataframe_split_user_level(
     heldout_ratio_val: float = 0.5,
     heldout_ratio_test: float = 0.5,
     random_state: int = 42,
-) -> Tuple[Dict[str, UserWiseValidationDataset], List[Any]]:
+) -> Tuple[Dict[str, UserSplitLearnPredictPair], List[Any]]:
     """
     df: contains user & item_id and rating (if any)
     user_column: column name for user_id
@@ -172,8 +172,8 @@ def dataframe_split_user_level(
         1 if rating_column is None else df_train[rating_column]
     )
 
-    valid_data: Dict[str, UserWiseValidationDataset] = dict(
-        train=UserWiseValidationDataset(train_uids, X_train, None)
+    valid_data: Dict[str, UserSplitLearnPredictPair] = dict(
+        train=UserSplitLearnPredictPair(train_uids, X_train, None)
     )
 
     for df_, dataset_name, heldout_ratio in [
