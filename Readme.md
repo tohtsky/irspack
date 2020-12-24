@@ -14,7 +14,7 @@ I have decided to implement my own one to
 - Use multi-threaded implementations of the number of algorithms (KNN and IALS) in C++.
 - Deal with user cold-start scenarios using [CB2CF strategy](https://dl.acm.org/doi/10.1145/3298689.3347038), which I found very convenient in practice.
 
-# Installation
+# Installation & Optional Dependencies
 
 (To appear soon on PyPI)
 
@@ -39,6 +39,8 @@ If you want to use Mult-VAE and CB2CF features in cold-start scenarios, you'll n
 # Basic Usage
 
 ## Step 1. Train a recommender
+
+We first represent the user/item interaction as a [scipy.sparse](https://docs.scipy.org/doc/scipy/reference/sparse.html) matrix. They we can feed it into our `Recommender` classes:
 
 ```Python
 import numpy as np
