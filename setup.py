@@ -1,9 +1,10 @@
-from typing import Dict, List
-from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
-import sys
-import setuptools
 import os
+import sys
+from typing import Any, Dict, List
+
+import setuptools
+from setuptools import Extension, find_packages, setup
+from setuptools.command.build_ext import build_ext
 
 install_requires = (
     [
@@ -25,7 +26,7 @@ class get_eigen_include(object):
     EIGEN3_URL = "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip"
     EIGEN3_DIRNAME = "eigen-3.3.7"
 
-    def __str__(self):
+    def __str__(self) -> str:
         eigen_include_dir = os.environ.get("EIGEN3_INCLUDE_DIR", None)
 
         if eigen_include_dir is not None:
@@ -37,8 +38,9 @@ class get_eigen_include(object):
             return target_dir
 
         download_target_dir = os.path.join(basedir, "eigen3.zip")
-        import requests
         import zipfile
+
+        import requests
 
         response = requests.get(self.EIGEN3_URL, stream=True)
         with open(download_target_dir, "wb") as ofs:
@@ -57,10 +59,10 @@ class get_pybind_include(object):
     until it is actually installed, so that the ``get_include()``
     method can be invoked."""
 
-    def __init__(self, user=False):
+    def __init__(self, user: Any = False):
         self.user = user
 
-    def __str__(self):
+    def __str__(self) -> Any:
         import pybind11
 
         return pybind11.get_include(self.user)
@@ -125,7 +127,7 @@ ext_modules = [
 
 # As of Python 3.6, CCompiler has a `has_flag` method.
 # cf http://bugs.python.org/issue26689
-def has_flag(compiler, flagname):
+def has_flag(compiler: Any, flagname: Any) -> bool:
     """Return a boolean indicating whether a flag name is supported on
     the specified compiler.
     """
@@ -140,7 +142,7 @@ def has_flag(compiler, flagname):
     return True
 
 
-def cpp_flag(compiler):
+def cpp_flag(compiler: Any) -> str:
     """Return the -std=c++[11/14/17] compiler flag.
     The newer version is prefered over c++11 (when it is available).
     """
@@ -157,7 +159,7 @@ class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
 
     if IRSPACK_TESTING:
-        c_opts = {
+        c_opts: Dict[str, List[str]] = {
             "msvc": ["/EHsc"],
             "unix": ["-O0", "-coverage", "-g"],
         }
@@ -170,7 +172,7 @@ class BuildExt(build_ext):
             "msvc": ["/EHsc"],
             "unix": [],
         }
-        l_opts: Dict[str, List[str]] = {
+        l_opts = {
             "msvc": [],
             "unix": [],
         }
@@ -180,7 +182,7 @@ class BuildExt(build_ext):
         c_opts["unix"] += darwin_opts
         l_opts["unix"] += darwin_opts
 
-    def build_extensions(self):
+    def build_extensions(self) -> None:
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
         link_opts = self.l_opts.get(ct, [])
@@ -206,18 +208,8 @@ setup(
     long_description="",
     ext_modules=ext_modules,
     install_requires=install_requires,
+    include_package_data=True,
     setup_requires=setup_requires,
     cmdclass={"build_ext": BuildExt},
-    packages=[
-        "irspack",
-        "irspack.recommenders",
-        "irspack.optimizers",
-        "irspack.user_cold_start",
-        "irspack.dataset",
-        "irspack.dataset.movielens",
-        # "irspack.item_cold_start",
-        "irspack.utils",
-        "irspack.utils.encoders",
-    ],
-    package_data={"irspack": ["*.pyi"], "irspack.recommenders": ["*.pyi"]},
+    packages=find_packages(),
 )

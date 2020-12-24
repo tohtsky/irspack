@@ -1,0 +1,2 @@
+recursive-include cpp_source *.hpp
+recursive-include irspack *.pyi
