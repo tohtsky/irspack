@@ -1,4 +1,3 @@
-import logging
 from logging import Logger
 from typing import Any, Dict, List, Optional, Tuple, Type
 
@@ -118,6 +117,7 @@ class CB2CFUserOptimizerBase(object):
         reconstruction_search_config: Optional[MLPSearchConfig] = None,
         cf_suggest_overwrite: List[Suggestion] = [],
         cf_fixed_params: Dict[str, Any] = dict(),
+        random_seed: Optional[int] = None,
     ) -> Tuple[CB2CFUserColdStartRecommender, Dict[str, Any], MLPTrainingConfig]:
         if logger is None:
             logger = get_default_logger()
@@ -127,6 +127,7 @@ class CB2CFUserOptimizerBase(object):
             timeout=timeout,
             suggest_overwrite=cf_suggest_overwrite,
             fixed_params=cf_fixed_params,
+            random_seed=random_seed,
         )
 
         if logger is not None:
@@ -137,6 +138,7 @@ class CB2CFUserOptimizerBase(object):
             n_trials,
             logger=logger,
             config=reconstruction_search_config,
+            random_seed=random_seed,
         )
 
         return (
@@ -152,6 +154,7 @@ class CB2CFUserOptimizerBase(object):
         timeout: Optional[int] = None,
         suggest_overwrite: List[Suggestion] = [],
         fixed_params: Dict[str, Any] = dict(),
+        random_seed: Optional[int] = None,
     ) -> Tuple[BaseRecommenderWithUserEmbedding, Dict[str, Any]]:
         searcher = self.cf_optimizer_class(
             self.X_cf_train_all,
@@ -161,7 +164,9 @@ class CB2CFUserOptimizerBase(object):
             suggest_overwrite=suggest_overwrite,
             fixed_params=fixed_params,
         )
-        best_params, _ = searcher.optimize(n_trials=n_trials, timeout=timeout)
+        best_params, _ = searcher.optimize(
+            n_trials=n_trials, timeout=timeout, random_seed=random_seed
+        )
         rec = self.recommender_class(self.X_all, **best_params)
         rec.learn()
         return rec, best_params
@@ -172,10 +177,13 @@ class CB2CFUserOptimizerBase(object):
         n_trials: int,
         logger: Optional[Logger] = None,
         config: Optional[MLPSearchConfig] = None,
+        random_seed: Optional[int] = None,
     ) -> Tuple[MLP, MLPTrainingConfig]:
         embedding = rec.get_user_embedding()
         searcher = MLPOptimizer(self.X_profile, embedding, search_config=config)
-        return searcher.search_param_fit_all(n_trials=n_trials, logger=logger)
+        return searcher.search_param_fit_all(
+            n_trials=n_trials, logger=logger, random_seed=random_seed
+        )
 
 
 class CB2TruncatedSVDOptimizer(CB2CFUserOptimizerBase):

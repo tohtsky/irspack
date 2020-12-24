@@ -132,10 +132,13 @@ class MLPOptimizer(object):
         self,
         n_trials: int = 10,
         logger: Optional[Logger] = None,
+        random_seed: Optional[int] = None,
     ) -> Optional[MLPTrainingConfig]:
         self.best_trial_score = float("inf")
         self.best_config = None
-        study = optuna.create_study()
+        study = optuna.create_study(
+            sampler=optuna.samplers.RandomSampler(seed=random_seed)
+        )
         if logger is None:
             logger = get_default_logger()
         r2 = (self.embedding_test ** 2).mean(axis=1).mean()
@@ -167,8 +170,11 @@ class MLPOptimizer(object):
         self,
         n_trials: int = 10,
         logger: Optional[Logger] = None,
+        random_seed: Optional[int] = None,
     ) -> Tuple[MLP, MLPTrainingConfig]:
-        best_param = self.search_best_config(n_trials, logger=logger)
+        best_param = self.search_best_config(
+            n_trials, logger=logger, random_seed=random_seed
+        )
 
         if best_param is None:
             raise RuntimeError("An error occurred during the optimization step.")
