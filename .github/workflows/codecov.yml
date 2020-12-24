@@ -10,7 +10,9 @@ jobs:
       OS: ${{ matrix.os }}
       PYTHON: "3.7"
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Setup Python
         uses: actions/setup-python@master
         with:
@@ -29,12 +31,8 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
-          file: ./coverage.xml
-          files: coverageFiltered.info
-          directory: ./coverage/reports/
-          flags: unittests
+          files: ./coverage.xml, ./coverageFiltered.info
           verbose: false
           env_vars: OS,PYTHON
           name: codecov-umbrella
-          fail_ci_if_error: true
-          path_to_write_report: ./coverage/codecov_report.txt
+          fail_ci_if_error: false
