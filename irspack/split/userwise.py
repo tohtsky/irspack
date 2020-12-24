@@ -5,8 +5,35 @@ import pandas as pd
 from scipy import sparse as sps
 from sklearn.model_selection import train_test_split
 
-from irspack.definitions import UserDataSet
+from irspack.definitions import InteractionMatrix
 from irspack.utils import rowwise_train_test_split
+
+
+class UserWiseValidationDataset(object):
+    def __init__(
+        self,
+        user_ids: List[Any],
+        X_learn: InteractionMatrix,
+        X_predict: Optional[InteractionMatrix],
+    ):
+        # check shape
+        if len(user_ids) != X_learn.shape[0]:
+            raise ValueError("user_ids and X_learn have different shapes.")
+
+        if X_predict is not None:
+            if X_learn.shape != X_predict.shape:
+                raise ValueError("X_learn and X_predict have different shapes.")
+        self.user_ids = user_ids
+        self.X_learn = X_learn
+        self.X_predict = X_predict
+        self.n_users: int = self.X_learn.shape[0]
+        self.n_items: int = self.X_learn.shape[1]
+
+    @property
+    def X_all(self) -> InteractionMatrix:
+        if self.X_predict is None:
+            return self.X_learn
+        return self.X_learn + self.X_predict
 
 
 def split_train_test_userwise(
@@ -17,7 +44,7 @@ def split_train_test_userwise(
     heldout_ratio: float,
     rns: np.random.RandomState,
     rating_column: Optional[str] = None,
-) -> UserDataSet:
+) -> UserWiseValidationDataset:
     """Split the user x item data frame into a pair of sparse matrix (represented as a UserDataSet).
 
     Parameters
@@ -65,7 +92,7 @@ def split_train_test_userwise(
         random_seed=rns.randint(-(2 ** 32), 2 ** 32 - 1),
     )
 
-    return UserDataSet(user_ids, X_learn.tocsr(), X_predict.tocsr())
+    return UserWiseValidationDataset(user_ids, X_learn.tocsr(), X_predict.tocsr())
 
 
 def dataframe_split_user_level(
@@ -80,7 +107,7 @@ def dataframe_split_user_level(
     heldout_ratio_val: float = 0.5,
     heldout_ratio_test: float = 0.5,
     random_state: int = 42,
-) -> Tuple[Dict[str, UserDataSet], List[Any]]:
+) -> Tuple[Dict[str, UserWiseValidationDataset], List[Any]]:
     """
     df: contains user & item_id and rating (if any)
     user_column: column name for user_id
@@ -145,7 +172,9 @@ def dataframe_split_user_level(
         1 if rating_column is None else df_train[rating_column]
     )
 
-    valid_data: Dict[str, Any] = dict(train=(UserDataSet(train_uids, X_train, None)))
+    valid_data: Dict[str, UserWiseValidationDataset] = dict(
+        train=UserWiseValidationDataset(train_uids, X_train, None)
+    )
 
     for df_, dataset_name, heldout_ratio in [
         (df_val, "val", heldout_ratio_val),
