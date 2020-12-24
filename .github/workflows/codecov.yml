@@ -22,6 +22,7 @@ jobs:
           pip install lightfm jaxlib jax dm-haiku optax
           wget http://files.grouplens.org/datasets/movielens/ml-100k.zip -O $HOME/.ml-100k.zip
           IRSPACK_TESTING="true" python setup.py develop
+          rm -rf eigen-3.3.7
           pytest --cov=./ --cov-report=xml
           lcov -d `pwd` -c -o coverage.info
           lcov -e coverage.info */cpp_source/* -o coverageFiltered.info
@@ -32,8 +33,8 @@ jobs:
           files: coverageFiltered.info
           directory: ./coverage/reports/
           flags: unittests
+          verbose: false
           env_vars: OS,PYTHON
           name: codecov-umbrella
           fail_ci_if_error: true
           path_to_write_report: ./coverage/codecov_report.txt
-          verbose: true
