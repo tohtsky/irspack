@@ -1,12 +1,17 @@
-from irspack.user_cold_start.optimizers import \
-    BaseOptimizer as BaseUserColdStartOptimizer
-from irspack.user_cold_start.optimizers import (LinearMethodOptimizer,
-                                                TopPopularOptimizer,
-                                                UserCBCosineKNNOptimizer)
-from irspack.user_cold_start.recommenders import (BaseUserColdStartRecommender,
-                                                  LinearMethodRecommender,
-                                                  TopPopularRecommender,
-                                                  UserCBCosineKNNRecommender)
+from irspack.user_cold_start.optimizers import (
+    BaseOptimizer as BaseUserColdStartOptimizer,
+)
+from irspack.user_cold_start.optimizers import (
+    LinearMethodOptimizer,
+    TopPopularOptimizer,
+    UserCBCosineKNNOptimizer,
+)
+from irspack.user_cold_start.recommenders import (
+    BaseUserColdStartRecommender,
+    LinearMethodRecommender,
+    TopPopularRecommender,
+    UserCBCosineKNNRecommender,
+)
 
 from .evaluator import UserColdStartEvaluator
 

@@ -1,7 +1,6 @@
 from ..definitions import InteractionMatrix
 from ._rwr import RandomWalkGenerator
-from .base import (BaseRecommenderWithThreadingSupport,
-                   BaseSimilarityRecommender)
+from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
 
 
 class RandomWalkWithRestartRecommender(

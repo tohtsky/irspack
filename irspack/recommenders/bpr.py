@@ -4,11 +4,17 @@ from typing import IO, Optional
 import numpy as np
 from lightfm import LightFM
 
-from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
-                           UserIndexArray)
-from .base import (BaseRecommenderWithItemEmbedding,
-                   BaseRecommenderWithThreadingSupport,
-                   BaseRecommenderWithUserEmbedding)
+from ..definitions import (
+    DenseMatrix,
+    DenseScoreArray,
+    InteractionMatrix,
+    UserIndexArray,
+)
+from .base import (
+    BaseRecommenderWithItemEmbedding,
+    BaseRecommenderWithThreadingSupport,
+    BaseRecommenderWithUserEmbedding,
+)
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 

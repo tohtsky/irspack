@@ -1,12 +1,19 @@
 import warnings
 
-from .base import (BaseRecommender, BaseRecommenderWithThreadingSupport,
-                   BaseSimilarityRecommender)
+from .base import (
+    BaseRecommender,
+    BaseRecommenderWithThreadingSupport,
+    BaseSimilarityRecommender,
+)
 from .base_earlystop import BaseRecommenderWithEarlyStopping
 from .dense_slim import DenseSLIMRecommender
 from .ials import IALSRecommender
-from .knn import (AsymmetricCosineKNNRecommender, CosineKNNRecommender,
-                  JaccardKNNRecommender, TverskyIndexKNNRecommender)
+from .knn import (
+    AsymmetricCosineKNNRecommender,
+    CosineKNNRecommender,
+    JaccardKNNRecommender,
+    TverskyIndexKNNRecommender,
+)
 from .nmf import NMFRecommender
 from .p3 import P3alphaRecommender
 from .rp3 import RP3betaRecommender

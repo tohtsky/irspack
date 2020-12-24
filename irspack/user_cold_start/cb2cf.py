@@ -10,12 +10,10 @@ from irspack.optimizers import IALSOptimizer, TruncatedSVDOptimizer
 from irspack.optimizers.base_optimizer import BaseOptimizer as HotBaseOptimizer
 from irspack.parameter_tuning import Suggestion
 from irspack.recommenders import IALSRecommender, TruncatedSVDRecommender
-from irspack.user_cold_start.recommenders.base import \
-    BaseUserColdStartRecommender
+from irspack.user_cold_start.recommenders.base import BaseUserColdStartRecommender
 from irspack.utils.default_logger import get_default_logger
 
-from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
-                           ProfileMatrix)
+from ..definitions import DenseMatrix, DenseScoreArray, InteractionMatrix, ProfileMatrix
 from ..recommenders.base import BaseRecommenderWithUserEmbedding
 from ..utils import rowwise_train_test_split
 from ..utils.nn import MLP, MLPOptimizer, MLPSearchConfig, MLPTrainingConfig

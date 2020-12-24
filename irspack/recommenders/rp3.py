@@ -6,8 +6,7 @@ from sklearn.preprocessing import normalize
 
 from ..definitions import InteractionMatrix
 from ._knn import RP3betaComputer
-from .base import (BaseRecommenderWithThreadingSupport,
-                   BaseSimilarityRecommender)
+from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
 
 
 class RP3betaRecommender(

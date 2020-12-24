@@ -4,8 +4,7 @@ from sklearn.preprocessing import normalize
 
 from ..definitions import InteractionMatrix
 from ._knn import P3alphaComputer
-from .base import (BaseRecommenderWithThreadingSupport,
-                   BaseSimilarityRecommender)
+from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
 
 
 class P3alphaRecommender(

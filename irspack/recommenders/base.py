@@ -9,8 +9,12 @@ from scipy import sparse as sps
 if TYPE_CHECKING:
     from .. import evaluator
 
-from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
-                           UserIndexArray)
+from ..definitions import (
+    DenseMatrix,
+    DenseScoreArray,
+    InteractionMatrix,
+    UserIndexArray,
+)
 
 
 class CallBeforeFitError(Exception):

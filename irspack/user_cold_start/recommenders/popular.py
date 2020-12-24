@@ -2,7 +2,9 @@ import numpy as np
 
 from irspack.definitions import DenseScoreArray
 from irspack.user_cold_start.recommenders.base import (
-    BaseUserColdStartRecommender, ProfileMatrix)
+    BaseUserColdStartRecommender,
+    ProfileMatrix,
+)
 
 
 class TopPopularRecommender(BaseUserColdStartRecommender):

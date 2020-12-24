@@ -5,10 +5,11 @@ from scipy import linalg
 from scipy import sparse as sps
 
 from irspack.definitions import DenseScoreArray, InteractionMatrix
-from irspack.parameter_tuning import (CategoricalSuggestion,
-                                      LogUniformSuggestion)
+from irspack.parameter_tuning import CategoricalSuggestion, LogUniformSuggestion
 from irspack.user_cold_start.recommenders.base import (
-    BaseUserColdStartRecommender, ProfileMatrix)
+    BaseUserColdStartRecommender,
+    ProfileMatrix,
+)
 
 
 def enlarge_profile(X_profile: ProfileMatrix) -> ProfileMatrix:

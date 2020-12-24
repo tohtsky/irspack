@@ -8,7 +8,9 @@ from irspack.definitions import InteractionMatrix
 from irspack.parameter_tuning import Suggestion, overwrite_suggestions
 from irspack.user_cold_start.evaluator import UserColdStartEvaluator
 from irspack.user_cold_start.recommenders.base import (
-    BaseUserColdStartRecommender, ProfileMatrix)
+    BaseUserColdStartRecommender,
+    ProfileMatrix,
+)
 from irspack.utils.default_logger import get_default_logger
 
 

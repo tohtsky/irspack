@@ -4,10 +4,15 @@ from typing import Optional, Tuple
 import numpy as np
 
 from ..definitions import InteractionMatrix
-from ._util_cpp import (okapi_BM_25_weight, remove_diagonal,
-                        rowwise_train_test_split_d, rowwise_train_test_split_f,
-                        rowwise_train_test_split_i, sparse_mm_threaded,
-                        tf_idf_weight)
+from ._util_cpp import (
+    okapi_BM_25_weight,
+    remove_diagonal,
+    rowwise_train_test_split_d,
+    rowwise_train_test_split_f,
+    rowwise_train_test_split_i,
+    sparse_mm_threaded,
+    tf_idf_weight,
+)
 
 
 def rowwise_train_test_split(

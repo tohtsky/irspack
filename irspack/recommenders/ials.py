@@ -3,13 +3,19 @@ from typing import IO, Optional
 
 import numpy as np
 
-from ..definitions import (DenseMatrix, DenseScoreArray, InteractionMatrix,
-                           UserIndexArray)
+from ..definitions import (
+    DenseMatrix,
+    DenseScoreArray,
+    InteractionMatrix,
+    UserIndexArray,
+)
 from ._ials import IALSLearningConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
-from .base import (BaseRecommenderWithItemEmbedding,
-                   BaseRecommenderWithThreadingSupport,
-                   BaseRecommenderWithUserEmbedding)
+from .base import (
+    BaseRecommenderWithItemEmbedding,
+    BaseRecommenderWithThreadingSupport,
+    BaseRecommenderWithUserEmbedding,
+)
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 

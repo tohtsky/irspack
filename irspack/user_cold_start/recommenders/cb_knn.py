@@ -8,8 +8,7 @@ from irspack.parameter_tuning import IntegerSuggestion, LogUniformSuggestion
 from irspack.recommenders._knn import CosineSimilarityComputer
 from irspack.utils._util_cpp import sparse_mm_threaded
 
-from .base import (BaseUserColdStartRecommender, InteractionMatrix,
-                   ProfileMatrix)
+from .base import BaseUserColdStartRecommender, InteractionMatrix, ProfileMatrix
 
 
 class UserCBCosineKNNRecommender(BaseUserColdStartRecommender):

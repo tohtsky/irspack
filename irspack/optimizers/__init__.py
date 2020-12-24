@@ -1,20 +1,33 @@
 import warnings
 from typing import List
 
-from ..optimizers.base_optimizer import (BaseOptimizer,
-                                         BaseOptimizerWithEarlyStopping,
-                                         BaseOptimizerWithThreadingSupport)
-from ..parameter_tuning import (CategoricalSuggestion, IntegerSuggestion,
-                                LogUniformSuggestion, Suggestion,
-                                UniformSuggestion)
-from ..recommenders import (AsymmetricCosineKNNRecommender,
-                            CosineKNNRecommender, DenseSLIMRecommender,
-                            IALSRecommender, JaccardKNNRecommender,
-                            NMFRecommender, P3alphaRecommender,
-                            RandomWalkWithRestartRecommender,
-                            RP3betaRecommender, SLIMRecommender,
-                            TopPopRecommender, TruncatedSVDRecommender,
-                            TverskyIndexKNNRecommender)
+from ..optimizers.base_optimizer import (
+    BaseOptimizer,
+    BaseOptimizerWithEarlyStopping,
+    BaseOptimizerWithThreadingSupport,
+)
+from ..parameter_tuning import (
+    CategoricalSuggestion,
+    IntegerSuggestion,
+    LogUniformSuggestion,
+    Suggestion,
+    UniformSuggestion,
+)
+from ..recommenders import (
+    AsymmetricCosineKNNRecommender,
+    CosineKNNRecommender,
+    DenseSLIMRecommender,
+    IALSRecommender,
+    JaccardKNNRecommender,
+    NMFRecommender,
+    P3alphaRecommender,
+    RandomWalkWithRestartRecommender,
+    RP3betaRecommender,
+    SLIMRecommender,
+    TopPopRecommender,
+    TruncatedSVDRecommender,
+    TverskyIndexKNNRecommender,
+)
 
 default_tune_range_knn = [
     IntegerSuggestion("top_k", 4, 1000),

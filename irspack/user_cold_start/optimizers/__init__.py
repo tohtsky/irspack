@@ -1,9 +1,12 @@
 from typing import List
 
-from irspack.parameter_tuning import (CategoricalSuggestion, IntegerSuggestion,
-                                      LogUniformSuggestion, Suggestion)
-from irspack.user_cold_start.recommenders.cb_knn import \
-    UserCBCosineKNNRecommender
+from irspack.parameter_tuning import (
+    CategoricalSuggestion,
+    IntegerSuggestion,
+    LogUniformSuggestion,
+    Suggestion,
+)
+from irspack.user_cold_start.recommenders.cb_knn import UserCBCosineKNNRecommender
 from irspack.user_cold_start.recommenders.linear import LinearMethodRecommender
 from irspack.user_cold_start.recommenders.popular import TopPopularRecommender
 
