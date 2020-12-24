@@ -7,7 +7,7 @@ from ..optimizers.base_optimizer import (BaseOptimizer,
 from ..parameter_tuning import (CategoricalSuggestion, IntegerSuggestion,
                                 LogUniformSuggestion, Suggestion,
                                 UniformSuggestion)
-from ..recommenders import (AsymmetricCosineKNNRecommender, BPRFMRecommender,
+from ..recommenders import (AsymmetricCosineKNNRecommender,
                             CosineKNNRecommender, DenseSLIMRecommender,
                             IALSRecommender, JaccardKNNRecommender,
                             NMFRecommender, P3alphaRecommender,
@@ -44,16 +44,6 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSu
         LogUniformSuggestion("reg", 1e-10, 1e-2),
     ]
     recommender_class = IALSRecommender
-
-
-class BPRFMOptimizer(BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport):
-    default_tune_range = [
-        IntegerSuggestion("n_components", 4, 256),
-        LogUniformSuggestion("item_alpha", 1e-9, 1e-2),
-        LogUniformSuggestion("user_alpha", 1e-9, 1e-2),
-        CategoricalSuggestion("loss", ["bpr", "warp"]),
-    ]
-    recommender_class = BPRFMRecommender
 
 
 class DenseSLIMOptimizer(BaseOptimizer):
@@ -131,6 +121,25 @@ class AsymmetricCosineKNNOptimizer(BaseOptimizerWithThreadingSupport):
     default_tune_range = default_tune_range_knn + [UniformSuggestion("alpha", 0, 1)]
 
     recommender_class = AsymmetricCosineKNNRecommender
+
+
+try:
+    from ..recommenders.bpr import BPRFMRecommender
+
+    class BPRFMOptimizer(
+        BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport
+    ):
+        default_tune_range = [
+            IntegerSuggestion("n_components", 4, 256),
+            LogUniformSuggestion("item_alpha", 1e-9, 1e-2),
+            LogUniformSuggestion("user_alpha", 1e-9, 1e-2),
+            CategoricalSuggestion("loss", ["bpr", "warp"]),
+        ]
+        recommender_class = BPRFMRecommender
+
+
+except:
+    pass
 
 
 try:
