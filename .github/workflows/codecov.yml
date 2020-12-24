@@ -5,7 +5,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
     env:
       OS: ${{ matrix.os }}
       PYTHON: "3.7"
@@ -17,15 +17,19 @@ jobs:
           python-version: 3.7
       - name: Generate coverage report
         run: |
+          apt install wget lcov
           pip install pytest pytest-cov
           pip install lightfm jaxlib jax dm-haiku optax
-          python setup.py develop
+          wget http://files.grouplens.org/datasets/movielens/ml-100k.zip -O $HOME/.ml-100k.zip
+          IRSPACK_TESTING="true" python setup.py develop
           pytest --cov=./ --cov-report=xml
+          lcov -d `pwd` -c -o coverage.info
+          lcov -e coverage.info */cpp_source/* -o coverageFiltered.info
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
           file: ./coverage.xml
-          files: ./coverage1.xml,./coverage2.xml
+          files: coverageFiltered.info
           directory: ./coverage/reports/
           flags: unittests
           env_vars: OS,PYTHON
