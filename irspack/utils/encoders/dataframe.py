@@ -40,6 +40,7 @@ class DataFrameEncoder:
         main_table: pd.DataFrame,
         many_to_many_dfs: List[pd.DataFrame] = [],
     ) -> sps.csr_matrix:
+
         if len(many_to_many_dfs) != len(self.multivalue_encoders):
             raise ValueError(
                 f"You have to supply {len(self.multivalue_encoders)} child datafarames."

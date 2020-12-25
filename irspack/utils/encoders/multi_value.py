@@ -45,5 +45,9 @@ class ManyToManyEncoder(Generic[T]):
                 (row, col),
             ),
             shape=(len(unique_ids), len(self)),
-        )[inverse]
-        return result
+        )
+        result.sort_indices()
+        if self.normalize:
+            row_norm = result.power(2).sum(axis=1).A1 ** 0.5
+            result.data /= row_norm[result.nonzero()[0]]
+        return result[inverse]
