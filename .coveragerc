@@ -1,0 +1,15 @@
+[run]
+omit =
+  tests/*
+
+[report]
+exclude_lines =
+  pragma: no cover
+  except ImportError:
+  if TYPE_CHECKING:
+  raise NotImplementedError
+
+[paths]
+source =
+  irspack/
+  cpp_source
