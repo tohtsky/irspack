@@ -17,17 +17,26 @@ jobs:
         uses: actions/setup-python@master
         with:
           python-version: 3.7
-      - name: Generate coverage report
+      - name: Build irspack (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get install wget lcov
+          sudo apt-get install lcov
+          IRSPACK_TESTING="true" python setup.py develop
+      - name: Build irspack (other)
+        if: matrix.os != 'ubuntu-latest'
+        run: |
+          python setup.py develop
+      - name: Run pytest
+        run: |
           pip install pytest pytest-cov
           pip install lightfm jaxlib jax dm-haiku optax
-          wget http://files.grouplens.org/datasets/movielens/ml-100k.zip -O $HOME/.ml-100k.zip
-          IRSPACK_TESTING="true" python setup.py develop
+          curl http://files.grouplens.org/datasets/movielens/ml-100k.zip -o $HOME/.ml-100k.zip
           pytest --cov=./irspack tests/
+      - name: Generate coverage (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
           coverage xml
           lcov -d `pwd` -c -o coverage.info
-          echo `ls -ltr`
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.7'
         uses: codecov/codecov-action@v1
