@@ -24,9 +24,15 @@ jobs:
           pip install lightfm jaxlib jax dm-haiku optax
           wget http://files.grouplens.org/datasets/movielens/ml-100k.zip -O $HOME/.ml-100k.zip
           IRSPACK_TESTING="true" python setup.py develop
-          pytest --cov=./irspack --cov-report=xml
+          pytest --cov=./irspack tests/
+          coverage xml
           lcov -d `pwd` -c -o coverage.info
-          lcov -e coverage.info */cpp_source/* -o coverageFiltered.info
           echo `ls -ltr`
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1.0.6
+        uses: codecov/codecov-action@v1
+        with:
+          files: ./coverage.xml,./coverage.info
+          verbose: false
+          env_vars: OS,PYTHON
+          name: codecov-umbrella
+          fail_ci_if_error: false
