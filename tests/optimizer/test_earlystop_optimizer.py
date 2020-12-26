@@ -6,12 +6,13 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 
-from irspack.definitions import (DenseScoreArray, InteractionMatrix,
-                                 UserIndexArray)
+from irspack.definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
 from irspack.evaluator import Evaluator
 from irspack.optimizers.base_optimizer import BaseOptimizerWithEarlyStopping
 from irspack.recommenders.base_earlystop import (
-    BaseRecommenderWithEarlyStopping, TrainerBase)
+    BaseRecommenderWithEarlyStopping,
+    TrainerBase,
+)
 from irspack.split import rowwise_train_test_split
 
 X_small = sps.csr_matrix(

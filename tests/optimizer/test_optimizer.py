@@ -1,24 +1,25 @@
-from irspack.evaluator import Evaluator
+import numpy as np
 import pytest
+import scipy.sparse as sps
+
 from irspack.dataset.movielens import MovieLens100KDataManager
+from irspack.definitions import DenseScoreArray, UserIndexArray
+from irspack.evaluator import Evaluator
 from irspack.optimizers import BaseOptimizer
-from irspack.recommenders import BaseRecommender
 from irspack.parameter_tuning import (
     CategoricalSuggestion,
-    UniformSuggestion,
-    LogUniformSuggestion,
-    IntegerSuggestion,
     IntegerLogUniformSuggestion,
+    IntegerSuggestion,
+    LogUniformSuggestion,
+    UniformSuggestion,
 )
-from irspack.definitions import UserIndexArray, DenseScoreArray
+from irspack.recommenders import BaseRecommender
 from irspack.split import rowwise_train_test_split
-import numpy as np
-import scipy.sparse as sps
 
 X_small = sps.csr_matrix(
     (np.random.RandomState(42).rand(100, 32) > 0.8).astype(np.float64)
 )
-ml_100k_df = MovieLens100KDataManager().read_interaction()
+ml_100k_df = MovieLens100KDataManager(force_download=True).read_interaction()
 _, user_index = np.unique(ml_100k_df.userId, return_inverse=True)
 _, movie_index = np.unique(ml_100k_df.movieId, return_inverse=True)
 X_large = sps.csr_matrix(
@@ -27,7 +28,16 @@ X_large = sps.csr_matrix(
 
 
 class MockRecommender(BaseRecommender):
-    def __init__(self, X, X_test, p1=1, I1=1, I2=1, reg=1.0, flag="hoge"):
+    def __init__(
+        self,
+        X: sps.csr_matrix,
+        X_test: sps.csr_matrix,
+        p1: float = 1,
+        I1: int = 1,
+        I2: int = 1,
+        reg: float = 1.0,
+        flag: str = "hoge",
+    ):
         super().__init__(X)
         self.p1 = p1  # only p1 matters
         self.I1 = I1
@@ -58,7 +68,7 @@ class MockOptimizer(BaseOptimizer):
 
 
 @pytest.mark.parametrize("X", [X_small, X_large])
-def test_optimizer_by_mock(X):
+def test_optimizer_by_mock(X: sps.csr_matrix) -> None:
     X_train, X_val = rowwise_train_test_split(X, test_ratio=0.5, random_seed=0)
     evaluator = Evaluator(X_val, 0)
     optimizer = MockOptimizer(

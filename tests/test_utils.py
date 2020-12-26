@@ -1,30 +1,30 @@
 import warnings
+
 import numpy as np
 import scipy.sparse as sps
+
 from irspack.utils import (
-    sparse_mm_threaded,
-    rowwise_train_test_split,
     okapi_BM_25_weight,
+    rowwise_train_test_split,
+    sparse_mm_threaded,
     tf_idf_weight,
 )
 
 X = sps.csr_matrix(
-    np.asfarray(
-        [[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]]
-    )
+    np.asfarray([[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])
 )
 X.sort_indices()
 X_array = X.toarray()
 
 
-def test_sparse_mm_threaded():
+def test_sparse_mm_threaded() -> None:
     X_mm = sparse_mm_threaded(X, X.T, 3).toarray()
     X_sps = X.dot(X.T).toarray()
     X_diff = X_mm - X_sps
     assert np.all(X_diff == 0)
 
 
-def test_split():
+def test_split() -> None:
     warnings.simplefilter("always")
 
     X_1, X_2 = rowwise_train_test_split(X, test_ratio=0.5, random_seed=1)
@@ -34,7 +34,7 @@ def test_split():
     assert np.all(X_1.multiply(X_2).toarray() == 0)
 
 
-def test_bm25():
+def test_bm25() -> None:
     k1 = 1.4
     b = 0.8
     X_weighted = okapi_BM_25_weight(X, k1=k1, b=b).toarray()
@@ -53,10 +53,9 @@ def test_bm25():
             assert py_answer == X_weighted[row, col]
 
 
-def test_tf_idf():
+def test_tf_idf() -> None:
     X_manual = (
-        X.toarray()
-        * np.log(X.shape[0] / (1 + np.bincount(X.nonzero()[1])))[None, :]
+        X.toarray() * np.log(X.shape[0] / (1 + np.bincount(X.nonzero()[1])))[None, :]
     )
     X_tf_idf = tf_idf_weight(X).toarray()
     assert np.all((X_manual - X_tf_idf) == 0.0)

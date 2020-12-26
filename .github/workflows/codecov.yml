@@ -30,7 +30,6 @@ jobs:
         run: |
           pip install pytest pytest-cov
           pip install lightfm jaxlib jax dm-haiku optax
-          curl http://files.grouplens.org/datasets/movielens/ml-100k.zip -o $HOME/.ml-100k.zip
           pytest --cov=./irspack tests/
       - name: Generate coverage (ubuntu)
         if: matrix.os == 'ubuntu-latest'

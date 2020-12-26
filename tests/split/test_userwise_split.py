@@ -5,7 +5,7 @@ from irspack.split import dataframe_split_user_level
 
 RNS = np.random.RandomState(0)
 
-df = MovieLens100KDataManager().read_interaction()
+df = MovieLens100KDataManager(force_download=True).read_interaction()
 
 
 def test_user_level_split() -> None:

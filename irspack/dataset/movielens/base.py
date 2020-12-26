@@ -13,16 +13,22 @@ class BaseMovieLenstDataLoader(ABC):
     DEFAULT_PATH: str
     _zf: Optional[ZipFile]
 
-    def __init__(self, zippath: Optional[str] = None):
+    def __init__(self, zippath: Optional[str] = None, force_download: bool = False):
         if zippath is None:
             zippath = self.DEFAULT_PATH
             if not os.path.exists(zippath):
-                download = input(
-                    "Could not find {}.\nCan I download and save it there?[y/N]".format(
-                        zippath
+                if not force_download:
+                    download = (
+                        input(
+                            "Could not find {}.\nCan I download and save it there?[y/N]".format(
+                                zippath
+                            )
+                        ).lower()
+                        == "y"
                     )
-                )
-                if download.lower() == "y":
+                else:
+                    download = True
+                if download == "y":
                     print("start download...")
                     urllib.request.urlretrieve(self.DOWNLOAD_URL, zippath)
                     print("complete")
