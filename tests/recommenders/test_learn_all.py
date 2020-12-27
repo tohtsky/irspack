@@ -1,26 +1,28 @@
 import pickle
-import pytest
-from typing import Type, List
+from typing import List, Type
+
 import numpy as np
+import pytest
 import scipy.sparse as sps
-from irspack.recommenders import (
-    BaseRecommender,
-    TopPopRecommender,
-    CosineKNNRecommender,
-    AsymmetricCosineKNNRecommender,
-    TverskyIndexKNNRecommender,
-    JaccardKNNRecommender,
-    P3alphaRecommender,
-    RP3betaRecommender,
-    BPRFMRecommender,
-    TruncatedSVDRecommender,
-    NMFRecommender,
-    RandomWalkWithRestartRecommender,
-    IALSRecommender,
-    DenseSLIMRecommender,
-    SLIMRecommender,
-)
+
 from irspack.evaluator import Evaluator
+from irspack.recommenders import (
+    AsymmetricCosineKNNRecommender,
+    BaseRecommender,
+    BPRFMRecommender,
+    CosineKNNRecommender,
+    DenseSLIMRecommender,
+    IALSRecommender,
+    JaccardKNNRecommender,
+    NMFRecommender,
+    P3alphaRecommender,
+    RandomWalkWithRestartRecommender,
+    RP3betaRecommender,
+    SLIMRecommender,
+    TopPopRecommender,
+    TruncatedSVDRecommender,
+    TverskyIndexKNNRecommender,
+)
 
 X_train = sps.csr_matrix(
     np.asfarray([[1, 1, 2, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])

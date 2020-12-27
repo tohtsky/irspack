@@ -1,26 +1,28 @@
-import scipy.sparse as sps
-import numpy as np
-from sklearn.metrics import average_precision_score, ndcg_score
-from irspack.evaluator import Evaluator, EvaluatorCore
-from irspack.recommenders.base import BaseRecommender
 from collections import defaultdict
+
+import numpy as np
 import pytest
+import scipy.sparse as sps
+from sklearn.metrics import average_precision_score, ndcg_score
+
+from irspack.evaluator import Evaluator
+from irspack.recommenders.base import BaseRecommender
 
 
 class MockRecommender(BaseRecommender):
-    def __init__(self, X_all, scores):
+    def __init__(self, X_all: sps.csr_matrix, scores: np.ndarray) -> None:
         super().__init__(X_all)
         self.scores = scores
 
-    def get_score(self, user_indices):
+    def get_score(self, user_indices: np.ndarray) -> np.ndarray:
         return self.scores[user_indices]
 
-    def _learn(self):
+    def _learn(self) -> None:
         pass
 
 
 @pytest.mark.parametrize("U, I", [(10, 5), (10, 30)])
-def test_metrics(U, I):
+def test_metrics(U: int, I: int) -> None:
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)

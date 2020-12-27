@@ -16,6 +16,7 @@ class UserColdStartEvaluator:
         profiles: base.ProfileMatrix,
         mb_size: int = 1024,
         n_thread: int = 1,
+        cutoff: int = 20,
     ):
         assert X.shape[0] == profiles.shape[0]
 
@@ -26,16 +27,15 @@ class UserColdStartEvaluator:
         self.dim_profile = profiles.shape[1]
         self.mb_size = mb_size
         self.n_thread = n_thread
+        self.cutoff = cutoff
 
-    def get_score(
-        self, model: base.BaseUserColdStartRecommender, cutoff: int = 20
-    ) -> Dict[str, Any]:
+    def get_score(self, model: base.BaseUserColdStartRecommender) -> Dict[str, Any]:
         metric_base = Metrics(self.n_items)
         for start in range(0, self.n_users, self.mb_size):
             end = min(start + self.mb_size, self.n_users)
             score_mb = model.get_score(self.profiles[start:end])
             metric = self.core.get_metrics(
-                score_mb, cutoff, start, self.n_thread, False
+                score_mb, self.cutoff, start, self.n_thread, False
             )
             metric_base.merge(metric)
         return metric_base.as_dict()

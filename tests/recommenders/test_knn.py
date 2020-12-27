@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
 import scipy.sparse as sps
+
 from irspack.recommenders.knn import (
+    AsymmetricCosineKNNRecommender,
     CosineKNNRecommender,
     JaccardKNNRecommender,
-    AsymmetricCosineKNNRecommender,
 )
 from irspack.recommenders.p3 import P3alphaRecommender
 from irspack.recommenders.rp3 import RP3betaRecommender
@@ -24,7 +25,7 @@ X_many_dense = sps.csr_matrix(np.random.rand(133, 245))
 @pytest.mark.parametrize(
     "X, normalize", [(X_many, True), (X_small, False), (X_many_dense, True)]
 )
-def test_cosine(X, normalize):
+def test_cosine(X: sps.csr_matrix, normalize: bool) -> None:
     rec = CosineKNNRecommender(
         X, shrinkage=0, n_thread=5, top_k=X.shape[1], normalize=normalize
     )
@@ -44,7 +45,7 @@ def test_cosine(X, normalize):
 
 
 @pytest.mark.parametrize("X", [X_many, X_small, X_many_dense])
-def test_jaccard(X):
+def test_jaccard(X: sps.csr_matrix) -> None:
     rec = JaccardKNNRecommender(X, shrinkage=0, top_k=X.shape[1], n_thread=1)
     rec.learn()
     sim = rec.W.toarray()
@@ -64,7 +65,7 @@ def test_jaccard(X):
 @pytest.mark.parametrize(
     "X, alpha", [(X_many, 0.5), (X_small, 0.7), (X_many_dense, (0.01))]
 )
-def test_asymmetric_cosine(X, alpha):
+def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float) -> None:
     rec = AsymmetricCosineKNNRecommender(
         X, shrinkage=0, alpha=alpha, n_thread=1, top_k=X.shape[1]
     )
@@ -86,7 +87,7 @@ def test_asymmetric_cosine(X, alpha):
 
 
 @pytest.mark.parametrize("X", [X_many, X_small])
-def test_topk(X):
+def test_topk(X: sps.csr_matrix) -> None:
     rec = CosineKNNRecommender(X, shrinkage=0, top_k=30, n_thread=5)
     rec.learn()
     sim = rec.W.toarray()
@@ -94,7 +95,7 @@ def test_topk(X):
 
 
 @pytest.mark.parametrize("X, alpha", [(X_small, 0.001), (X_many_dense, 2), (X_many, 1)])
-def test_p3(X, alpha):
+def test_p3(X: sps.csr_matrix, alpha: float) -> None:
     rec = P3alphaRecommender(X, alpha=alpha, n_thread=4)
     rec.learn()
     W = rec.W.toarray()
@@ -102,7 +103,7 @@ def test_p3(X, alpha):
     P_ui = np.power(X.toarray(), alpha)
     P_iu = np.power(X.T.toarray(), alpha)
 
-    def zero_or_1(X):
+    def zero_or_1(X: np.ndarray) -> np.ndarray:
         X = X.copy()
         X[X == 0] = 1
         return X
@@ -116,7 +117,7 @@ def test_p3(X, alpha):
 @pytest.mark.parametrize(
     "X, alpha, beta", [(X_small, 0.001, 10), (X_many_dense, 2, 10), (X_many, 1, 2)]
 )
-def test_rp3(X, alpha, beta):
+def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
     rec = RP3betaRecommender(X, alpha=alpha, beta=beta, n_thread=4)
     rec.learn()
     W = rec.W.toarray()
@@ -126,7 +127,7 @@ def test_rp3(X, alpha, beta):
 
     popularity = X.sum(axis=0).A1.ravel() ** beta
 
-    def zero_or_1(X):
+    def zero_or_1(X: np.ndarray) -> np.ndarray:
         X = X.copy()
         X[X == 0] = 1
         return X
@@ -140,7 +141,7 @@ def test_rp3(X, alpha, beta):
     np.testing.assert_allclose(W, W_man)
 
 
-def test_raise_shrinkage():
+def test_raise_shrinkage() -> None:
     with pytest.raises(ValueError):
         _ = P3alphaRecommender(X_many.T, alpha=1.0, n_thread=0)
         _.learn()

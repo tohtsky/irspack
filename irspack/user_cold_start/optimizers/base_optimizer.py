@@ -60,6 +60,7 @@ class BaseOptimizer:
         self,
         n_trials: int = 20,
         timeout: Optional[int] = None,
+        random_seed: Optional[int] = None,
     ) -> Dict[str, Any]:
         def objective(trial: optuna.Trial) -> float:
             param_dict = dict(**self._suggest(trial), **self.fixed_params)
@@ -76,7 +77,7 @@ class BaseOptimizer:
 
             return -val_score
 
-        study = optuna.create_study()
+        study = optuna.create_study(sampler=optuna.samplers.RandomSampler(random_seed))
         study.optimize(objective, n_trials, timeout=timeout)
         if self.best_params is None:
             raise RuntimeError(
@@ -93,10 +94,12 @@ class BaseOptimizer:
         n_trials: int = 20,
         target_metric: str = "ndcg",
         split_config: Dict[str, Any] = dict(test_size=0.2, random_state=42),
+        evaluator_config: Dict[str, Any] = dict(),
         timeout: Optional[int] = None,
         suggest_overwrite: List[Suggestion] = [],
         fixed_params: Dict[str, Any] = dict(),
         logger: Optional[logging.Logger] = None,
+        random_seed: Optional[int] = None,
     ) -> Dict[str, Any]:
         X_tt, X_tv, profile_tt, profile_tv = train_test_split(
             X_train, X_profile, **split_config
@@ -105,7 +108,7 @@ class BaseOptimizer:
         X_tv.sort_indices()
         profile_tt.sort_indices()
         profile_tv.sort_indices()
-        evaluator = UserColdStartEvaluator(X_tv, profile_tv)
+        evaluator = UserColdStartEvaluator(X_tv, profile_tv, **evaluator_config)
         optimizer = cls(
             X_tt,
             profile_tt,
@@ -115,4 +118,6 @@ class BaseOptimizer:
             fixed_params=fixed_params,
             logger=logger,
         )
-        return optimizer.optimize(n_trials=n_trials, timeout=timeout)
+        return optimizer.optimize(
+            n_trials=n_trials, timeout=timeout, random_seed=random_seed
+        )

@@ -89,7 +89,7 @@ class CB2CFUserOptimizerBase(object):
         cls,
         X_all: InteractionMatrix,
         X_profile: ProfileMatrix,
-        evaluator_config: Dict[str, Any] = dict(
+        cf_evaluator_config: Dict[str, Any] = dict(
             cutoff=20, n_thread=4, target_metric="ndcg"
         ),
         cf_split_config: Dict[str, Any] = dict(random_seed=42, test_ratio=0.2),
@@ -100,7 +100,7 @@ class CB2CFUserOptimizerBase(object):
         X_all = X_all
         X_profile = X_profile
         X_tr_, X_val_ = rowwise_train_test_split(X_all, **cf_split_config)
-        hot_evaluator = Evaluator_hot(X_val_, 0, **evaluator_config)
+        hot_evaluator = Evaluator_hot(X_val_, 0, **cf_evaluator_config)
         optimizer = cls(
             X_tr_,
             hot_evaluator,
