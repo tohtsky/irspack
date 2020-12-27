@@ -4,6 +4,7 @@
 #include <Eigen/Cholesky>
 #include <Eigen/IterativeLinearSolvers>
 #include <atomic>
+#include <bits/stdint-intn.h>
 #include <cstddef>
 #include <future>
 #include <iostream>
@@ -36,39 +37,35 @@ struct Solver {
   inline void prepare_p(const DenseMatrix &other_factor,
                         const IALSLearningConfig &config) {
     const size_t mb_size = 1020;
-#if 0
     P = DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
 
     std::mutex mutex_;
-    std::atomic<size_t> cursor{static_cast<size_t>(0)};
+    std::atomic<int64_t> cursor{static_cast<size_t>(0)};
 
-    std::vector<std::thread> workers;
+    std::vector<std::future<DenseMatrix>> workers;
     for (size_t i = 0; i < config.n_threads; i++) {
-      workers.emplace_back([this, &other_factor, &cursor, mb_size, &mutex_]() {
+      workers.emplace_back(std::async(std::launch::async, [this, &other_factor,
+                                                           &cursor, mb_size,
+                                                           &mutex_]() {
+        DenseMatrix P_local =
+            DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
         while (true) {
-          size_t cursor_local = cursor.fetch_add(mb_size);
+          int64_t cursor_local = cursor.fetch_add(mb_size);
           if (cursor_local >= other_factor.rows())
             break;
           size_t block_end = std::min(cursor_local + mb_size,
                                       static_cast<size_t>(other_factor.rows()));
-          DenseMatrix P_local =
+          P_local.noalias() +=
               other_factor.middleRows(cursor_local, block_end - cursor_local)
                   .transpose() *
               other_factor.middleRows(cursor_local, block_end - cursor_local);
-          {
-            std::unique_lock<std::mutex> lock(mutex_);
-            this->P += P_local;
-          }
         }
-      });
+        return P_local;
+      }));
     }
     for (auto &w : workers) {
-      w.join();
+      P.noalias() += w.get();
     }
-#else
-
-    P.noalias() = other_factor.transpose() * other_factor;
-#endif
     for (int i = 0; i < P.rows(); i++) {
       P.coeffRef(i, i) += this->reg;
     }
