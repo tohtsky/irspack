@@ -4,7 +4,6 @@
 #include <Eigen/Cholesky>
 #include <Eigen/IterativeLinearSolvers>
 #include <atomic>
-#include <bits/stdint-intn.h>
 #include <cstddef>
 #include <future>
 #include <iostream>
