@@ -1,15 +1,12 @@
 import json
-import logging
 import os
-from typing import List, Tuple, Type, Dict, Any
+from typing import Any, Dict, List, Tuple, Type
 
 import pandas as pd
 from scipy import sparse as sps
 
+from irspack.dataset.movielens import MovieLens20MDataManager
 from irspack.evaluator import EvaluatorWithColdUser
-from irspack.dataset.movielens import (
-    MovieLens20MDataManager,
-)
 from irspack.optimizers import (
     AsymmetricCosineKNNOptimizer,
     BaseOptimizer,
@@ -18,18 +15,20 @@ from irspack.optimizers import (
     IALSOptimizer,
     MultVAEOptimizer,
     P3alphaOptimizer,
-    DenseSLIMOptimizer,
     RP3betaOptimizer,
     SLIMOptimizer,
     TopPopOptimizer,
 )
 from irspack.split import dataframe_split_user_level
 
-os.environ["OMP_NUM_THREADS"] = "8"
+N_CPUS = os.cpu_count()
+if N_CPUS is None:
+    N_CPUS = 1
+os.environ["OMP_NUM_THREADS"] = str(N_CPUS)
 
-# This will set the number of thread to be 8 where it is possible.
+# This will set the number of thread to be N_CPUS where it is possible.
 # You can also controll the number of threads for each recommender.
-os.environ["RS_THREAD_DEFAULT"] = "8"
+os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = str(N_CPUS)
 
 if __name__ == "__main__":
 
@@ -64,13 +63,13 @@ if __name__ == "__main__":
         input_interaction=data_val.X_learn,
         ground_truth=data_val.X_predict,
         cutoff=BASE_CUTOFF,
-        n_thread=8,
+        n_thread=N_CPUS,
     )
     test_evaluator = EvaluatorWithColdUser(
         input_interaction=data_test.X_learn,
         ground_truth=data_test.X_predict,
         cutoff=BASE_CUTOFF,
-        n_thread=8,
+        n_thread=N_CPUS,
     )
 
     test_results = []

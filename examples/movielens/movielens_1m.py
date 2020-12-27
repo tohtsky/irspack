@@ -3,12 +3,11 @@ import logging
 import os
 from typing import List, Tuple, Type
 
+from scipy import sparse as sps
+
 from irspack.dataset.movielens import MovieLens1MDataManager
 from irspack.evaluator import Evaluator
-from irspack.optimizers import (
-    # BPRFMOptimizer, #requires lightFM
-    # MultVAEOptimizer, #requires jax & haiku & optax
-    # SLIMOptimizer,
+from irspack.optimizers import (  # BPRFMOptimizer, #requires lightFM; MultVAEOptimizer, #requires jax & haiku & optax; SLIMOptimizer,
     AsymmetricCosineKNNOptimizer,
     BaseOptimizer,
     CosineKNNOptimizer,
@@ -21,10 +20,9 @@ from irspack.optimizers import (
     TverskyIndexKNNOptimizer,
 )
 from irspack.split import dataframe_split_user_level
-from scipy import sparse as sps
 
 os.environ["OMP_NUM_THREADS"] = "8"
-os.environ["RS_THREAD_DEFAULT"] = "8"
+os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "8"
 
 if __name__ == "__main__":
 

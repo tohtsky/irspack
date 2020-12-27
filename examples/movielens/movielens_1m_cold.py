@@ -6,25 +6,23 @@ from typing import List, Tuple, Type
 import pandas as pd
 from scipy import sparse as sps
 
-from irspack.evaluator import EvaluatorWithColdUser
 from irspack.dataset.movielens import MovieLens1MDataManager
-from irspack.optimizers import (
+from irspack.evaluator import EvaluatorWithColdUser
+from irspack.optimizers import (  # SLIMOptimizer,; MultVAEOptimizer,
+    AsymmetricCosineKNNOptimizer,
     BaseOptimizer,
     CosineKNNOptimizer,
-    AsymmetricCosineKNNOptimizer,
-    TverskyIndexKNNOptimizer,
     DenseSLIMOptimizer,
     IALSOptimizer,
     P3alphaOptimizer,
     RP3betaOptimizer,
     TopPopOptimizer,
-    # SLIMOptimizer,
-    # MultVAEOptimizer,
+    TverskyIndexKNNOptimizer,
 )
 from irspack.split import dataframe_split_user_level
 
 os.environ["OMP_NUM_THREADS"] = "8"
-os.environ["RS_THREAD_DEFAULT"] = "8"
+os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "8"
 
 if __name__ == "__main__":
 

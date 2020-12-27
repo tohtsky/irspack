@@ -96,10 +96,10 @@ class BaseRecommenderWithThreadingSupport(BaseRecommender):
             self.n_thread = n_thread
         else:
             try:
-                self.n_thread = int(environ.get("RS_THREAD_DEFAULT", "1"))
+                self.n_thread = int(environ.get("IRSPACK_NUM_THREADS_DEFAULT", "1"))
             except:
                 raise ValueError(
-                    'failed to interpret "RS_THREAD_DEFAULT" as an integer.'
+                    'failed to interpret "IRSPACK_NUM_THREADS_DEFAULT" as an integer.'
                 )
 
 
