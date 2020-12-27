@@ -22,7 +22,7 @@ I have decided to implement my own one to
 pip install git+https://github.com/tohtsky/irspack
 ```
 
-We have also prepared a wrapper class to train and optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately by e.g.,
+I have also prepared a wrapper class (`BPRFMRecommender`) to train and optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately by e.g.,
 
 ```sh
 pip install lightfm
@@ -40,7 +40,7 @@ If you want to use Mult-VAE and CB2CF features in cold-start scenarios, you'll n
 
 ## Step 1. Train a recommender
 
-We first represent the user/item interaction as a [scipy.sparse](https://docs.scipy.org/doc/scipy/reference/sparse.html) matrix. They we can feed it into our `Recommender` classes:
+We first represent the user/item interaction as a [scipy.sparse](https://docs.scipy.org/doc/scipy/reference/sparse.html) matrix. Then we can feed it into our `Recommender` classes:
 
 ```Python
 import numpy as np
@@ -66,7 +66,7 @@ recommender.get_score_remove_seen([0])
 
 ## Step 2. Evaluate on a validation set
 
-We have to split the dataset to train and validation set
+We have to split the dataset to train and validation sets
 
 ```Python
 from irspack.split import rowwise_train_test_split
@@ -107,7 +107,7 @@ This will print something like
 ## Step 3. Optimize the Hyperparameter
 
 Now that we can evaluate the recommenders' performance against
-validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
+the validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
 
 ```Python
 from irspack.optimizers import P3alphaOptimizer
@@ -121,10 +121,9 @@ trial_dfs.ndcg.max()
 
 Of course, we have to hold-out another interaction set for test,
 and measure the performance of tuned recommender against the test set.
-See `examples`.
+See `examples/` for more complete examples.
 
 # TODOs
 
-- complete tests
 - complete documentation
 - more splitting schemes
