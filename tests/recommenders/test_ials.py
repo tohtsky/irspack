@@ -23,7 +23,9 @@ def test_ials_overfit_cholesky() -> None:
 
 def test_ials_overfit_cg() -> None:
     X = X_small
-    rec = IALSRecommender(X, n_components=4, alpha=0, reg=1e-2, use_cg=True)
+    rec = IALSRecommender(
+        X, n_components=4, alpha=0, reg=1e-2, use_cg=True, max_cg_steps=4
+    )
     rec.learn()
     assert rec.trainer is not None
     uvec = rec.trainer.core_trainer.transform_user(X.tocsr().astype(np.float32))
