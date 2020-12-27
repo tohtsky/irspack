@@ -28,7 +28,7 @@ class BaseMovieLenstDataLoader(ABC):
                     )
                 else:
                     download = True
-                if download == "y":
+                if download:
                     print("start download...")
                     urllib.request.urlretrieve(self.DOWNLOAD_URL, zippath)
                     print("complete")
