@@ -1,6 +1,7 @@
 #pragma once
 
 #include "definitions.hpp"
+#include <cstddef>
 #include <map>
 #include <vector>
 
@@ -9,9 +10,11 @@ using namespace std;
 
 struct IALSLearningConfig {
   inline IALSLearningConfig(size_t K, Real alpha, Real reg, Real init_stdev,
-                            int random_seed, size_t n_threads)
+                            int random_seed, size_t n_threads, bool use_cg,
+                            size_t max_cg_step)
       : K(K), alpha(alpha), reg(reg), init_stdev(init_stdev),
-        random_seed(random_seed), n_threads(n_threads) {}
+        random_seed(random_seed), n_threads(n_threads), use_cg(use_cg),
+        max_cg_step(max_cg_step) {}
 
   IALSLearningConfig(const IALSLearningConfig &other) = default;
 
@@ -19,6 +22,8 @@ struct IALSLearningConfig {
   const Real alpha, reg, init_stdev;
   int random_seed;
   size_t n_threads;
+  bool use_cg;
+  size_t max_cg_step;
 
   struct Builder {
     Real reg = .1;
@@ -27,10 +32,12 @@ struct IALSLearningConfig {
     size_t K = 16;
     int random_seed = 42;
     size_t n_threads = 1;
+    bool use_cg = true;
+    size_t max_cg_step = 0;
     inline Builder() {}
     inline IALSLearningConfig build() {
       return IALSLearningConfig(K, alpha, reg, init_stdev, random_seed,
-                                n_threads);
+                                n_threads, use_cg, max_cg_step);
     }
 
     Builder &set_alpha(Real alpha) {
@@ -59,6 +66,14 @@ struct IALSLearningConfig {
 
     Builder &set_n_threads(size_t n_threads) {
       this->n_threads = n_threads;
+      return *this;
+    }
+    Builder &set_use_cg(bool use_cg) {
+      this->use_cg = use_cg;
+      return *this;
+    }
+    Builder &set_max_cg_step(size_t max_cg_step) {
+      this->max_cg_step = max_cg_step;
       return *this;
     }
   };

@@ -2,7 +2,6 @@
 #include "../argcheck.hpp"
 #include <Eigen/Core>
 #include <Eigen/Sparse>
-#include <atomic>
 #include <cstddef>
 #include <future>
 #include <iostream>

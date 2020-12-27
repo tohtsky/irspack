@@ -15,15 +15,16 @@ using std::vector;
 
 PYBIND11_MODULE(_ials, m) {
   py::class_<IALSLearningConfig>(m, "IALSLearningConfig")
-      .def(py::init<size_t, Real, Real, Real, int, size_t>())
+      .def(py::init<size_t, Real, Real, Real, int, size_t, bool, size_t>())
       .def(py::pickle(
           [](const IALSLearningConfig &config) {
             return py::make_tuple(config.K, config.alpha, config.reg,
                                   config.init_stdev, config.n_threads,
-                                  config.random_seed);
+                                  config.random_seed, config.use_cg,
+                                  config.max_cg_step);
           },
           [](py::tuple t) {
-            if (t.size() != 6)
+            if (t.size() != 8)
               throw std::runtime_error("invalid state");
 
             size_t K = t[0].cast<size_t>();
@@ -32,8 +33,10 @@ PYBIND11_MODULE(_ials, m) {
             Real init_stdev = t[3].cast<Real>();
             size_t n_threads = t[4].cast<size_t>();
             int random_seed = t[5].cast<int>();
+            bool use_cg = t[6].cast<bool>();
+            size_t max_cg_step = t[7].cast<size_t>();
             return IALSLearningConfig(K, alpha, reg, init_stdev, n_threads,
-                                      random_seed);
+                                      random_seed, use_cg, max_cg_step);
           }));
   py::class_<IALSLearningConfig::Builder>(m, "IALSLearningConfigBuilder")
       .def(py::init<>())
@@ -43,7 +46,9 @@ PYBIND11_MODULE(_ials, m) {
       .def("set_reg", &IALSLearningConfig::Builder::set_reg)
       .def("set_init_stdev", &IALSLearningConfig::Builder::set_init_stdev)
       .def("set_random_seed", &IALSLearningConfig::Builder::set_random_seed)
-      .def("set_n_threads", &IALSLearningConfig::Builder::set_n_threads);
+      .def("set_n_threads", &IALSLearningConfig::Builder::set_n_threads)
+      .def("set_use_cg", &IALSLearningConfig::Builder::set_use_cg)
+      .def("set_max_cg_step", &IALSLearningConfig::Builder::set_max_cg_step);
 
   py::class_<IALSTrainer>(m, "IALSTrainer")
       .def(py::init<IALSLearningConfig, const SparseMatrix &>())

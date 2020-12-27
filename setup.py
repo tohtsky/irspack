@@ -170,7 +170,7 @@ class BuildExt(build_ext):
     else:
         c_opts = {
             "msvc": ["/EHsc"],
-            "unix": [],
+            "unix": ["-march=native"],
         }
         l_opts = {
             "msvc": [],

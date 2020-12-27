@@ -2,10 +2,15 @@
 #include "IALSLearningConfig.hpp"
 #include "definitions.hpp"
 #include <Eigen/Cholesky>
+#include <Eigen/IterativeLinearSolvers>
 #include <atomic>
+#include <bits/stdint-intn.h>
+#include <cstddef>
 #include <future>
 #include <iostream>
+#include <mutex>
 #include <random>
+#include <sstream>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -29,10 +34,44 @@ struct Solver {
     }
   }
 
-  inline void prepare_p(const DenseMatrix &other_factor) {
-    P = other_factor.transpose() * other_factor;
+  inline void prepare_p(const DenseMatrix &other_factor,
+                        const IALSLearningConfig &config) {
+    const size_t mb_size = 1020;
+#if 0
+    P = DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
+
+    std::mutex mutex_;
+    std::atomic<size_t> cursor{static_cast<size_t>(0)};
+
+    std::vector<std::thread> workers;
+    for (size_t i = 0; i < config.n_threads; i++) {
+      workers.emplace_back([this, &other_factor, &cursor, mb_size, &mutex_]() {
+        while (true) {
+          size_t cursor_local = cursor.fetch_add(mb_size);
+          if (cursor_local >= other_factor.rows())
+            break;
+          size_t block_end = std::min(cursor_local + mb_size,
+                                      static_cast<size_t>(other_factor.rows()));
+          DenseMatrix P_local =
+              other_factor.middleRows(cursor_local, block_end - cursor_local)
+                  .transpose() *
+              other_factor.middleRows(cursor_local, block_end - cursor_local);
+          {
+            std::unique_lock<std::mutex> lock(mutex_);
+            this->P += P_local;
+          }
+        }
+      });
+    }
+    for (auto &w : workers) {
+      w.join();
+    }
+#else
+
+    P.noalias() = other_factor.transpose() * other_factor;
+#endif
     for (int i = 0; i < P.rows(); i++) {
-      P(i, i) += this->reg;
+      P.coeffRef(i, i) += this->reg;
     }
   }
 
@@ -46,65 +85,132 @@ struct Solver {
          << " but other.factor.rows() = " << other_factor.rows() << ".";
       throw std::invalid_argument(ss.str());
     }
-    DenseMatrix result(X.rows(), P.rows());
-    DenseMatrix P_local(P.rows(), P.cols());
-    DenseVector B(P.rows());
-    for (int i = 0; i < X.rows(); i++) {
-      P_local.array() = P.array();
-      B.array() = static_cast<Real>(0);
-      for (SparseMatrix::InnerIterator it(X, i); it; ++it) {
-        P_local += (config.alpha * it.value()) *
-                   other_factor.row(it.col()).transpose() *
-                   other_factor.row(it.col());
+    DenseMatrix result = DenseMatrix::Zero(X.rows(), P.rows());
+    this->step(result, X, other_factor, config);
 
-        B += it.value() * (1 + config.alpha) *
-             other_factor.row(it.col()).transpose();
-      }
-      Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> U(P_local);
-      result.row(i) = U.solve(B).transpose();
-    }
     return result;
   }
 
-  inline void step(DenseMatrix &target_factor, const SparseMatrix &X,
-                   const DenseMatrix &other_factor,
-                   const IALSLearningConfig &config) {
-    prepare_p(other_factor);
+  inline void step_cg(DenseMatrix &target_factor, const SparseMatrix &X,
+                      const DenseMatrix &other_factor,
+                      const IALSLearningConfig &config) const {
+
     std::vector<std::thread> workers;
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < config.n_threads; ind++) {
-      workers.emplace_back(
-          [this, &target_factor, &cursor, &X, &other_factor, &config]() {
-            DenseMatrix P_local(P.rows(), P.cols());
-            DenseVector B(P.rows());
-            while (true) {
-              int cursor_local = cursor.fetch_add(1);
-              if (cursor_local >= target_factor.rows()) {
-                break;
-              }
-              P_local.array() = P.array();
-              B.array() = static_cast<Real>(0);
-              for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-                P_local += (config.alpha * it.value()) *
-                           other_factor.row(it.col()).transpose() *
-                           other_factor.row(it.col());
+      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
+                            &config]() {
+        DenseVector b(P.rows()), x(P.rows()), r(P.rows()), p(P.rows()),
+            Ap(P.rows());
+        Real alpha;
+        while (true) {
+          int cursor_local = cursor.fetch_add(1);
+          if (cursor_local >= target_factor.rows()) {
+            break;
+          }
 
-                B += it.value() * (1 + config.alpha) *
-                     other_factor.row(it.col()).transpose();
-              }
-              Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> U(P_local);
-              target_factor.row(cursor_local) = U.solve(B).transpose();
+          x = target_factor.row(cursor_local)
+                  .transpose(); // use the previous value
+          b.array() = 0;
+          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+            b.noalias() += (it.value() * (1 + config.alpha)) *
+                           other_factor.row(it.col()).transpose();
+          }
+
+          r = b - P * x;
+          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+            Real vdotx = other_factor.row(it.col()) * x;
+            r.noalias() -= (it.value() * config.alpha * vdotx) *
+                           other_factor.row(it.col()).transpose();
+          }
+          p = r;
+
+          size_t cg_max_iter =
+              config.max_cg_step == 0u ? P.rows() : config.max_cg_step;
+
+          for (size_t cg_iter = 0; cg_iter <= cg_max_iter; cg_iter++) {
+            Real r2 = r.squaredNorm();
+            Ap = P * p;
+            for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+              Real vdotp = other_factor.row(it.col()) * p;
+              Ap += (it.value() * config.alpha * vdotp) *
+                    other_factor.row(it.col()).transpose();
             }
-          });
+
+            Real alpha_denom = p.transpose() * Ap;
+            Real alpha = r2 / alpha_denom;
+            x.noalias() += alpha * p;
+            r.noalias() -= alpha * Ap;
+            if (r.norm() <= 1e-10) {
+              break;
+            }
+            Real beta = r.squaredNorm() / r2;
+            p.noalias() = r + beta * p;
+          }
+          target_factor.row(cursor_local) = x.transpose();
+        }
+      });
     }
     for (auto &w : workers) {
       w.join();
     }
   }
+
+  inline void step_cholesky(DenseMatrix &target_factor, const SparseMatrix &X,
+                            const DenseMatrix &other_factor,
+                            const IALSLearningConfig &config) const {
+
+    std::vector<std::thread> workers;
+
+    std::atomic<int> cursor(0);
+    for (size_t ind = 0; ind < config.n_threads; ind++) {
+      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
+                            &config]() {
+        DenseMatrix P_local(P.rows(), P.cols());
+        DenseVector B(P.rows());
+        DenseVector vcache(P.rows()), r(P.rows());
+        while (true) {
+          int cursor_local = cursor.fetch_add(1);
+          if (cursor_local >= target_factor.rows()) {
+            break;
+          }
+          P_local.noalias() = P;
+          B.array() = static_cast<Real>(0);
+          const int64_t ROW = P.rows();
+          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+            std::int64_t other_index = it.col();
+            Real alphaX = (config.alpha * it.value());
+            vcache = other_factor.row(other_index).transpose();
+            P_local.noalias() += alphaX * vcache * vcache.transpose();
+            B.noalias() += (it.value() * (1 + config.alpha)) *
+                           other_factor.row(other_index).transpose();
+          }
+          Eigen::ConjugateGradient<DenseMatrix> cg;
+          cg.compute(P);
+          target_factor.row(cursor_local) =
+              cg.solveWithGuess(B, target_factor.row(cursor_local).transpose());
+        }
+      });
+    }
+    for (auto &w : workers) {
+      w.join();
+    }
+  }
+
+  inline void step(DenseMatrix &target_factor, const SparseMatrix &X,
+                   const DenseMatrix &other_factor,
+                   const IALSLearningConfig &config) const {
+    if (config.use_cg) {
+      step_cg(target_factor, X, other_factor, config);
+    } else {
+      step_cholesky(target_factor, X, other_factor, config);
+    }
+  }
   Real reg;
   // DenseMatrix &factor;
   DenseMatrix P;
+  DenseMatrix Pinv;
 }; // namespace ials11
 
 struct IALSTrainer {
@@ -124,12 +230,15 @@ struct IALSTrainer {
       : config_(config), K(user_.cols()), n_users(user_.rows()),
         n_items(item_.rows()), user(user_), item(item_),
         user_solver(K, config.reg), item_solver(K, config.reg) {
-    this->user_solver.prepare_p(item);
-    this->item_solver.prepare_p(user);
+    this->user_solver.prepare_p(item, config);
+    this->item_solver.prepare_p(user, config);
   }
 
   inline void step() {
+
+    user_solver.prepare_p(item, config_);
     user_solver.step(user, X, item, config_);
+    item_solver.prepare_p(user, config_);
     item_solver.step(item, X_t, user, config_);
   };
 
