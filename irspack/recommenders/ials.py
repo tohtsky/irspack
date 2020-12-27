@@ -28,7 +28,7 @@ class IALSTrainer(TrainerBase):
         reg: float,
         init_std: float,
         use_cg: bool,
-        max_cg_step: int,
+        max_cg_steps: int,
         n_thread: int,
     ):
         X_all_f32 = X.astype(np.int32)
@@ -40,7 +40,7 @@ class IALSTrainer(TrainerBase):
             .set_reg(reg)
             .set_n_threads(n_thread)
             .set_use_cg(use_cg)
-            .set_max_cg_step(max_cg_step)
+            .set_max_cg_steps(max_cg_steps)
             .build()
         )
 
@@ -83,7 +83,7 @@ class IALSRecommender(
         reg: float = 1e-3,
         init_std: float = 0.1,
         use_cg: bool = True,
-        max_cg_step: int = 0,  # infinity
+        max_cg_steps: int = 0,  # infinity
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
         n_thread: Optional[int] = 1,
@@ -102,7 +102,7 @@ class IALSRecommender(
         self.reg = reg
         self.init_std = init_std
         self.use_cg = use_cg
-        self.max_cg_step = max_cg_step
+        self.max_cg_steps = max_cg_steps
 
         self.trainer: Optional[IALSTrainer] = None
 
@@ -114,7 +114,7 @@ class IALSRecommender(
             self.reg,
             self.init_std,
             self.use_cg,
-            self.max_cg_step,
+            self.max_cg_steps,
             self.n_thread,
         )
 

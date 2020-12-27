@@ -127,9 +127,9 @@ struct Solver {
           p = r;
 
           size_t cg_max_iter =
-              config.max_cg_step == 0u ? P.rows() : config.max_cg_step;
+              config.max_cg_steps == 0u ? P.rows() : config.max_cg_steps;
 
-          for (size_t cg_iter = 0; cg_iter <= cg_max_iter; cg_iter++) {
+          for (size_t cg_iter = 0; cg_iter < cg_max_iter; cg_iter++) {
             Real r2 = r.squaredNorm();
             Ap = P * p;
             for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {

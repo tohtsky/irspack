@@ -21,7 +21,7 @@ PYBIND11_MODULE(_ials, m) {
             return py::make_tuple(config.K, config.alpha, config.reg,
                                   config.init_stdev, config.n_threads,
                                   config.random_seed, config.use_cg,
-                                  config.max_cg_step);
+                                  config.max_cg_steps);
           },
           [](py::tuple t) {
             if (t.size() != 8)
@@ -34,9 +34,9 @@ PYBIND11_MODULE(_ials, m) {
             size_t n_threads = t[4].cast<size_t>();
             int random_seed = t[5].cast<int>();
             bool use_cg = t[6].cast<bool>();
-            size_t max_cg_step = t[7].cast<size_t>();
+            size_t max_cg_steps = t[7].cast<size_t>();
             return IALSLearningConfig(K, alpha, reg, init_stdev, n_threads,
-                                      random_seed, use_cg, max_cg_step);
+                                      random_seed, use_cg, max_cg_steps);
           }));
   py::class_<IALSLearningConfig::Builder>(m, "IALSLearningConfigBuilder")
       .def(py::init<>())
@@ -48,7 +48,7 @@ PYBIND11_MODULE(_ials, m) {
       .def("set_random_seed", &IALSLearningConfig::Builder::set_random_seed)
       .def("set_n_threads", &IALSLearningConfig::Builder::set_n_threads)
       .def("set_use_cg", &IALSLearningConfig::Builder::set_use_cg)
-      .def("set_max_cg_step", &IALSLearningConfig::Builder::set_max_cg_step);
+      .def("set_max_cg_steps", &IALSLearningConfig::Builder::set_max_cg_steps);
 
   py::class_<IALSTrainer>(m, "IALSTrainer")
       .def(py::init<IALSLearningConfig, const SparseMatrix &>())
