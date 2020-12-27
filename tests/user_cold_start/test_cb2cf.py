@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pytest
 import scipy.sparse as sps
@@ -8,7 +6,6 @@ from irspack.definitions import InteractionMatrix, ProfileMatrix
 from irspack.evaluator import Evaluator
 from irspack.split.userwise import rowwise_train_test_split
 from irspack.user_cold_start.cb2cf import CB2IALSOptimizer
-from irspack.utils.nn import MLPSearchConfig, MLPTrainingConfig
 
 RNS = np.random.RandomState(0)
 
@@ -27,7 +24,9 @@ def test_cb2cf(X: InteractionMatrix, profile: ProfileMatrix) -> None:
         X (InteractionMatrix): user_item interaction matrix
         profile (ProfileMatrix): profile
     """
-    X_cf_train_all, X_val = rowwise_train_test_split(X_cf, test_ratio=0.5)
+    X_cf_train_all, X_val = rowwise_train_test_split(
+        X_cf, test_ratio=0.5, random_seed=0
+    )
     evaluator = Evaluator(X_val, 0)
     optim = CB2IALSOptimizer(
         X_cf_train_all,
@@ -35,7 +34,9 @@ def test_cb2cf(X: InteractionMatrix, profile: ProfileMatrix) -> None:
         profile,
     )
     cb2cfrec, t, mlp_config = optim.search_all(
-        20, cf_fixed_params=dict(n_components=5, alpha=1), random_seed=0
+        20,
+        cf_fixed_params=dict(n_components=5, alpha=0, reg=1e-3, max_cg_steps=30),
+        random_seed=0,
     )
     vec_reconstruction = cb2cfrec.mlp.predict(profile.astype(np.float32).toarray())
     vec_target = cb2cfrec.cf_rec.get_user_embedding()
