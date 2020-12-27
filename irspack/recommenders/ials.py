@@ -83,7 +83,7 @@ class IALSRecommender(
         reg: float = 1e-3,
         init_std: float = 0.1,
         use_cg: bool = True,
-        max_cg_steps: int = 0,  # infinity
+        max_cg_steps: int = 3,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
         n_thread: Optional[int] = 1,
