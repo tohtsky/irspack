@@ -4,6 +4,7 @@
 #include <Eigen/Cholesky>
 #include <Eigen/IterativeLinearSolvers>
 #include <atomic>
+#include <bits/stdint-intn.h>
 #include <cstddef>
 #include <future>
 #include <iostream>
@@ -35,7 +36,7 @@ struct Solver {
 
   inline void prepare_p(const DenseMatrix &other_factor,
                         const IALSLearningConfig &config) {
-    const size_t mb_size = 1020;
+    const int64_t mb_size = 1020;
     P = DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
 
     std::mutex mutex_;
@@ -52,8 +53,8 @@ struct Solver {
           int64_t cursor_local = cursor.fetch_add(mb_size);
           if (cursor_local >= other_factor.rows())
             break;
-          size_t block_end = std::min(cursor_local + mb_size,
-                                      static_cast<size_t>(other_factor.rows()));
+          int64_t block_end = std::min<int64_t>(cursor_local + mb_size,
+                                      static_cast<int64_t>(other_factor.rows()));
           P_local.noalias() +=
               other_factor.middleRows(cursor_local, block_end - cursor_local)
                   .transpose() *
