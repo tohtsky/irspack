@@ -36,17 +36,17 @@ class Evaluator(object):
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
-        per_item_recommendable_items: Optional[List[List[int]]] = None,
+        per_user_recommendable_items: Optional[List[List[int]]] = None,
         n_thread: int = 1,
         mb_size: int = 1024,
     ):
         ground_truth = ground_truth.tocsr().astype(np.float64)
         ground_truth.sort_indices()
         if recommendable_items is None:
-            if per_item_recommendable_items is None:
+            if per_user_recommendable_items is None:
                 recommendable_items_arg: List[List[int]] = []
             else:
-                recommendable_items_arg = per_item_recommendable_items
+                recommendable_items_arg = per_user_recommendable_items
         else:
             recommendable_items_arg = [recommendable_items]
 

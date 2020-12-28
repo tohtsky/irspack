@@ -63,7 +63,7 @@ def test_recs(RecommenderClass: Type[BaseRecommender]) -> None:
 
     scores = rec.get_score(np.arange(X_train.shape[0]))
     eval = Evaluator(X_test, 0, 20)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         eval.get_score(rec)
     eval.get_scores(rec, cutoffs=[X_train.shape[1]])
     assert np.all(np.isfinite(scores))

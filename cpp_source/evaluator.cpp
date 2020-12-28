@@ -1,5 +1,6 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
+#include <algorithm>
 #include <future>
 #include <iostream>
 #include <iterator>
@@ -156,6 +157,7 @@ private:
     const Real *buffer = scores.data();
     std::unordered_set<StorageIndex> hit_item;
     std::vector<StorageIndex> index(n_items);
+    std::vector<StorageIndex> recommendable_ground_truths(n_items);
     std::vector<StorageIndex> recommendation(cutoff);
     std::vector<StorageIndex> intersection(cutoff);
     std::vector<double> dcg_discount(cutoff);
@@ -163,6 +165,8 @@ private:
     for (size_t i = 0; i < cutoff; i++) {
       dcg_discount[i] = 1 / std::log2(2 + i);
     }
+
+    size_t n_recommendable_items = cutoff;
     if (this->recommendable_items.empty()) {
       for (size_t _ = 0; _ < n_items; _++) {
         index[_] = _;
@@ -171,21 +175,33 @@ private:
       index.clear();
       std::copy(recommendable_items[0].begin(), recommendable_items[0].end(),
                 std::back_inserter(index));
+      n_recommendable_items = std::min(n_recommendable_items, index.size());
     }
     for (int u : user_set) {
+      recommendation.clear();
       int u_orig = u + offset;
       metrics.total_user += 1;
       int begin_ptr = u * n_items;
-      size_t n_recommendable_items = cutoff;
+      const StorageIndex *gb_begin =
+          X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig];
+      const StorageIndex *gb_end =
+          X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig + 1];
+
       if (this->recommendable_items.size() > 1u) {
         index.clear();
         auto &item_local = this->recommendable_items[u_orig];
         std::copy(item_local.begin(), item_local.end(),
                   std::back_inserter(index));
-        n_recommendable_items =
-            std::min(n_recommendable_items, item_local.size());
+        n_recommendable_items = std::min(cutoff, item_local.size());
       }
 
+      recommendable_ground_truths.clear();
+      std::set_intersection(index.begin(), index.end(), gb_begin, gb_end,
+                            std::back_inserter(recommendable_ground_truths));
+      size_t n_gt = recommendable_ground_truths.size();
+      if ((n_gt == 0) || (n_recommendable_items == 0)) {
+        continue;
+      }
       std::sort(index.begin(), index.end(),
                 [&buffer, &begin_ptr](int i1, int i2) {
                   return buffer[begin_ptr + i1] > buffer[begin_ptr + i2];
@@ -193,23 +209,12 @@ private:
       for (size_t i = 0; i < n_recommendable_items; i++) {
         metrics.item_cnt(index[i]) += 1;
       }
-      size_t n_gt = X_.outerIndexPtr()[u_orig + 1] - X_.outerIndexPtr()[u_orig];
-      if ((n_gt == 0) || (n_recommendable_items == 0)) {
-        continue;
-      }
       metrics.valid_user += 1;
 
       hit_item.clear();
-      if (recall_with_cutoff) {
-        n_gt = std::min(n_gt, n_recommendable_items);
-      }
       std::copy(index.begin(), index.begin() + n_recommendable_items,
-                recommendation.begin());
+                std::back_inserter(recommendation));
       std::sort(index.begin(), index.begin() + n_recommendable_items);
-      const StorageIndex *gb_begin =
-          X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig];
-      const StorageIndex *gb_end =
-          X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig + 1];
       auto it_end = std::set_intersection(gb_begin, gb_end, index.begin(),
                                           index.begin() + n_recommendable_items,
                                           intersection.begin());
@@ -235,6 +240,7 @@ private:
           average_precision += (cum_hit / (i + 1));
         }
       }
+
       metrics.ndcg += (dcg / idcg);
       metrics.map += average_precision / n_gt;
     }
