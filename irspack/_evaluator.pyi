@@ -16,7 +16,11 @@ import scipy.sparse
 __all__ = ["EvaluatorCore", "Metrics"]
 
 class EvaluatorCore:
-    def __init__(self, grount_truth: scipy.sparse.csr_matrix[float64]) -> None: ...
+    def __init__(
+        self,
+        grount_truth: scipy.sparse.csr_matrix[float64],
+        recommendable: List[List[int]],
+    ) -> None: ...
     def get_ground_truth(self) -> scipy.sparse.csr_matrix[float64]: ...
     def get_metrics(
         self,

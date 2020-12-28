@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
 
@@ -35,12 +35,22 @@ class Evaluator(object):
         offset: int,
         cutoff: int = 10,
         target_metric: str = "ndcg",
+        recommendable_items: Optional[List[int]] = None,
+        per_item_recommendable_items: Optional[List[List[int]]] = None,
         n_thread: int = 1,
         mb_size: int = 1024,
     ):
         ground_truth = ground_truth.tocsr().astype(np.float64)
         ground_truth.sort_indices()
-        self.core = EvaluatorCore(ground_truth)
+        if recommendable_items is None:
+            if per_item_recommendable_items is None:
+                recommendable_items_arg: List[List[int]] = []
+            else:
+                recommendable_items_arg = per_item_recommendable_items
+        else:
+            recommendable_items_arg = [recommendable_items]
+
+        self.core = EvaluatorCore(ground_truth, recommendable_items_arg)
         self.offset = offset
         self.n_users = ground_truth.shape[0]
         self.target_metric = TargetMetric(target_metric)
@@ -98,11 +108,20 @@ class EvaluatorWithColdUser(Evaluator):
         ground_truth: InteractionMatrix,
         cutoff: int = 10,
         target_metric: str = "ndcg",
+        recommendable_items: Optional[List[int]] = None,
+        per_item_recommendable_items: Optional[List[List[int]]] = None,
         n_thread: int = 1,
         mb_size: int = 1024,
     ):
         super(EvaluatorWithColdUser, self).__init__(
-            ground_truth, 0, cutoff, target_metric, n_thread, mb_size
+            ground_truth,
+            0,
+            cutoff,
+            target_metric,
+            recommendable_items,
+            per_item_recommendable_items,
+            n_thread,
+            mb_size,
         )
         self.input_interaction = input_interaction
 

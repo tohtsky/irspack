@@ -2,6 +2,7 @@
 #include <Eigen/Sparse>
 #include <future>
 #include <iostream>
+#include <iterator>
 #include <map>
 #include <mutex>
 #include <random>
@@ -89,9 +90,29 @@ struct EvaluatorCore {
       Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
   using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
 
-  EvaluatorCore(const SparseMatrix &X)
-      : X_(X), n_users(X.rows()), n_items(X.cols()) {
+  EvaluatorCore(const SparseMatrix &X,
+                const std::vector<std::vector<size_t>> &recommendable_items)
+      : X_(X), n_users(X.rows()), n_items(X.cols()),
+        recommendable_items(recommendable_items) {
+    check_arg(recommendable_items.empty() ||
+                  (recommendable_items.size() == 1) ||
+                  static_cast<size_t>(X.rows()) == recommendable_items.size(),
+              "recommendable.size.() must be in {0, 1, ground_truth.size()}");
     X_.makeCompressed();
+    // sort & bound check
+    for (auto &urec : this->recommendable_items) {
+      std::sort(urec.begin(), urec.end());
+      if (!urec.empty()) {
+        check_arg(urec.back() < static_cast<size_t>(X_.cols()),
+                  "recommendable items contain a index >= n_items.");
+        auto prev = urec[0];
+        for (size_t i = 1; i < urec.size(); i++) {
+          auto current = urec[i];
+          check_arg(current > prev, "duplicate recommendable items.");
+          prev = current;
+        }
+      }
+    }
   }
 
   inline Metrics get_metrics(const Eigen::Ref<DenseMatrix> &scores,
@@ -142,39 +163,56 @@ private:
     for (size_t i = 0; i < cutoff; i++) {
       dcg_discount[i] = 1 / std::log2(2 + i);
     }
-    for (size_t _ = 0; _ < n_items; _++) {
-      index[_] = _;
+    if (this->recommendable_items.empty()) {
+      for (size_t _ = 0; _ < n_items; _++) {
+        index[_] = _;
+      }
+    } else if (this->recommendable_items.size() == 1u) {
+      index.clear();
+      std::copy(recommendable_items[0].begin(), recommendable_items[0].end(),
+                std::back_inserter(index));
     }
     for (int u : user_set) {
       int u_orig = u + offset;
       metrics.total_user += 1;
       int begin_ptr = u * n_items;
+      size_t n_recommendable_items = cutoff;
+      if (this->recommendable_items.size() > 1u) {
+        index.clear();
+        auto &item_local = this->recommendable_items[u_orig];
+        std::copy(item_local.begin(), item_local.end(),
+                  std::back_inserter(index));
+        n_recommendable_items =
+            std::min(n_recommendable_items, item_local.size());
+      }
+
       std::sort(index.begin(), index.end(),
                 [&buffer, &begin_ptr](int i1, int i2) {
                   return buffer[begin_ptr + i1] > buffer[begin_ptr + i2];
                 });
-      for (size_t i = 0; i < cutoff; i++) {
+      for (size_t i = 0; i < n_recommendable_items; i++) {
         metrics.item_cnt(index[i]) += 1;
       }
       size_t n_gt = X_.outerIndexPtr()[u_orig + 1] - X_.outerIndexPtr()[u_orig];
-      if (n_gt == 0) {
+      if ((n_gt == 0) || (n_recommendable_items == 0)) {
         continue;
       }
       metrics.valid_user += 1;
 
       hit_item.clear();
       if (recall_with_cutoff) {
-        n_gt = std::min(n_gt, cutoff);
+        n_gt = std::min(n_gt, n_recommendable_items);
       }
-      std::copy(index.begin(), index.begin() + cutoff, recommendation.begin());
-      std::sort(index.begin(), index.begin() + cutoff);
+      std::copy(index.begin(), index.begin() + n_recommendable_items,
+                recommendation.begin());
+      std::sort(index.begin(), index.begin() + n_recommendable_items);
       const StorageIndex *gb_begin =
           X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig];
       const StorageIndex *gb_end =
           X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig + 1];
-      auto it_end =
-          std::set_intersection(gb_begin, gb_end, index.begin(),
-                                index.begin() + cutoff, intersection.begin());
+      auto it_end = std::set_intersection(gb_begin, gb_end, index.begin(),
+                                          index.begin() + n_recommendable_items,
+                                          intersection.begin());
       size_t n_hit = std::distance(intersection.begin(), it_end);
       for (auto iter = intersection.begin(); iter != it_end; iter++) {
         hit_item.insert(*iter);
@@ -182,15 +220,15 @@ private:
       if (n_hit > 0) {
         metrics.hit += 1;
       }
-      metrics.precision += n_hit / static_cast<double>(cutoff);
+      metrics.precision += n_hit / static_cast<double>(n_recommendable_items);
       metrics.recall += n_hit / static_cast<double>(n_gt);
       double dcg = 0;
-      double idcg =
-          std::accumulate(dcg_discount.begin(),
-                          dcg_discount.begin() + std::min(n_gt, cutoff), 0.);
+      double idcg = std::accumulate(
+          dcg_discount.begin(),
+          dcg_discount.begin() + std::min(n_gt, n_recommendable_items), 0.);
       double cum_hit = 0;
       double average_precision = 0;
-      for (size_t i = 0; i < cutoff; i++) {
+      for (size_t i = 0; i < n_recommendable_items; i++) {
         if (hit_item.find(recommendation[i]) != hit_item.end()) {
           dcg += dcg_discount[i];
           cum_hit += 1;
@@ -206,6 +244,7 @@ private:
   SparseMatrix X_;
   const size_t n_users;
   const size_t n_items;
+  std::vector<std::vector<size_t>> recommendable_items;
 };
 } // namespace irspack
 
@@ -220,8 +259,9 @@ PYBIND11_MODULE(_evaluator, m) {
       .def("as_dict", &Metrics::as_dict);
 
   py::class_<EvaluatorCore>(m, "EvaluatorCore")
-      .def(py::init<const typename EvaluatorCore::SparseMatrix &>(),
-           py::arg("grount_truth"))
+      .def(py::init<const typename EvaluatorCore::SparseMatrix &,
+                    const std::vector<std::vector<size_t>> &>(),
+           py::arg("grount_truth"), py::arg("recommendable"))
       .def("get_metrics", &EvaluatorCore::get_metrics, py::arg("score_array"),
            py::arg("cutoff"), py::arg("offset"), py::arg("n_thread"),
            py::arg("recall_with_cutoff") = false)

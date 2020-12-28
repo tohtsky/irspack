@@ -20,7 +20,7 @@ class UserColdStartEvaluator:
     ):
         assert X.shape[0] == profiles.shape[0]
 
-        self.core = EvaluatorCore(X.astype(np.float64))
+        self.core = EvaluatorCore(X.astype(np.float64), [])
         self.profiles = profiles
         self.n_users = X.shape[0]
         self.n_items = X.shape[1]

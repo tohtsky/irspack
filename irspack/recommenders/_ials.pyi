@@ -6,6 +6,8 @@ from typing import *
 
 from numpy import float32, float64
 
+import irspack.recommenders._ials
+
 _Shape = Tuple[int, ...]
 import numpy
 import scipy.sparse
