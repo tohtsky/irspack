@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <future>
 #include <iostream>
-#include <mutex>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -38,14 +37,12 @@ struct Solver {
     const int64_t mb_size = 1020;
     P = DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
 
-    std::mutex mutex_;
     std::atomic<int64_t> cursor{static_cast<size_t>(0)};
 
     std::vector<std::future<DenseMatrix>> workers;
     for (size_t i = 0; i < config.n_threads; i++) {
       workers.emplace_back(std::async(std::launch::async, [this, &other_factor,
-                                                           &cursor, mb_size,
-                                                           &mutex_]() {
+                                                           &cursor, mb_size ]() {
         DenseMatrix P_local =
             DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
         while (true) {
@@ -265,9 +262,8 @@ struct IALSTrainer {
       }
       workers.emplace_back(
           [this, block_begin, userblock_begin, block_size, &result]() {
-            result.block(block_begin - userblock_begin, 0, block_size,
-                         this->n_items) =
-                this->user.block(block_begin, 0, block_size, this->K) *
+            result.middleRows(block_begin - userblock_begin, block_size).noalias() =
+                this->user.middleRows(block_begin, block_size) *
                 this->item.transpose();
           });
       block_begin += block_size;
