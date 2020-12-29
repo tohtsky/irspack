@@ -46,7 +46,7 @@ def test_metrics_with_cutoff(U: int, I: int, C: int) -> None:
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
-    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=C, n_thread=1)
+    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=C, n_thread=2)
     # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
     my_score = eval.get_score(mock_rec)
