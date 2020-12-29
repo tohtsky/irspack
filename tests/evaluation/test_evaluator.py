@@ -50,5 +50,49 @@ def test_metrics_with_cutoff(U: int, I: int, C: int) -> None:
     # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
     my_score = eval.get_score(mock_rec)
-    sklearn_ndcg = ndcg_score(X_gt, scores, k=C)
-    assert my_score["ndcg"] == pytest.approx(sklearn_ndcg, abs=1e-8)
+
+    ndcg = 0.0
+    valid_users = 0
+    map = 0.0
+    precision = 0.0
+    recall = 0.0
+    item_appearance_count = np.zeros((I,), dtype=np.float64)
+    for i in range(U):
+        nzs = set(X_gt[i].nonzero()[0])
+        if len(nzs) == 0:
+            continue
+        valid_users += 1
+        ndcg += ndcg_score(X_gt[[i]], scores[[i]], k=C)
+        recommended = scores[i].argsort()[::-1][:C]
+        recall_denom = min(C, len(nzs))
+        ap = 0.0
+        current_hit = 0
+        for i, rec in enumerate(recommended):
+            item_appearance_count[rec] += 1.0
+            if rec in nzs:
+                current_hit += 1
+                ap += current_hit / float(i + 1)
+        ap /= recall_denom
+        map += ap
+        recall += current_hit / recall_denom
+        precision += current_hit / C
+    entropy = (lambda p: -p.dot(np.log(p)))(
+        item_appearance_count / item_appearance_count.sum()
+    )
+    item_appearance_sorted_normalized = (
+        np.sort(item_appearance_count) / item_appearance_count.sum()
+    )
+    lorentz_curve = np.cumsum(item_appearance_sorted_normalized)
+
+    gini_index = 0
+    delta = 1 / I
+    for i in range(I):
+        f = 2 * (((i + 1) / I) - lorentz_curve[i])
+        gini_index += delta * f
+
+    assert my_score["ndcg"] == pytest.approx(ndcg / valid_users)
+    assert my_score["map"] == pytest.approx(map / valid_users, abs=1e-8)
+    assert my_score["precision"] == pytest.approx(precision / valid_users, abs=1e-8)
+    assert my_score["recall"] == pytest.approx(recall / valid_users, abs=1e-8)
+    assert my_score["entropy"] == pytest.approx(entropy)
+    assert my_score["gini_index"] == pytest.approx(gini_index)
