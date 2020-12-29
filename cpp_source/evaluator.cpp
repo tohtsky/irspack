@@ -120,6 +120,7 @@ struct EvaluatorCore {
                              size_t cutoff, size_t offset, size_t n_thread,
                              bool recall_with_cutoff = false) {
     Metrics overall(n_items);
+    check_arg(n_thread > 0, "n_threads == 0");
     check_arg(n_users > offset, "got offset >= n_users");
     check_arg(cutoff > 0, "cutoff must be strictly greather than 0.");
     check_arg(cutoff <= n_items, "cutoff must not exeeed the number of items.");
@@ -152,7 +153,7 @@ private:
                                    bool recall_with_cutoff = false) const {
     using StorageIndex = typename SparseMatrix::StorageIndex;
 
-    Metrics metrics(n_items);
+    Metrics metrics_local(n_items);
 
     const Real *buffer = scores.data();
     std::unordered_set<StorageIndex> hit_item;
@@ -169,15 +170,15 @@ private:
 
     size_t n_recommendable_items = std::min(cutoff, n_items);
     for (int u : user_set) {
-      recommendation.clear();
       int u_orig = u + offset;
-      metrics.total_user += 1;
+      metrics_local.total_user += 1;
       int begin_ptr = u * n_items;
       const StorageIndex *gb_begin =
           X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig];
       const StorageIndex *gb_end =
           X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig + 1];
 
+      recommendation.clear();
       index.clear();
       if (this->recommendable_items.empty()) {
         for (size_t _ = 0; _ < n_items; _++) {
@@ -206,9 +207,9 @@ private:
                   return buffer[begin_ptr + i1] > buffer[begin_ptr + i2];
                 });
       for (size_t i = 0; i < n_recommendable_items; i++) {
-        metrics.item_cnt(index[i]) += 1;
+        metrics_local.item_cnt(index[i]) += 1;
       }
-      metrics.valid_user += 1;
+      metrics_local.valid_user += 1;
 
       hit_item.clear();
       std::copy(index.begin(), index.begin() + n_recommendable_items,
@@ -222,10 +223,11 @@ private:
         hit_item.insert(*iter);
       }
       if (n_hit > 0) {
-        metrics.hit += 1;
+        metrics_local.hit += 1;
       }
-      metrics.precision += n_hit / static_cast<double>(n_recommendable_items);
-      metrics.recall += n_hit / static_cast<double>(n_gt);
+      metrics_local.precision +=
+          n_hit / static_cast<double>(n_recommendable_items);
+      metrics_local.recall += n_hit / static_cast<double>(n_gt);
       double dcg = 0;
       double idcg = std::accumulate(
           dcg_discount.begin(),
@@ -239,12 +241,11 @@ private:
           average_precision += (cum_hit / (i + 1));
         }
       }
-      pybind11::print("idcg=", idcg, "dcg=", dcg, "ndcg=", dcg / idcg);
 
-      metrics.ndcg += (dcg / idcg);
-      metrics.map += average_precision / n_gt;
+      metrics_local.ndcg += (dcg / idcg);
+      metrics_local.map += average_precision / n_gt;
     }
-    return metrics;
+    return metrics_local;
   }
 
   SparseMatrix X_;
