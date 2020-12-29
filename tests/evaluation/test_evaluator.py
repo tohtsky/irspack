@@ -26,7 +26,7 @@ def test_metrics(U: int, I: int) -> None:
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
-    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=I, n_thread=1)
+    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=I, n_thread=4)
     # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
     my_score = eval.get_score(mock_rec)
@@ -39,3 +39,16 @@ def test_metrics(U: int, I: int) -> None:
 
     for key in ["map", "ndcg"]:
         assert my_score[key] == pytest.approx(np.mean(sklearn_metrics[key]), abs=1e-8)
+
+
+@pytest.mark.parametrize("U, I, C", [(10, 5, 5), (10, 30, 29)])
+def test_metrics_with_cutoff(U: int, I: int, C: int) -> None:
+    rns = np.random.RandomState(42)
+    scores = rns.randn(U, I)
+    X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
+    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=C, n_thread=1)
+    # empty mask
+    mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
+    my_score = eval.get_score(mock_rec)
+    sklearn_ndcg = ndcg_score(X_gt, scores, k=C)
+    assert my_score["ndcg"] == pytest.approx(sklearn_ndcg, abs=1e-8)

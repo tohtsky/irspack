@@ -156,7 +156,8 @@ private:
 
     const Real *buffer = scores.data();
     std::unordered_set<StorageIndex> hit_item;
-    std::vector<StorageIndex> index(n_items);
+    std::vector<StorageIndex> index;
+    index.reserve(n_items);
     std::vector<StorageIndex> recommendable_ground_truths(n_items);
     std::vector<StorageIndex> recommendation(cutoff);
     std::vector<StorageIndex> intersection(cutoff);
@@ -166,7 +167,7 @@ private:
       dcg_discount[i] = 1 / std::log2(2 + i);
     }
 
-    size_t n_recommendable_items = cutoff;
+    size_t n_recommendable_items = std::min(cutoff, n_items);
     for (int u : user_set) {
       recommendation.clear();
       int u_orig = u + offset;
@@ -177,16 +178,16 @@ private:
       const StorageIndex *gb_end =
           X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig + 1];
 
+      index.clear();
       if (this->recommendable_items.empty()) {
         for (size_t _ = 0; _ < n_items; _++) {
-          index[_] = _;
+          index.push_back(_);
         }
       } else if (this->recommendable_items.size() == 1u) {
-        index.clear();
         std::copy(recommendable_items[0].begin(), recommendable_items[0].end(),
                   std::back_inserter(index));
+        n_recommendable_items = std::min(cutoff, recommendable_items[0].size());
       } else {
-        index.clear();
         auto &item_local = this->recommendable_items[u_orig];
         std::copy(item_local.begin(), item_local.end(),
                   std::back_inserter(index));
@@ -238,6 +239,7 @@ private:
           average_precision += (cum_hit / (i + 1));
         }
       }
+      pybind11::print("idcg=", idcg, "dcg=", dcg, "ndcg=", dcg / idcg);
 
       metrics.ndcg += (dcg / idcg);
       metrics.map += average_precision / n_gt;
