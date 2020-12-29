@@ -167,16 +167,6 @@ private:
     }
 
     size_t n_recommendable_items = cutoff;
-    if (this->recommendable_items.empty()) {
-      for (size_t _ = 0; _ < n_items; _++) {
-        index[_] = _;
-      }
-    } else if (this->recommendable_items.size() == 1u) {
-      index.clear();
-      std::copy(recommendable_items[0].begin(), recommendable_items[0].end(),
-                std::back_inserter(index));
-      n_recommendable_items = std::min(n_recommendable_items, index.size());
-    }
     for (int u : user_set) {
       recommendation.clear();
       int u_orig = u + offset;
@@ -187,7 +177,15 @@ private:
       const StorageIndex *gb_end =
           X_.innerIndexPtr() + X_.outerIndexPtr()[u_orig + 1];
 
-      if (this->recommendable_items.size() > 1u) {
+      if (this->recommendable_items.empty()) {
+        for (size_t _ = 0; _ < n_items; _++) {
+          index[_] = _;
+        }
+      } else if (this->recommendable_items.size() == 1u) {
+        index.clear();
+        std::copy(recommendable_items[0].begin(), recommendable_items[0].end(),
+                  std::back_inserter(index));
+      } else {
         index.clear();
         auto &item_local = this->recommendable_items[u_orig];
         std::copy(item_local.begin(), item_local.end(),
