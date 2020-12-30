@@ -6,7 +6,7 @@ namespace irspack {
 
 inline void check_arg(bool condition, const std::string &failure_message) {
   if (!condition) {
-    throw std::runtime_error(failure_message);
+    throw std::invalid_argument(failure_message);
   }
 }
 template <typename Field>
