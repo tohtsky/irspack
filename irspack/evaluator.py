@@ -32,7 +32,7 @@ class Evaluator(object):
     def __init__(
         self,
         ground_truth: InteractionMatrix,
-        offset: int,
+        offset: int = 0,
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
@@ -40,6 +40,29 @@ class Evaluator(object):
         n_thread: int = 1,
         mb_size: int = 1024,
     ):
+        """Evaluates recommenders' performance against validation set.
+
+        Args:
+            ground_truth (InteractionMatrix): The held-out ground-truth.
+            offset (int): Where the validation target user block begins.
+                Often the validation set is defined for a subset of users.
+                When offset is not 0, we assume that the users with validation
+                ground truth corresponds to X_train[offset:] where X_train
+                is the matrix feeded into the recommender class.
+            cutoff (int, optional): Controls the number of recommendation.
+                Defaults to 10.
+            target_metric (str, optional): Optimization target metric.
+                Defaults to "ndcg".
+            recommendable_items (Optional[List[int]], optional): Global recommendable items. Defaults to None.
+                If this parameter is not None, evaluator will be concentrating on
+                the recommender's score output for these recommendable_items,
+                and compute the ranking performance within this subset.
+            per_user_recommendable_items (Optional[List[List[int]]], optional):
+                Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
+            n_thread (int, optional): Number of threads to sort the score and compute the
+                evaluation metrics. Defaults to 1.
+            mb_size (int, optional): The rows of chunked user score. Defaults to 1024.
+        """
         ground_truth = ground_truth.tocsr().astype(np.float64)
         ground_truth.sort_indices()
         if recommendable_items is None:
@@ -59,19 +82,39 @@ class Evaluator(object):
         self.mb_size = mb_size
 
     def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
-        return self.get_scores_as_list(model, [self.cutoff])[0]
+        """Compute the score with the cutoff being `self.cutoff`.
+
+        Args:
+            model (base_recommender.BaseRecommender): The evaluated recommender.
+
+        Returns:
+            Dict[str, float]: metric values.
+        """
+        return self._get_scores_as_list(model, [self.cutoff])[0]
 
     def get_scores(
         self, model: "base_recommender.BaseRecommender", cutoffs: List[int]
     ) -> Dict[str, float]:
+        """Compute the score with the specified cutoffs.
+
+        Args:
+            model (base_recommender.BaseRecommender): The evaluated recommender.
+            cutoffs (List[int]): for each value in cutoff, the class computes
+                the metric values.
+
+        Returns:
+            Dict[str, float]: The Resulting metric values. This time, the keys
+                will be e.g., "ndcg@20".
+        """
+
         result: Dict[str, float] = OrderedDict()
-        scores = self.get_scores_as_list(model, cutoffs)
+        scores = self._get_scores_as_list(model, cutoffs)
         for cutoff, score in zip(cutoffs, scores):
             for metric_name in METRIC_NAMES:
                 result[f"{metric_name}@{cutoff}"] = score[metric_name]
         return result
 
-    def get_scores_as_list(
+    def _get_scores_as_list(
         self, model: "base_recommender.BaseRecommender", cutoffs: List[int]
     ) -> List[Dict[str, float]]:
         n_items = model.n_items
@@ -113,6 +156,31 @@ class EvaluatorWithColdUser(Evaluator):
         n_thread: int = 1,
         mb_size: int = 1024,
     ):
+        """Evaluates recommenders' performance against cold (unseen) users.
+
+        Args:
+            input_interaction (InteractionMatrix): The cold-users' known interaction
+                with the items.
+            ground_truth (InteractionMatrix): The held-out ground-truth.
+            offset (int): Where the validation target user block begins.
+                Often the validation set is defined for a subset of users.
+                When offset is not 0, we assume that the users with validation
+                ground truth corresponds to X_train[offset:] where X_train
+                is the matrix feeded into the recommender class.
+            cutoff (int, optional): Controls the number of recommendation.
+                Defaults to 10.
+            target_metric (str, optional): Optimization target metric.
+                Defaults to "ndcg".
+            recommendable_items (Optional[List[int]], optional): Global recommendable items. Defaults to None.
+                If this parameter is not None, evaluator will be concentrating on
+                the recommender's score output for these recommendable_items,
+                and compute the ranking performance within this subset.
+            per_user_recommendable_items (Optional[List[List[int]]], optional):
+                Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
+            n_thread (int, optional): Number of threads to sort the score and compute the
+                evaluation metrics. Defaults to 1.
+            mb_size (int, optional): The rows of chunked user score. Defaults to 1024.
+        """
         super(EvaluatorWithColdUser, self).__init__(
             ground_truth,
             0,
@@ -125,7 +193,7 @@ class EvaluatorWithColdUser(Evaluator):
         )
         self.input_interaction = input_interaction
 
-    def get_scores_as_list(
+    def _get_scores_as_list(
         self,
         model: "base_recommender.BaseRecommender",
         cutoffs: List[int],
