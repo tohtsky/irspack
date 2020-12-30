@@ -5,8 +5,10 @@ import pytest
 import scipy.sparse as sps
 from sklearn.metrics import average_precision_score, ndcg_score
 
-from irspack.evaluator import Evaluator
+from irspack.evaluator import Evaluator, EvaluatorWithColdUser
+from irspack.recommenders import P3alphaRecommender
 from irspack.recommenders.base import BaseRecommender
+from irspack.split import rowwise_train_test_split
 
 
 class MockRecommender(BaseRecommender):
@@ -96,3 +98,27 @@ def test_metrics_with_cutoff(U: int, I: int, C: int) -> None:
     assert my_score["recall"] == pytest.approx(recall / valid_users, abs=1e-8)
     assert my_score["entropy"] == pytest.approx(entropy)
     assert my_score["gini_index"] == pytest.approx(gini_index)
+
+
+@pytest.mark.parametrize("U, I, U_test", [(10, 5, 3), (10, 30, 8)])
+def test_metrics_ColdUser(U: int, I: int, U_test: int) -> None:
+    rns = np.random.RandomState(42)
+    uvec = rns.randn(U + U_test, 3)
+    ivec = rns.randn(I, 3)
+    true_score = uvec.dot(ivec.T)  # + rns.randn(U, I)
+    X = sps.csr_matrix((true_score > 0).astype(np.float64))
+    X_train = X[:U]
+    X_val = X[U:]
+    X_val_learn, X_val_target = rowwise_train_test_split(X_val, random_seed=0)
+    X_train_all = sps.vstack([X_train, X_val_learn])
+    hot_evaluator = Evaluator(
+        sps.csr_matrix(X_val_target), offset=U, cutoff=I // 2, n_thread=2
+    )
+    cold_evaluator = EvaluatorWithColdUser(X_val_learn, X_val_target, cutoff=I // 2)
+
+    rec = P3alphaRecommender(X_train_all)
+    rec.learn()
+    hot_score = hot_evaluator.get_score(rec)
+    cold_score = cold_evaluator.get_score(rec)
+    for key in hot_score:
+        assert hot_score[key] == pytest.approx(cold_score[key], abs=1e-8)

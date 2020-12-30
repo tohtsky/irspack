@@ -31,17 +31,17 @@ def remove_diagonal(
 
 def rowwise_train_test_split_d(
     arg0: scipy.sparse.csr_matrix[float64], arg1: float, arg2: int
-) -> Tuple[scipy.sparse.csc_matrix[float64], scipy.sparse.csr_matrix[float64]]:
+) -> Tuple[scipy.sparse.csr_matrix[float64], scipy.sparse.csr_matrix[float64]]:
     pass
 
 def rowwise_train_test_split_f(
     arg0: scipy.sparse.csr_matrix[float32], arg1: float, arg2: int
-) -> Tuple[scipy.sparse.csc_matrix[float32], scipy.sparse.csr_matrix[float32]]:
+) -> Tuple[scipy.sparse.csr_matrix[float32], scipy.sparse.csr_matrix[float32]]:
     pass
 
 def rowwise_train_test_split_i(
     arg0: scipy.sparse.csr_matrix[float32], arg1: float, arg2: int
-) -> Tuple[scipy.sparse.csc_matrix[float32], scipy.sparse.csr_matrix[float32]]:
+) -> Tuple[scipy.sparse.csr_matrix[float32], scipy.sparse.csr_matrix[float32]]:
     pass
 
 def sparse_mm_threaded(
