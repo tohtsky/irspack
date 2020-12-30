@@ -31,7 +31,7 @@ class IALSTrainer(TrainerBase):
         max_cg_steps: int,
         n_thread: int,
     ):
-        X_all_f32 = X.astype(np.int32)
+        X_train_all_f32 = X.astype(np.int32)
         config = (
             IALSLearningConfigBuilder()
             .set_K(n_components)
@@ -44,7 +44,7 @@ class IALSTrainer(TrainerBase):
             .build()
         )
 
-        self.core_trainer = CoreTrainer(config, X_all_f32)
+        self.core_trainer = CoreTrainer(config, X_train_all_f32)
 
     def load_state(self, ifs: IO) -> None:
         params = pickle.load(ifs)
@@ -77,7 +77,7 @@ class IALSRecommender(
 
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         n_components: int = 20,
         alpha: float = 1.0,
         reg: float = 1e-3,
@@ -90,7 +90,7 @@ class IALSRecommender(
         max_epoch: int = 300,
     ):
         super().__init__(
-            X_all,
+            X_train_all,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
             score_degration_max=score_degradation_max,
@@ -108,7 +108,7 @@ class IALSRecommender(
 
     def create_trainer(self) -> TrainerBase:
         return IALSTrainer(
-            self.X_all,
+            self.X_train_all,
             self.n_components,
             self.alpha,
             self.reg,

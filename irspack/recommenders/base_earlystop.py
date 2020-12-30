@@ -32,13 +32,13 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
 
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         max_epoch: int = 512,
         validate_epoch: int = 5,
         score_degration_max: int = 3,
         **kwargs: Any,
     ):
-        super().__init__(X_all, **kwargs)
+        super().__init__(X_train_all, **kwargs)
         self.max_epoch = max_epoch
         self.validate_epoch = validate_epoch
         if max_epoch < validate_epoch:

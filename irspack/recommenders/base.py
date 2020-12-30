@@ -22,11 +22,11 @@ class CallBeforeFitError(Exception):
 
 
 class BaseRecommender(ABC):
-    def __init__(self, X_all: InteractionMatrix, **kwargs: Any) -> None:
-        self.X_all = sps.csr_matrix(X_all).astype(np.float64)
-        self.n_users: int = self.X_all.shape[0]
-        self.n_items: int = self.X_all.shape[1]
-        self.X_all.sort_indices()
+    def __init__(self, X_train_all: InteractionMatrix, **kwargs: Any) -> None:
+        self.X_train_all = sps.csr_matrix(X_train_all).astype(np.float64)
+        self.n_users: int = self.X_train_all.shape[0]
+        self.n_items: int = self.X_train_all.shape[1]
+        self.X_train_all.sort_indices()
 
         # this will store configurable parameters learnt during the training,
         # e.g., the epoch with the best validation score.
@@ -59,7 +59,7 @@ class BaseRecommender(ABC):
         scores = self.get_score_block(begin, end)
         if sps.issparse(scores):
             scores = scores.toarray()
-        m = self.X_all[begin:end]
+        m = self.X_train_all[begin:end]
         scores[m.nonzero()] = -np.inf
         if scores.dtype != np.float64:
             scores = scores.astype(np.float64)
@@ -69,7 +69,7 @@ class BaseRecommender(ABC):
         scores = self.get_score(user_indices)
         if sps.issparse(scores):
             scores = scores.toarray()
-        m = self.X_all[user_indices].tocsr()
+        m = self.X_train_all[user_indices].tocsr()
         scores[m.nonzero()] = -np.inf
         if scores.dtype != np.float64:
             scores = scores.astype(np.float64)
@@ -88,10 +88,10 @@ class BaseRecommender(ABC):
 
 class BaseRecommenderWithThreadingSupport(BaseRecommender):
     def __init__(
-        self, X_all: InteractionMatrix, n_thread: Optional[int], **kwargs: Any
+        self, X_train_all: InteractionMatrix, n_thread: Optional[int], **kwargs: Any
     ):
 
-        super(BaseRecommenderWithThreadingSupport, self).__init__(X_all, **kwargs)
+        super(BaseRecommenderWithThreadingSupport, self).__init__(X_train_all, **kwargs)
         if n_thread is not None:
             self.n_thread = n_thread
         else:
@@ -118,9 +118,9 @@ class BaseSimilarityRecommender(BaseRecommender):
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         if sps.issparse(self.W):
-            return self.X_all[user_indices].dot(self.W).toarray()
+            return self.X_train_all[user_indices].dot(self.W).toarray()
         else:
-            return self.X_all[user_indices].dot(self.W)
+            return self.X_train_all[user_indices].dot(self.W)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         if self.W is None:
@@ -132,9 +132,9 @@ class BaseSimilarityRecommender(BaseRecommender):
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         if sps.issparse(self.W):
-            return self.X_all[begin:end].dot(self.W).toarray()
+            return self.X_train_all[begin:end].dot(self.W).toarray()
         else:
-            return self.X_all[begin:end].dot(self.W)
+            return self.X_train_all[begin:end].dot(self.W)
 
 
 class BaseRecommenderWithUserEmbedding(BaseRecommender):

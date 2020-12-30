@@ -15,8 +15,8 @@ class TruncatedSVDRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    def __init__(self, X_all: InteractionMatrix, n_components: int = 4) -> None:
-        super().__init__(X_all)
+    def __init__(self, X_train_all: InteractionMatrix, n_components: int = 4) -> None:
+        super().__init__(X_train_all)
         self.n_components = n_components
         self.decomposer_: Optional[TruncatedSVD] = None
         self.z_: Optional[DenseMatrix] = None
@@ -35,7 +35,7 @@ class TruncatedSVDRecommender(
 
     def _learn(self) -> None:
         self.decomposer_ = TruncatedSVD(n_components=self.n_components)
-        self.z_ = self.decomposer_.fit_transform(self.X_all)
+        self.z_ = self.decomposer_.fit_transform(self.X_train_all)
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         return self.z[user_indices].dot(self.decomposer.components_)

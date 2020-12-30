@@ -55,7 +55,7 @@ class BPRFMRecommender(
 ):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         n_components: int = 128,
         item_alpha: float = 1e-9,
         user_alpha: float = 1e-9,
@@ -66,7 +66,7 @@ class BPRFMRecommender(
         score_degradation_max: int = 3,
     ):
         super().__init__(
-            X_all,
+            X_train_all,
             n_thread=n_thread,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
@@ -80,7 +80,7 @@ class BPRFMRecommender(
 
     def create_trainer(self) -> BPRFMTrainer:
         return BPRFMTrainer(
-            self.X_all,
+            self.X_train_all,
             self.n_components,
             self.item_alpha,
             self.user_alpha,

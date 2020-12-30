@@ -36,13 +36,15 @@ def slim_weight(X: InteractionMatrix, alpha: float, l1_ratio: float) -> sps.csr_
 class SLIMRecommender(BaseSimilarityRecommender):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         alpha: float = 0.05,
         l1_ratio: float = 0.01,
     ):
-        super(SLIMRecommender, self).__init__(X_all)
+        super(SLIMRecommender, self).__init__(X_train_all)
         self.alpha = alpha
         self.l1_ratio = l1_ratio
 
     def _learn(self) -> None:
-        self.W_ = slim_weight(self.X_all, alpha=self.alpha, l1_ratio=self.l1_ratio)
+        self.W_ = slim_weight(
+            self.X_train_all, alpha=self.alpha, l1_ratio=self.l1_ratio
+        )

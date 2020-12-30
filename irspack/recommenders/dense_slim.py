@@ -8,13 +8,13 @@ from .base import BaseSimilarityRecommender
 
 
 class DenseSLIMRecommender(BaseSimilarityRecommender):
-    def __init__(self, X_all: InteractionMatrix, reg: float = 1):
-        super(DenseSLIMRecommender, self).__init__(X_all)
+    def __init__(self, X_train_all: InteractionMatrix, reg: float = 1):
+        super(DenseSLIMRecommender, self).__init__(X_train_all)
         self.reg = reg
 
     def _learn(self) -> None:
-        X_all_f32 = self.X_all.astype(np.float32)
-        P = X_all_f32.T.dot(X_all_f32)
+        X_train_all_f32 = self.X_train_all.astype(np.float32)
+        P = X_train_all_f32.T.dot(X_train_all_f32)
         P_dense: np.ndarray = P.todense()
         del P
         P_dense[np.arange(self.n_items), np.arange(self.n_items)] += self.reg

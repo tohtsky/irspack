@@ -9,14 +9,14 @@ from .base import BaseRecommender
 class NMFRecommender(BaseRecommender):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         n_components: int = 64,
         alpha: float = 1e-2,
         l1_ratio: float = 1e-2,
         beta_loss: str = "frobenius",
         init: Optional[str] = None,
     ):
-        super().__init__(X_all)
+        super().__init__(X_train_all)
         self.n_components = n_components
         self.alpha = alpha
         self.l1_ratio = l1_ratio
@@ -33,8 +33,8 @@ class NMFRecommender(BaseRecommender):
             random_state=42,
         )
         self.nmf_model = nmf_model
-        self.nmf_model.fit(self.X_all)
-        self.W = self.nmf_model.fit_transform(self.X_all.tocsr())
+        self.nmf_model.fit(self.X_train_all)
+        self.W = self.nmf_model.fit_transform(self.X_train_all.tocsr())
         self.H = self.nmf_model.components_
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
