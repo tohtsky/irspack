@@ -58,7 +58,7 @@ inline CSRMatrix<Real> parallel_sparse_product(const CSRMatrix<Real> &left,
 }
 
 template <typename Real, typename Integer = int64_t>
-std::pair<CSCMatrix<Real>, CSRMatrix<Real>>
+std::pair<CSRMatrix<Real>, CSRMatrix<Real>>
 train_test_split_rowwise(const CSRMatrix<Real> &X, const double test_ratio,
                          std::int64_t random_seed) {
   using Triplet = Eigen::Triplet<Integer>;
