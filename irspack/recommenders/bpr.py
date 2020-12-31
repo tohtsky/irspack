@@ -78,7 +78,7 @@ class BPRFMRecommender(
         self.loss = loss
         self.trainer: Optional[BPRFMTrainer] = None
 
-    def create_trainer(self) -> BPRFMTrainer:
+    def _create_trainer(self) -> BPRFMTrainer:
         return BPRFMTrainer(
             self.X_train_all,
             self.n_components,

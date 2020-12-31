@@ -309,7 +309,7 @@ class MultVAERecommender(BaseRecommenderWithEarlyStopping):
 
         self.trainer: Optional[MultVAETrainer] = None
 
-    def create_trainer(self) -> MultVAETrainer:
+    def _create_trainer(self) -> MultVAETrainer:
         return MultVAETrainer(
             self.X_train_all,
             self.dim_z,

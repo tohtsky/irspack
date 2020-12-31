@@ -48,11 +48,11 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         self.best_state: Optional[bytes] = None
 
     @abstractmethod
-    def create_trainer(self) -> TrainerBase:
+    def _create_trainer(self) -> TrainerBase:
         pass  # pragma: no cover
 
     def start_learning(self) -> None:
-        self.trainer = self.create_trainer()
+        self.trainer = self._create_trainer()
 
     def run_epoch(self) -> None:
         if self.trainer is None:

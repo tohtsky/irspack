@@ -52,7 +52,7 @@ class MockRecommender(BaseRecommenderWithEarlyStopping):
         self.target_epoch = target_epoch
         self.rns = np.random.RandomState(42)
 
-    def create_trainer(self) -> MockTrainer:
+    def _create_trainer(self) -> MockTrainer:
         return MockTrainer()
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
