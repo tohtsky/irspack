@@ -16,10 +16,11 @@ class DenseSLIMRecommender(BaseSimilarityRecommender):
           <https://arxiv.org/abs/1905.03375>`_
 
     Args:
-        X_train_all:
+        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
             Input interaction matrix.
-        reg:
-            The regularization parameter for ease. Defaults to 1.
+
+        reg (float, optional):
+            The regularization parameter for ease. Defaults to 1.0.
     """
 
     def __init__(self, X_train_all: InteractionMatrix, reg: float = 1):

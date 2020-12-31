@@ -28,3 +28,4 @@ Recommenders
     BaseRecommender
     IALSRecommender
     DenseSLIMRecommender
+    P3alphaRecommender
