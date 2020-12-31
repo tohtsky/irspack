@@ -1,3 +1,4 @@
+import warnings
 from collections import OrderedDict
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Optional
@@ -5,7 +6,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 import numpy as np
 
 from ._evaluator import EvaluatorCore, Metrics
-from .definitions import InteractionMatrix
+from .definitions import DenseScoreArray, InteractionMatrix
 
 if TYPE_CHECKING:
     from .recommenders import base as base_recommender
@@ -214,6 +215,13 @@ class EvaluatorWithColdUser(Evaluator):
             scores = model.get_score_cold_user_remove_seen(
                 self.input_interaction[chunk_start:chunk_end]
             )
+            if not scores.flags.c_contiguous:
+                warnings.warn(
+                    "Found col-major(fortran-style) score values.\n"
+                    "Transforming it to row-major score matrix."
+                )
+                scores = np.ascontiguousarray(scores, dtype=np.float64)
+
             for i, c in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
                     scores, c, chunk_start, self.n_thread, False

@@ -114,11 +114,14 @@ def test_metrics_ColdUser(U: int, I: int, U_test: int) -> None:
     hot_evaluator = Evaluator(
         sps.csr_matrix(X_val_target), offset=U, cutoff=I // 2, n_thread=2
     )
-    cold_evaluator = EvaluatorWithColdUser(X_val_learn, X_val_target, cutoff=I // 2)
 
     rec = P3alphaRecommender(X_train_all)
     rec.learn()
     hot_score = hot_evaluator.get_score(rec)
-    cold_score = cold_evaluator.get_score(rec)
+    with pytest.warns(UserWarning):
+        cold_evaluator = EvaluatorWithColdUser(
+            X_val_learn.tocsc(), X_val_target, cutoff=I // 2
+        )  # csc matrix input should raise warning
+        cold_score = cold_evaluator.get_score(rec)
     for key in hot_score:
         assert hot_score[key] == pytest.approx(cold_score[key], abs=1e-8)
