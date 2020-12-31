@@ -121,7 +121,9 @@ def test_metrics_ColdUser(U: int, I: int, U_test: int) -> None:
     with pytest.warns(UserWarning):
         cold_evaluator = EvaluatorWithColdUser(
             X_val_learn.tocsc(), X_val_target, cutoff=I // 2
-        )  # csc matrix input should raise warning
+        )  # csc matrix input should raise warning about
+        # memory ordering, as csc-csc matrix product will be csc,
+        # hence col-major matrix when made dense.
         cold_score = cold_evaluator.get_score(rec)
     for key in hot_score:
         assert hot_score[key] == pytest.approx(cold_score[key], abs=1e-8)
