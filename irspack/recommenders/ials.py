@@ -107,6 +107,8 @@ class IALSRecommender(
             The number of threads. Defaults to 1.
         max_epoch (int, optional):
             Maximal number of epochs. Defaults to 300.
+
+    Example
     """
 
     def __init__(
