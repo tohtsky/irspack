@@ -71,13 +71,14 @@ class IALSRecommender(
     """Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
 
     See:
-    "Collaborative filtering for implicit feedback datasets"
-    http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf
 
-    To speed up the learning procedure, we have also implemented the conjugate gradient descent version
-    following
-    "Applications of the conjugate gradient method for implicit feedback collaborative filtering"
-    https://dl.acm.org/doi/abs/10.1145/2043932.2043987
+        - `Collaborative filtering for implicit feedback datasets
+          <http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf>`_
+
+    To speed up the learning procedure, we have also implemented the conjugate gradient descent version following:
+
+        - `Applications of the conjugate gradient method for implicit feedback collaborative filtering
+          <https://dl.acm.org/doi/abs/10.1145/2043932.2043987>`_
 
 
     Args:
@@ -108,7 +109,6 @@ class IALSRecommender(
         max_epoch (int, optional):
             Maximal number of epochs. Defaults to 300.
 
-    Example
     """
 
     def __init__(
@@ -155,10 +155,10 @@ class IALSRecommender(
             self.n_thread,
         )
 
-    def get_score(self, index: UserIndexArray) -> DenseScoreArray:
+    def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         if self.trainer is None:
             raise RuntimeError("'get_score' called before training")
-        return self.trainer.core_trainer.user[index].dot(
+        return self.trainer.core_trainer.user[user_indices].dot(
             self.trainer.core_trainer.item.T
         )
 

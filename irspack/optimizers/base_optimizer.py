@@ -1,6 +1,6 @@
 import logging
 import time
-from abc import ABC
+from abc import ABCMeta
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 import numpy as np
@@ -19,7 +19,7 @@ from ..recommenders.base import (
 from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
 
-class BaseOptimizer(ABC):
+class BaseOptimizer(object, metaclass=ABCMeta):
     recommender_class: Type[BaseRecommender]
     default_tune_range: List[Suggestion] = []
 

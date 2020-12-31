@@ -10,7 +10,7 @@ Evaluators
 ----------
 .. autosummary::
     :toctree: api_reference
-
+    :nosignatures:
 
     Evaluator
     EvaluatorWithColdUser
@@ -22,7 +22,9 @@ Recommenders
 ------------
 .. autosummary::
     :toctree: api_reference
+    :nosignatures:
 
 
     BaseRecommender
     IALSRecommender
+    DenseSLIMRecommender

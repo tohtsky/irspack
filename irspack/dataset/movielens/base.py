@@ -1,6 +1,6 @@
 import os
 import urllib.request
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from io import BytesIO
 from typing import Any, Optional
 from zipfile import ZipFile
@@ -8,7 +8,7 @@ from zipfile import ZipFile
 import pandas as pd
 
 
-class BaseMovieLenstDataLoader(ABC):
+class BaseMovieLenstDataLoader(object, metaclass=ABCMeta):
     DOWNLOAD_URL: str
     DEFAULT_PATH: str
     _zf: Optional[ZipFile]
