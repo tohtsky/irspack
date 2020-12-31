@@ -24,3 +24,5 @@ coverage_result
 Pipfile
 Pipfile.lock
 pybind11
+docs/output/
+docs/source/api_reference/

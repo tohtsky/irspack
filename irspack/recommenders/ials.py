@@ -31,7 +31,7 @@ class IALSTrainer(TrainerBase):
         max_cg_steps: int,
         n_thread: int,
     ):
-        X_all_f32 = X.astype(np.int32)
+        X_train_all_f32 = X.astype(np.int32)
         config = (
             IALSLearningConfigBuilder()
             .set_K(n_components)
@@ -44,7 +44,7 @@ class IALSTrainer(TrainerBase):
             .build()
         )
 
-        self.core_trainer = CoreTrainer(config, X_all_f32)
+        self.core_trainer = CoreTrainer(config, X_train_all_f32)
 
     def load_state(self, ifs: IO) -> None:
         params = pickle.load(ifs)
@@ -68,18 +68,54 @@ class IALSRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    """
-    Implicit Alternating Least Squares (IALS).
+    """Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
+
     See:
-    Y. Hu, Y. Koren and C. Volinsky, Collaborative filtering for implicit feedback datasets, ICDM 2008.
+    "Collaborative filtering for implicit feedback datasets"
     http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf
+
+    To speed up the learning procedure, we have also implemented the conjugate gradient descent version
+    following
+    "Applications of the conjugate gradient method for implicit feedback collaborative filtering"
+    https://dl.acm.org/doi/abs/10.1145/2043932.2043987
+
+
+    Args:
+        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            Input interaction matrix.
+
+        n_components (int, optional):
+            The dimension for latent factor. Defaults to 20.
+
+        alpha (float, optional):
+            The confidence parameter alpha in the original paper. Defaults to 0.0.
+        reg (float, optional):
+            Regularization coefficient for both user & item factors. Defaults to 1e-3.
+        init_std (float, optional):
+            Standard deviation for initialization normal distribution. Defaults to 0.1.
+        use_cg (bool, optional):
+            Whether to use the conjugate gradient method. Defaults to True.
+        max_cg_steps (int, optional):
+            Maximal number of conjute gradient descent steps. Defaults to 3.
+            Ignored when ``use_cg=False``. By increasing this parameter, the result will be closer to
+            Cholesky decomposition method (i.e., when ``use_cg = False``), but it wll take longer time.
+        validate_epoch (int, optional):
+            Frequency of validation score measurement (if any). Defaults to 5.
+        score_degradation_max (int, optional):
+            Maximal number of allowed score degradation. Defaults to 5.
+        n_thread (Optional[int], optional):
+            The number of threads. Defaults to 1.
+        max_epoch (int, optional):
+            Maximal number of epochs. Defaults to 300.
+
+    Example
     """
 
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         n_components: int = 20,
-        alpha: float = 1.0,
+        alpha: float = 0.0,
         reg: float = 1e-3,
         init_std: float = 0.1,
         use_cg: bool = True,
@@ -88,12 +124,13 @@ class IALSRecommender(
         score_degradation_max: int = 5,
         n_thread: Optional[int] = 1,
         max_epoch: int = 300,
-    ):
+    ) -> None:
+
         super().__init__(
-            X_all,
+            X_train_all,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
-            score_degration_max=score_degradation_max,
+            score_degradation_max=score_degradation_max,
             n_thread=n_thread,
         )
 
@@ -106,9 +143,9 @@ class IALSRecommender(
 
         self.trainer: Optional[IALSTrainer] = None
 
-    def create_trainer(self) -> TrainerBase:
+    def _create_trainer(self) -> TrainerBase:
         return IALSTrainer(
-            self.X_all,
+            self.X_train_all,
             self.n_components,
             self.alpha,
             self.reg,

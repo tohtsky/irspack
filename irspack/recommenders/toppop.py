@@ -14,7 +14,7 @@ class TopPopRecommender(BaseRecommender):
         self.score = None
 
     def _learn(self) -> None:
-        self.score = self.X_all.sum(axis=0).astype(np.float64)
+        self.score = self.X_train_all.sum(axis=0).astype(np.float64)
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         if self.score is None:

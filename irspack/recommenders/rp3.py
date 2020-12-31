@@ -14,14 +14,14 @@ class RP3betaRecommender(
 ):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         alpha: float = 1,
         beta: float = 0.6,
         top_k: Optional[int] = None,
         normalize_weight: bool = False,
         n_thread: Optional[int] = None,
     ):
-        super().__init__(X_all, n_thread=n_thread)
+        super().__init__(X_train_all, n_thread=n_thread)
         self.alpha = alpha
         self.beta = beta
         self.top_k = top_k
@@ -29,12 +29,12 @@ class RP3betaRecommender(
 
     def _learn(self) -> None:
         computer = RP3betaComputer(
-            self.X_all.T,
+            self.X_train_all.T,
             alpha=self.alpha,
             beta=self.beta,
             n_thread=self.n_thread,
         )
-        top_k = self.X_all.shape[1] if self.top_k is None else self.top_k
-        self.W_ = computer.compute_W(self.X_all.T, top_k)
+        top_k = self.X_train_all.shape[1] if self.top_k is None else self.top_k
+        self.W_ = computer.compute_W(self.X_train_all.T, top_k)
         if self.normalize_weight:
             self.W_ = normalize(self.W_, norm="l1", axis=1)

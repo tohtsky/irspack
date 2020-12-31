@@ -22,17 +22,30 @@ class CallBeforeFitError(Exception):
 
 
 class BaseRecommender(ABC):
-    def __init__(self, X_all: InteractionMatrix, **kwargs: Any) -> None:
-        self.X_all = sps.csr_matrix(X_all).astype(np.float64)
-        self.n_users: int = self.X_all.shape[0]
-        self.n_items: int = self.X_all.shape[1]
-        self.X_all.sort_indices()
+    """The base class for all (hot) recommenders.
+
+    Args:
+        X_train_all (csr_matrix|csc_matrix|np.ndarray): user/item interaction matrix.
+            each row correspods to a user's interaction with items.
+    """
+
+    def __init__(self, X_train_all: InteractionMatrix, **kwargs: Any) -> None:
+
+        self.X_train_all = sps.csr_matrix(X_train_all).astype(np.float64)
+        self.n_users: int = self.X_train_all.shape[0]
+        self.n_items: int = self.X_train_all.shape[1]
+        self.X_train_all.sort_indices()
 
         # this will store configurable parameters learnt during the training,
         # e.g., the epoch with the best validation score.
         self.learnt_config: Dict[str, Any] = dict()
 
     def learn(self) -> "BaseRecommender":
+        """Learns and returns itself.
+
+        Returns:
+            BaseRecommender: The model after fitting process.
+        """
         self._learn()
         return self
 
@@ -43,44 +56,105 @@ class BaseRecommender(ABC):
     def learn_with_optimizer(
         self, evaluator: Optional["evaluator.Evaluator"], trial: Optional[Trial]
     ) -> None:
+        """Learning procedures with early stopping and pruning.
+
+        Args:
+            evaluator (Optional[): The evaluator to measure the score.
+            trial (Optional[Trial]): The current optuna trial under the study (if any.)
+        """
         # by default, evaluator & trial does not play any role.
         self.learn()
 
     @abstractmethod
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
+        """Compute the item recommendation score for a subset of users.
+
+        Args:
+            user_indices (UserIndexArray): The index defines the subset of users.
+
+        Returns:
+            DenseScoreArray: The item scores. Its shape will be (len(user_indices), self.n_items)
+        """
         raise NotImplementedError("get_score must be implemented")  # pragma: no cover
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
+        """Compute the score for a block of the users.
+
+        Args:
+            begin (int): where the evaluated user block begins.
+            end (int): where the evaluated user block ends.
+
+        Returns:
+            DenseScoreArray: The item scores. Its shape will be (end - begin, self.n_items)
+        """
         raise NotImplementedError(
             "get_score_block not implemented!"
         )  # pragma: no cover
 
-    def get_score_remove_seen_block(self, begin: int, end: int) -> DenseScoreArray:
-        scores = self.get_score_block(begin, end)
+    def get_score_remove_seen(self, user_indices: UserIndexArray) -> DenseScoreArray:
+        """Compute the item score and mask the item in the training set.
+            Masked items will have the score -inf.
+
+        Args:
+            user_indices (UserIndexArray): Specifies the subset of users.
+
+        Returns:
+            DenseScoreArray: The masked item scores. Its shape will be (len(user_indices), self.n_items)
+        """
+        scores = self.get_score(user_indices)
         if sps.issparse(scores):
             scores = scores.toarray()
-        m = self.X_all[begin:end]
+        m = self.X_train_all[user_indices].tocsr()
         scores[m.nonzero()] = -np.inf
         if scores.dtype != np.float64:
             scores = scores.astype(np.float64)
         return scores
 
-    def get_score_remove_seen(self, user_indices: np.ndarray) -> DenseScoreArray:
-        scores = self.get_score(user_indices)
+    def get_score_remove_seen_block(self, begin: int, end: int) -> DenseScoreArray:
+        """Compute the score for a block of the users, and mask the items in the training set.
+            Masked items will have the score -inf.
+
+        Args:
+            begin (int): where the evaluated user block begins.
+            end (int): where the evaluated user block ends.
+
+        Returns:
+            DenseScoreArray: The masked item scores. Its shape will be (end - begin, self.n_items)
+        """
+        scores = self.get_score_block(begin, end)
         if sps.issparse(scores):
             scores = scores.toarray()
-        m = self.X_all[user_indices].tocsr()
+        m = self.X_train_all[begin:end]
         scores[m.nonzero()] = -np.inf
         if scores.dtype != np.float64:
             scores = scores.astype(np.float64)
         return scores
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
+        """Compute the item recommendation score for unseen users whose profiles are given as another user-item relation matrix.
+
+        Args:
+            X (InteractionMatrix): The profile user-item relation matrix for unseen users.
+                Its number of rows is arbitrary, but the number of columns must be self.n_items.
+
+        Returns:
+            DenseScoreArray: Computed item scores for users. Its shape is equal to X.
+        """
         raise NotImplementedError(
             f"get_score_cold_user is not implemented for {self.__class__.__name__}!"
         )  # pragma: no cover
 
     def get_score_cold_user_remove_seen(self, X: InteractionMatrix) -> DenseScoreArray:
+        """Compute the item recommendation score for unseen users whose profiles are given as another user-item relation matrix.
+            The score will then be masked by the input.
+
+        Args:
+            X (InteractionMatrix): The profile user-item relation matrix for unseen users.
+                Its number of rows is arbitrary, but the number of columns must be self.n_items.
+
+        Returns:
+            DenseScoreArray: Computed & masked item scores for users. Its shape is equal to X.
+        """
         score = self.get_score_cold_user(X)
         score[X.nonzero()] = -np.inf
         return score
@@ -88,10 +162,10 @@ class BaseRecommender(ABC):
 
 class BaseRecommenderWithThreadingSupport(BaseRecommender):
     def __init__(
-        self, X_all: InteractionMatrix, n_thread: Optional[int], **kwargs: Any
+        self, X_train_all: InteractionMatrix, n_thread: Optional[int], **kwargs: Any
     ):
 
-        super(BaseRecommenderWithThreadingSupport, self).__init__(X_all, **kwargs)
+        super(BaseRecommenderWithThreadingSupport, self).__init__(X_train_all, **kwargs)
         if n_thread is not None:
             self.n_thread = n_thread
         else:
@@ -118,9 +192,9 @@ class BaseSimilarityRecommender(BaseRecommender):
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         if sps.issparse(self.W):
-            return self.X_all[user_indices].dot(self.W).toarray()
+            return self.X_train_all[user_indices].dot(self.W).toarray()
         else:
-            return self.X_all[user_indices].dot(self.W)
+            return self.X_train_all[user_indices].dot(self.W)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         if self.W is None:
@@ -132,9 +206,9 @@ class BaseSimilarityRecommender(BaseRecommender):
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         if sps.issparse(self.W):
-            return self.X_all[begin:end].dot(self.W).toarray()
+            return self.X_train_all[begin:end].dot(self.W).toarray()
         else:
-            return self.X_all[begin:end].dot(self.W)
+            return self.X_train_all[begin:end].dot(self.W)
 
 
 class BaseRecommenderWithUserEmbedding(BaseRecommender):

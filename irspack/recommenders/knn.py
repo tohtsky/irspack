@@ -26,13 +26,13 @@ class BaseKNNRecommender(
 ):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         shrinkage: float = 0.0,
         top_k: int = 100,
         n_thread: Optional[int] = 1,
         feature_weighting: str = "NONE",
     ):
-        super().__init__(X_all, n_thread=n_thread)
+        super().__init__(X_train_all, n_thread=n_thread)
         self.shrinkage = shrinkage
         self.top_k = top_k
         self.feature_weighting = FeatureWeightingScheme(feature_weighting)
@@ -50,24 +50,24 @@ class BaseKNNRecommender(
 
     def _learn(self) -> None:
         if self.feature_weighting == FeatureWeightingScheme.NONE:
-            X_weighted = self.X_all
+            X_weighted = self.X_train_all
         elif self.feature_weighting == FeatureWeightingScheme.TF_IDF:
-            X_weighted = tf_idf_weight(self.X_all)
+            X_weighted = tf_idf_weight(self.X_train_all)
         elif self.feature_weighting == FeatureWeightingScheme.BM_25:
-            X_weighted = okapi_BM_25_weight(self.X_all)
+            X_weighted = okapi_BM_25_weight(self.X_train_all)
         else:
             raise RuntimeError("Unknown weighting scheme.")
 
         computer = self._create_computer(X_weighted.T)
         self.W_ = remove_diagonal(
-            computer.compute_similarity(self.X_all.T, self.top_k)
+            computer.compute_similarity(self.X_train_all.T, self.top_k)
         ).tocsc()
 
 
 class CosineKNNRecommender(BaseKNNRecommender):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         shrinkage: float = 0.0,
         normalize: bool = False,
         top_k: int = 100,
@@ -75,7 +75,7 @@ class CosineKNNRecommender(BaseKNNRecommender):
         n_thread: Optional[int] = 1,
     ) -> None:
         super().__init__(
-            X_all,
+            X_train_all,
             shrinkage,
             top_k,
             n_thread,
@@ -92,7 +92,7 @@ class CosineKNNRecommender(BaseKNNRecommender):
 class TverskyIndexKNNRecommender(BaseKNNRecommender):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         shrinkage: float = 0.0,
         alpha: float = 0.5,
         beta: float = 0.5,
@@ -101,7 +101,7 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
         n_thread: Optional[int] = 1,
     ) -> None:
         super().__init__(
-            X_all,
+            X_train_all,
             shrinkage,
             top_k,
             n_thread,
@@ -124,7 +124,7 @@ class JaccardKNNRecommender(BaseKNNRecommender):
 class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         shrinkage: float = 0.0,
         alpha: float = 0.5,
         top_k: int = 100,
@@ -132,7 +132,7 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         n_thread: Optional[int] = 1,
     ):
         super().__init__(
-            X_all,
+            X_train_all,
             shrinkage,
             top_k,
             n_thread,

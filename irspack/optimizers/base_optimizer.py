@@ -76,7 +76,7 @@ class BaseOptimizer(ABC):
             self.suggestions,
         )
         study = optuna.create_study(
-            sampler=optuna.samplers.RandomSampler(seed=random_seed)
+            sampler=optuna.samplers.TPESampler(seed=random_seed)
         )
         self.current_trial = -1
         self.best_val = float("inf")

@@ -276,7 +276,7 @@ class MultVAETrainer(TrainerBase):
 class MultVAERecommender(BaseRecommenderWithEarlyStopping):
     def __init__(
         self,
-        X_all: InteractionMatrix,
+        X_train_all: InteractionMatrix,
         dim_z: int = 16,
         enc_hidden_dims: int = 256,
         dec_hidden_dims: Optional[int] = None,
@@ -291,10 +291,10 @@ class MultVAERecommender(BaseRecommenderWithEarlyStopping):
         learning_rate: float = 1e-3,
     ) -> None:
         super().__init__(
-            X_all,
+            X_train_all,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
-            score_degration_max=score_degradation_max,
+            score_degradation_max=score_degradation_max,
         )
 
         self.dim_z = dim_z
@@ -309,9 +309,9 @@ class MultVAERecommender(BaseRecommenderWithEarlyStopping):
 
         self.trainer: Optional[MultVAETrainer] = None
 
-    def create_trainer(self) -> MultVAETrainer:
+    def _create_trainer(self) -> MultVAETrainer:
         return MultVAETrainer(
-            self.X_all,
+            self.X_train_all,
             self.dim_z,
             self.enc_hidden_dims,
             self.dec_hidden_dims,
@@ -324,7 +324,7 @@ class MultVAERecommender(BaseRecommenderWithEarlyStopping):
         )
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        return self.get_score_cold_user(self.X_all[user_indices])
+        return self.get_score_cold_user(self.X_train_all[user_indices])
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         if self.trainer is None:
