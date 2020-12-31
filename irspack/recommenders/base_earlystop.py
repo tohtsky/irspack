@@ -11,19 +11,33 @@ from .base import BaseRecommender
 
 
 class TrainerBase(ABC):
+    """The trainer class for early-stoppable recommenders.
+    The training logic of such recommenders (run-epoch, get-score) will be implemtented in the trainers."""
+
     def __init__(self, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
     def load_state(self, ifs: IO) -> None:
+        """Load past state (with best validation score).
+
+        Args:
+            ifs (IO): The stream from which past state will be restored.
+        """
         raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def save_state(self, ofs: IO) -> None:
+        """Save the current state into stream.
+
+        Args:
+            ofs (IO): the stream to which current state will be saved.
+        """
         raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def run_epoch(self) -> None:
+        """Run single epoch."""
         raise NotImplementedError()  # pragma: no cover
 
 
@@ -35,15 +49,23 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         X_train_all: InteractionMatrix,
         max_epoch: int = 512,
         validate_epoch: int = 5,
-        score_degration_max: int = 3,
+        score_degradation_max: int = 5,
         **kwargs: Any,
     ):
+        """The base class for all the early-stoppable recommenders.
+
+        Args:
+            X_train_all (csr_matrix|csc_matrix): The train interaction matrix.
+            max_epoch (int, optional): The maximal number of epochs to be run. Defaults to 512.
+            validate_epoch (int, optional): Frequency of validation score measurement (if any). Defaults to 5.
+            score_degradation_max (int, optional): Maximal number of allowed score degradation. Defaults to 5.
+        """
         super().__init__(X_train_all, **kwargs)
         self.max_epoch = max_epoch
         self.validate_epoch = validate_epoch
         if max_epoch < validate_epoch:
             raise ValueError("max_epoch must be greater than validate_epoch.")
-        self.score_degradation_max = score_degration_max
+        self.score_degradation_max = score_degradation_max
         self.trainer: Optional[TrainerBase] = None
         self.best_state: Optional[bytes] = None
 

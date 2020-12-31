@@ -90,8 +90,8 @@ class IALSRecommender(
         max_cg_steps (int, optional): Maximal number of conjute gradient descent steps. Defaults to 3.
             Ignored when use_cg is False. By increasing this parameter, the result will be closer to
             Cholesky decomposition method (i.e., when use_cg = False), but it wll take longer time.
-        validate_epoch (int, optional): Frequency of validation. Defaults to 5.
-        score_degradation_max (int, optional): Allowed number of validation score degradation. Defaults to 5.
+        validate_epoch (int, optional): Frequency of validation score measurement (if any). Defaults to 5.
+        score_degradation_max (int, optional): Maximal number of allowed score degradation. Defaults to 5.
         n_thread (Optional[int], optional): The number of threads. Defaults to 1.
         max_epoch (int, optional): Maximal number of epochs. Defaults to 300.
     """
@@ -115,7 +115,7 @@ class IALSRecommender(
             X_train_all,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
-            score_degration_max=score_degradation_max,
+            score_degradation_max=score_degradation_max,
             n_thread=n_thread,
         )
 

@@ -294,7 +294,7 @@ class MultVAERecommender(BaseRecommenderWithEarlyStopping):
             X_train_all,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
-            score_degration_max=score_degradation_max,
+            score_degradation_max=score_degradation_max,
         )
 
         self.dim_z = dim_z
