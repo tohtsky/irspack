@@ -24,8 +24,9 @@ Recommenders
     :toctree: api_reference
     :nosignatures:
 
-
     BaseRecommender
+    TopPopRecommender
     IALSRecommender
     DenseSLIMRecommender
     P3alphaRecommender
+    RP3betaRecommender
