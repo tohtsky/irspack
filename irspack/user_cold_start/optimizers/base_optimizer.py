@@ -77,7 +77,9 @@ class BaseOptimizer:
 
             return -val_score
 
-        study = optuna.create_study(sampler=optuna.samplers.RandomSampler(random_seed))
+        study = optuna.create_study(
+            sampler=optuna.samplers.TPESampler(seed=random_seed)
+        )
         study.optimize(objective, n_trials, timeout=timeout)
         if self.best_params is None:
             raise RuntimeError(

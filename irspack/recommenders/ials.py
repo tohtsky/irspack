@@ -69,6 +69,7 @@ class IALSRecommender(
     BaseRecommenderWithItemEmbedding,
 ):
     """Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
+
     See:
     "Collaborative filtering for implicit feedback datasets"
     http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf
@@ -80,20 +81,32 @@ class IALSRecommender(
 
 
     Args:
-        X_train_all (csr_matrix | csc_matrix): Input interaction matrix.
-        n_components (int, optional): The dimension for latent factor. Defaults to 20.
-        alpha (float, optional): The confidence parameter alpha in the original paper. Defaults to 0.0.
-        reg (float, optional): Regularization coefficient for both user & item factors.
-            Defaults to 1e-3.
-        init_std (float, optional): Standard deviation for initialization normal distribution. Defaults to 0.1.
-        use_cg (bool, optional): Whether to use the conjugate gradient method. Defaults to True.
-        max_cg_steps (int, optional): Maximal number of conjute gradient descent steps. Defaults to 3.
-            Ignored when use_cg is False. By increasing this parameter, the result will be closer to
-            Cholesky decomposition method (i.e., when use_cg = False), but it wll take longer time.
-        validate_epoch (int, optional): Frequency of validation score measurement (if any). Defaults to 5.
-        score_degradation_max (int, optional): Maximal number of allowed score degradation. Defaults to 5.
-        n_thread (Optional[int], optional): The number of threads. Defaults to 1.
-        max_epoch (int, optional): Maximal number of epochs. Defaults to 300.
+        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            Input interaction matrix.
+
+        n_components (int, optional):
+            The dimension for latent factor. Defaults to 20.
+
+        alpha (float, optional):
+            The confidence parameter alpha in the original paper. Defaults to 0.0.
+        reg (float, optional):
+            Regularization coefficient for both user & item factors. Defaults to 1e-3.
+        init_std (float, optional):
+            Standard deviation for initialization normal distribution. Defaults to 0.1.
+        use_cg (bool, optional):
+            Whether to use the conjugate gradient method. Defaults to True.
+        max_cg_steps (int, optional):
+            Maximal number of conjute gradient descent steps. Defaults to 3.
+            Ignored when ``use_cg=False``. By increasing this parameter, the result will be closer to
+            Cholesky decomposition method (i.e., when ``use_cg = False``), but it wll take longer time.
+        validate_epoch (int, optional):
+            Frequency of validation score measurement (if any). Defaults to 5.
+        score_degradation_max (int, optional):
+            Maximal number of allowed score degradation. Defaults to 5.
+        n_thread (Optional[int], optional):
+            The number of threads. Defaults to 1.
+        max_epoch (int, optional):
+            Maximal number of epochs. Defaults to 300.
     """
 
     def __init__(
@@ -109,7 +122,7 @@ class IALSRecommender(
         score_degradation_max: int = 5,
         n_thread: Optional[int] = 1,
         max_epoch: int = 300,
-    ):
+    ) -> None:
 
         super().__init__(
             X_train_all,

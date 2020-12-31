@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from io import BytesIO
-from typing import IO, Any, Optional
+from typing import IO, Any, Optional, Type
 
 from optuna import Trial, exceptions
 from tqdm import tqdm
@@ -42,7 +42,16 @@ class TrainerBase(ABC):
 
 
 class BaseRecommenderWithEarlyStopping(BaseRecommender):
-    trainer_class = TrainerBase
+    """The base class for all the early-stoppable recommenders.
+
+    Args:
+        X_train_all (csr_matrix|csc_matrix): The train interaction matrix.
+        max_epoch (int, optional): The maximal number of epochs to be run. Defaults to 512.
+        validate_epoch (int, optional): Frequency of validation score measurement (if any). Defaults to 5.
+        score_degradation_max (int, optional): Maximal number of allowed score degradation. Defaults to 5.
+    """
+
+    trainer_class: Type[TrainerBase]
 
     def __init__(
         self,
@@ -52,14 +61,7 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         score_degradation_max: int = 5,
         **kwargs: Any,
     ):
-        """The base class for all the early-stoppable recommenders.
 
-        Args:
-            X_train_all (csr_matrix|csc_matrix): The train interaction matrix.
-            max_epoch (int, optional): The maximal number of epochs to be run. Defaults to 512.
-            validate_epoch (int, optional): Frequency of validation score measurement (if any). Defaults to 5.
-            score_degradation_max (int, optional): Maximal number of allowed score degradation. Defaults to 5.
-        """
         super().__init__(X_train_all, **kwargs)
         self.max_epoch = max_epoch
         self.validate_epoch = validate_epoch

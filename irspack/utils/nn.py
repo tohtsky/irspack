@@ -137,7 +137,7 @@ class MLPOptimizer(object):
         self.best_trial_score = float("inf")
         self.best_config = None
         study = optuna.create_study(
-            sampler=optuna.samplers.RandomSampler(seed=random_seed)
+            sampler=optuna.samplers.TPESampler(seed=random_seed)
         )
         if logger is None:
             logger = get_default_logger()
