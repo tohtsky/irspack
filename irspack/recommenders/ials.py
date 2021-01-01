@@ -29,7 +29,7 @@ class IALSTrainer(TrainerBase):
         init_std: float,
         use_cg: bool,
         max_cg_steps: int,
-        n_thread: int,
+        n_threads: int,
     ):
         X_train_all_f32 = X.astype(np.int32)
         config = (
@@ -38,7 +38,7 @@ class IALSTrainer(TrainerBase):
             .set_init_stdev(init_std)
             .set_alpha(alpha)
             .set_reg(reg)
-            .set_n_threads(n_thread)
+            .set_n_threads(n_threads)
             .set_use_cg(use_cg)
             .set_max_cg_steps(max_cg_steps)
             .build()
@@ -71,13 +71,14 @@ class IALSRecommender(
     """Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
 
     See:
-    "Collaborative filtering for implicit feedback datasets"
-    http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf
 
-    To speed up the learning procedure, we have also implemented the conjugate gradient descent version
-    following
-    "Applications of the conjugate gradient method for implicit feedback collaborative filtering"
-    https://dl.acm.org/doi/abs/10.1145/2043932.2043987
+        - `Collaborative filtering for implicit feedback datasets
+          <http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf>`_
+
+    To speed up the learning procedure, we have also implemented the conjugate gradient descent version following:
+
+        - `Applications of the conjugate gradient method for implicit feedback collaborative filtering
+          <https://dl.acm.org/doi/abs/10.1145/2043932.2043987>`_
 
 
     Args:
@@ -103,12 +104,12 @@ class IALSRecommender(
             Frequency of validation score measurement (if any). Defaults to 5.
         score_degradation_max (int, optional):
             Maximal number of allowed score degradation. Defaults to 5.
-        n_thread (Optional[int], optional):
-            The number of threads. Defaults to 1.
+        n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
         max_epoch (int, optional):
             Maximal number of epochs. Defaults to 300.
 
-    Example
     """
 
     def __init__(
@@ -122,7 +123,7 @@ class IALSRecommender(
         max_cg_steps: int = 3,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = None,
         max_epoch: int = 300,
     ) -> None:
 
@@ -131,7 +132,7 @@ class IALSRecommender(
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
-            n_thread=n_thread,
+            n_threads=n_threads,
         )
 
         self.n_components = n_components
@@ -152,15 +153,17 @@ class IALSRecommender(
             self.init_std,
             self.use_cg,
             self.max_cg_steps,
-            self.n_thread,
+            self.n_threads,
         )
 
-    def get_score(self, index: UserIndexArray) -> DenseScoreArray:
+    @property
+    def core_trainer(self) -> CoreTrainer:
         if self.trainer is None:
-            raise RuntimeError("'get_score' called before training")
-        return self.trainer.core_trainer.user[index].dot(
-            self.trainer.core_trainer.item.T
-        )
+            raise RuntimeError("tried to fetch core_trainer before the training.")
+        return self.trainer.core_trainer
+
+    def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
+        return self.core_trainer.user[user_indices].dot(self.core_trainer.item.T)
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         if self.trainer is None:
@@ -168,39 +171,28 @@ class IALSRecommender(
         return self.trainer.core_trainer.user_scores(begin, end)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_cols_user' called before training")
-        user_vector = self.trainer.core_trainer.transform_user(
-            X.astype(np.float32).tocsr()
-        )
-        return user_vector.dot(self.trainer.core_trainer.item.T).astype(np.float64)
+        user_vector = self.compute_user_embedding(X)
+        return self.get_score_from_user_embedding(user_vector)
 
     def get_user_embedding(self) -> DenseMatrix:
-        if self.trainer is None:
-            raise RuntimeError("'get_user_embedding' called before training")
-
-        return self.trainer.core_trainer.user.astype(np.float64)
+        return self.core_trainer.user.astype(np.float64)
 
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_from_user_embedding' called before training")
-
-        return user_embedding.dot(self.trainer.core_trainer.item.T)
+        return user_embedding.dot(self.core_trainer.item.T).astype(np.float64)
 
     def get_item_embedding(self) -> DenseMatrix:
-        if self.trainer is None:
-            raise RuntimeError("'get_item_embedding' called before training")
-        return self.trainer.core_trainer.item.astype(np.float64)
+        return self.core_trainer.item.astype(np.float64)
+
+    def compute_user_embedding(self, X: InteractionMatrix) -> DenseMatrix:
+        return self.core_trainer.transform_user(X.astype(np.float32).tocsr())
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_from_item_embedding' called before training")
         return (
-            self.trainer.core_trainer.user[user_indices]
+            self.core_trainer.user[user_indices]
             .dot(item_embedding.T)
             .astype(np.float64)
         )

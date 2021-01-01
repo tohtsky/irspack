@@ -37,35 +37,35 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
-    "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx.ext.mathjax",
     "sphinx_rtd_theme",
 ]
 
-napoleon_google_docstring = False
-napoleon_numpy_docstring = True
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
 napoleon_include_private_with_doc = False
 napoleon_include_special_with_doc = False
-napoleon_use_admonition_for_examples = False
-napoleon_use_admonition_for_notes = False
-napoleon_use_admonition_for_references = False
-napoleon_use_ivar = True
-napoleon_use_param = True
-napoleon_use_rtype = True
+# napoleon_use_admonition_for_examples = False
+# napoleon_use_admonition_for_notes = False
+# napoleon_use_admonition_for_references = False
+# napoleon_use_ivar = True
+# napoleon_use_param = True
+# napoleon_use_rtype = True
 
 
-autosummary_generate = ["api_reference.rst"]
-
-
-autodoc_default_flags = ["members", "inherited-members", "show-inheritance"]
+autosummary_generate = True
+autoclass_content = "class"
+autodoc_typehints = "description"
+autodoc_type_aliases = {
+    "InteractionMatrix": "Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]",
+    "UserIndexArray": "np.ndarray",
+    "DenseScoreArray": "np.ndarray",
+}
 autodoc_default_options = {
-    "members": True,
     "inherited-members": True,
     "show-inheritance": True,
 }
-
-
-autoclass_content = "class"
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 

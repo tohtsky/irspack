@@ -28,7 +28,7 @@ def test_metrics(U: int, I: int) -> None:
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
-    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=I, n_thread=4)
+    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=I, n_threads=4)
     # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
     my_score = eval.get_score(mock_rec)
@@ -48,7 +48,7 @@ def test_metrics_with_cutoff(U: int, I: int, C: int) -> None:
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
-    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=C, n_thread=2)
+    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=C, n_threads=2)
     # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
     my_score = eval.get_score(mock_rec)
@@ -112,7 +112,7 @@ def test_metrics_ColdUser(U: int, I: int, U_test: int) -> None:
     X_val_learn, X_val_target = rowwise_train_test_split(X_val, random_seed=0)
     X_train_all = sps.vstack([X_train, X_val_learn])
     hot_evaluator = Evaluator(
-        sps.csr_matrix(X_val_target), offset=U, cutoff=I // 2, n_thread=2
+        sps.csr_matrix(X_val_target), offset=U, cutoff=I // 2, n_threads=2
     )
 
     rec = P3alphaRecommender(X_train_all)

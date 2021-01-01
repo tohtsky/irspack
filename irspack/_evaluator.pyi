@@ -27,7 +27,7 @@ class EvaluatorCore:
         score_array: numpy.ndarray[float64[m, n], flags.writeable, flags.c_contiguous],
         cutoff: int,
         offset: int,
-        n_thread: int,
+        n_threads: int,
         recall_with_cutoff: bool = False,
     ) -> Metrics: ...
     pass

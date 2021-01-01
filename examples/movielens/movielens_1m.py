@@ -55,13 +55,11 @@ if __name__ == "__main__":
         ground_truth=data_val.X_predict,
         offset=data_train.n_users,
         cutoff=BASE_CUTOFF,
-        n_thread=8,
     )
     test_evaluator = Evaluator(
         ground_truth=data_test.X_predict,
         offset=data_train.n_users + data_val.n_users,
         cutoff=BASE_CUTOFF,
-        n_thread=8,
     )
 
     test_results = []

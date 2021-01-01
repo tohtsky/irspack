@@ -7,9 +7,18 @@ from .base import BaseRecommender
 
 
 class TopPopRecommender(BaseRecommender):
+    """A simple recommender system based on the popularity of the items in the
+    training set (without any personalization).
+
+    Args:
+        X_train Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            Input interaction matrix.
+    """
+
     score: Optional[np.ndarray]
 
     def __init__(self, X_train: InteractionMatrix):
+
         super().__init__(X_train)
         self.score = None
 

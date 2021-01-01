@@ -1,3 +1,4 @@
+import os
 import random
 from typing import Optional, Tuple
 
@@ -40,6 +41,19 @@ def rowwise_train_test_split(
             X_train_double.astype(original_dtype),
             X_test_double.astype(original_dtype),
         )
+
+
+def get_n_threads(n_threads: Optional[int]) -> int:
+    if n_threads is not None:
+        return n_threads
+    else:
+        try:
+            n_threads = int(os.environ.get("IRSPACK_NUM_THREADS_DEFAULT", "1"))
+            return n_threads
+        except:
+            raise ValueError(
+                'failed to interpret "IRSPACK_NUM_THREADS_DEFAULT" as an integer.'
+            )
 
 
 __all__ = [

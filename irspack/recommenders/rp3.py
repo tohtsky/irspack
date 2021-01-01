@@ -1,7 +1,5 @@
-from typing import List, Optional
+from typing import Optional
 
-import numpy as np
-from scipy import sparse as sps
 from sklearn.preprocessing import normalize
 
 from ..definitions import InteractionMatrix
@@ -12,6 +10,33 @@ from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
 class RP3betaRecommender(
     BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
 ):
+    """3-Path random walk with the item-popularity penalization:
+
+        - `Updatable, Accurate, Diverse, and Scalable Recommendations for Interactive Applications
+          <https://dl.acm.org/doi/10.1145/2955101>`_
+
+    The version here implements its view as KNN-based method, as pointed out in
+
+        - `A Troubling Analysis of Reproducibility and Progress in Recommender Systems Research
+          <https://arxiv.org/abs/1911.07698>`_
+
+    Args:
+        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            Input interaction matrix.
+        alpha (float, optional): The power to which ``X_train_all`` is exponentiated.
+            Defaults to 1. Note that this has no effect if all the entries in
+            ``X_train_all`` are equal.
+        beta (float, optional): Specifies how the user->item transition
+            probability will be penalized by the popularity. Defaults to 0.6.
+        top_k (Optional[int], optional): Maximal number of non-zero entries retained
+        for each column of the similarity matrix ``W``.
+        normalize_weight (bool, optional): Whether to perform row-wise normalization of ``W``.
+            Defaults to False.
+        n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+    """
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -19,9 +44,9 @@ class RP3betaRecommender(
         beta: float = 0.6,
         top_k: Optional[int] = None,
         normalize_weight: bool = False,
-        n_thread: Optional[int] = None,
+        n_threads: Optional[int] = None,
     ):
-        super().__init__(X_train_all, n_thread=n_thread)
+        super().__init__(X_train_all, n_threads=n_threads)
         self.alpha = alpha
         self.beta = beta
         self.top_k = top_k
@@ -32,7 +57,7 @@ class RP3betaRecommender(
             self.X_train_all.T,
             alpha=self.alpha,
             beta=self.beta,
-            n_thread=self.n_thread,
+            n_threads=self.n_threads,
         )
         top_k = self.X_train_all.shape[1] if self.top_k is None else self.top_k
         self.W_ = computer.compute_W(self.X_train_all.T, top_k)

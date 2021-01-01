@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, List
 
 from optuna import Trial
@@ -14,17 +14,23 @@ __all__ = [
 ]
 
 
-class Suggestion(ABC):
+class Suggestion(object, metaclass=ABCMeta):
     def __init__(self, name: str):
+        """The base class to controll optuna's ``Trial`` behavior during
+            hyper parameter optimization.
+
+        Args:
+            name (str): The name of the parameter to be tuned.
+        """
         self.name = name
 
     @abstractmethod
     def suggest(self, trial: Trial) -> Any:
-        pass
+        raise NotImplementedError('"suggest" must be implemented.')
 
     @abstractmethod
     def __repr__(self) -> str:
-        raise NotImplementedError("__repr__ must be implemented.")
+        raise NotImplementedError('"__repr__" must be implemented.')
 
 
 def overwrite_suggestions(
@@ -34,7 +40,7 @@ def overwrite_suggestions(
 ) -> List[Suggestion]:
     for suggest in suggest_overwrite:
         if suggest.name in fixed_params:
-            raise ValueError("suggest_overwrite and fixe_param have overwrap.")
+            raise ValueError("suggest_overwrite and fixed_param have overwrap.")
 
     overwritten_parameter_names = set(
         [x.name for x in suggest_overwrite] + [x for x in fixed_params]

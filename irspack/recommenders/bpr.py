@@ -26,10 +26,10 @@ class BPRFMTrainer(TrainerBase):
         item_alpha: float,
         user_alpha: float,
         loss: str,
-        n_thread: int,
+        n_threads: int,
     ):
         self.X = X.tocoo()
-        self.n_thread = n_thread
+        self.n_threads = n_threads
         self.fm = LightFM(
             no_components=n_components,
             item_alpha=item_alpha,
@@ -38,7 +38,7 @@ class BPRFMTrainer(TrainerBase):
         )
 
     def run_epoch(self) -> None:
-        self.fm.fit_partial(self.X, num_threads=self.n_thread)
+        self.fm.fit_partial(self.X, num_threads=self.n_threads)
 
     def load_state(self, ifs: IO) -> None:
         self.fm = pickle.load(ifs)
@@ -61,13 +61,13 @@ class BPRFMRecommender(
         user_alpha: float = 1e-9,
         loss: str = "bpr",
         max_epoch: int = 512,
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = None,
         validate_epoch: int = 5,
         score_degradation_max: int = 3,
     ):
         super().__init__(
             X_train_all,
-            n_thread=n_thread,
+            n_threads=n_threads,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
@@ -85,7 +85,7 @@ class BPRFMRecommender(
             self.item_alpha,
             self.user_alpha,
             self.loss,
-            self.n_thread,
+            self.n_threads,
         )
 
     def get_score(self, index: UserIndexArray) -> np.ndarray:

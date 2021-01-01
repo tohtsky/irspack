@@ -26,13 +26,13 @@ template <typename Real, class SimilarityType> struct KNNComputer {
   using CSRIterType = typename CSRMatrix::InnerIterator;
   using CSCIterType = typename CSCMatrix::InnerIterator;
   using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
-  KNNComputer(const CSRMatrix &X_arg, Real shrinkage, size_t n_thread,
+  KNNComputer(const CSRMatrix &X_arg, Real shrinkage, size_t n_threads,
               size_t max_chunk_size)
-      : X_t(X_arg.transpose()), n_thread(n_thread), N(X_arg.rows()),
+      : X_t(X_arg.transpose()), n_threads(n_threads), N(X_arg.rows()),
         n_features(X_arg.cols()), shrinkage(shrinkage), norms(X_arg.rows()),
         max_chunk_size(max_chunk_size) {
     irspack::check_arg_lower_bounded<Real>(shrinkage, 0, "shrinkage");
-    irspack::check_arg_lower_bounded<size_t>(n_thread, 1, "n_thread");
+    irspack::check_arg_lower_bounded<size_t>(n_threads, 1, "n_threads");
     irspack::check_arg_lower_bounded<size_t>(max_chunk_size, 1,
                                              "max_chunk_size");
 
@@ -43,19 +43,19 @@ template <typename Real, class SimilarityType> struct KNNComputer {
     if (target.cols() != this->n_features)
       throw std::invalid_argument("illegal # of feature.");
     CSRMatrix result(target.rows(), this->N);
-    if (n_thread == 1) {
+    if (n_threads == 1) {
 
       auto triplets =
           this->compute_similarity_triple(target, 0, target.rows(), top_k);
       result.setFromTriplets(triplets.begin(), triplets.end());
       return result;
     } else {
-      const size_t per_block_size = target.rows() / n_thread;
-      const size_t remnant = target.rows() % n_thread;
+      const size_t per_block_size = target.rows() / n_threads;
+      const size_t remnant = target.rows() % n_threads;
       size_t job_start = 0;
       std::vector<std::future<std::vector<Triplet>>> thread_results;
       std::vector<Triplet> accumulated_result;
-      for (size_t i = 0; i < n_thread; i++) {
+      for (size_t i = 0; i < n_threads; i++) {
         size_t block_size = per_block_size;
         if (i < remnant) {
           block_size += 1;
@@ -132,7 +132,7 @@ template <typename Real, class SimilarityType> struct KNNComputer {
 
 public:
   CSCMatrix X_t;
-  const size_t n_thread;
+  const size_t n_threads;
   const int N, n_features;
 
 protected:

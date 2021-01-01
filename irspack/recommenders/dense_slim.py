@@ -8,7 +8,23 @@ from .base import BaseSimilarityRecommender
 
 
 class DenseSLIMRecommender(BaseSimilarityRecommender):
+    """Implementation of DenseSLIM or Embarrassingly Shallow AutoEncoder (EASE ^R).
+
+    See:
+
+        - `Embarrassingly Shallow Autoencoders for Sparse Data
+          <https://arxiv.org/abs/1905.03375>`_
+
+    Args:
+        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            Input interaction matrix.
+
+        reg (float, optional):
+            The regularization parameter for ease. Defaults to 1.0.
+    """
+
     def __init__(self, X_train_all: InteractionMatrix, reg: float = 1):
+
         super(DenseSLIMRecommender, self).__init__(X_train_all)
         self.reg = reg
 

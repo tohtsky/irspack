@@ -1,6 +1,6 @@
 import logging
 import time
-from abc import ABC
+from abc import ABCMeta
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 import numpy as np
@@ -19,7 +19,34 @@ from ..recommenders.base import (
 from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
 
-class BaseOptimizer(ABC):
+class BaseOptimizer(object, metaclass=ABCMeta):
+    """The base optimizer class for recommender classes.
+
+    The child class must define
+
+        - ``recommender_class``
+        - ``default_tune_range``
+
+    Args:
+        data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The train data.
+        val_evaluator (Evaluator):
+            The validation evaluator which measures the performance of the recommenders.
+        metric (str, optional): Target metric. Defaults to "ndcg".
+        logger (Optional[logging.Logger], optional):
+            The logger used during the optimization steps. Defaults to None.
+            If ``None``, the default logger of irspack will be used.
+        suggest_overwrite (List[Suggestion], optional):
+            Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
+            the default parameter search space defined by ``default_tune_range``
+            Defaults to list().
+        fixed_params (Dict[str, Any], optional):
+            Fixed parameters passed to recommenders during the optimization procedure.
+            If such a parameter exists in ``default_tune_range``, it will not be tuned.
+            Defaults to dict().
+
+    """
+
     recommender_class: Type[BaseRecommender]
     default_tune_range: List[Suggestion] = []
 
@@ -32,6 +59,7 @@ class BaseOptimizer(ABC):
         suggest_overwrite: List[Suggestion] = list(),
         fixed_params: Dict[str, Any] = dict(),
     ):
+
         if logger is None:
             logger = get_default_logger()
 
@@ -141,6 +169,39 @@ class BaseOptimizer(ABC):
 
 
 class BaseOptimizerWithEarlyStopping(BaseOptimizer):
+    """The Base Optimizer class for early-stoppable recommenders.
+
+    The child class must define
+
+        - ``recommender_class``
+        - ``default_tune_range``
+
+
+    Args:
+        data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The train data.
+        val_evaluator (Evaluator):
+            The validation evaluator which measures the performance of the recommenders.
+        metric (str, optional): Target metric. Defaults to "ndcg".
+        logger (Optional[logging.Logger], optional):
+            The logger used during the optimization steps. Defaults to None.
+            If ``None``, the default logger of irspack will be used.
+        suggest_overwrite (List[Suggestion], optional):
+            Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
+            the default parameter search space defined by ``default_tune_range``
+            Defaults to list().
+        fixed_params (Dict[str, Any], optional):
+            Fixed parameters passed to recommenders during the optimization procedure.
+            If such a parameter exists in ``default_tune_range``, it will not be tuned.
+            Defaults to dict().
+        max_epoch (int, optional):
+            The maximal number of epochs for the training. Defaults to 512.
+        validate_epoch (int, optional):
+            The frequency of validation score measurement. Defaults to 5.
+        score_degradation_max (int, optional):
+            Maximal number of allowed score degradation. Defaults to 5. Defaults to 5.
+    """
+
     recommender_class: Type[BaseRecommenderWithEarlyStopping]
 
     def __init__(
@@ -156,6 +217,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         score_degradation_max: int = 5,
         **kwargs: Any,
     ):
+
         super().__init__(
             data,
             val_evaluator,
@@ -191,7 +253,7 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
         logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
         fixed_params: Dict[str, Any] = dict(),
-        n_thread: Optional[int] = None,
+        n_threads: Optional[int] = None,
         **kwargs: Any,
     ):
         super().__init__(
@@ -202,9 +264,9 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
             suggest_overwrite=suggest_overwrite,
             fixed_params=fixed_params,
         )
-        self.n_thread = n_thread
+        self.n_threads = n_threads
 
     def get_model_arguments(
         self, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super().get_model_arguments(*args, n_thread=self.n_thread, **kwargs)
+        return super().get_model_arguments(*args, n_threads=self.n_threads, **kwargs)

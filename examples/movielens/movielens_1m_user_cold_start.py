@@ -1,8 +1,12 @@
 import json
+import os
 from typing import Any, Dict, List, Tuple, Type
 
 import numpy as np
 import pandas as pd
+from scipy import sparse as sps
+from sklearn.model_selection import train_test_split
+
 from irspack.dataset.movielens import MovieLens1MDataManager
 from irspack.definitions import UserIndexArray
 from irspack.user_cold_start import (
@@ -20,8 +24,10 @@ from irspack.utils.encoders import (
     CategoricalValueEncoder,
     DataFrameEncoder,
 )
-from scipy import sparse as sps
-from sklearn.model_selection import train_test_split
+
+os.environ["OMP_NUM_THREADS"] = "8"
+os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "8"
+
 
 if __name__ == "__main__":
     BASE_CUTOFF = 20

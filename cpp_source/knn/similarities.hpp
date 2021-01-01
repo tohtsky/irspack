@@ -18,9 +18,9 @@ protected:
 
 public:
   inline CosineSimilarityComputer(const CSRMatrix &X_arg, Real shrinkage,
-                                  bool normalize, size_t n_thread,
+                                  bool normalize, size_t n_threads,
                                   size_t max_chunk_size)
-      : Base(X_arg, shrinkage, n_thread, max_chunk_size), normalize(normalize) {
+      : Base(X_arg, shrinkage, n_threads, max_chunk_size), normalize(normalize) {
     for (int i = 0; i < this->N; i++) {
       this->norms(i) = this->X_t.col(i).norm();
     }
@@ -52,8 +52,8 @@ struct JaccardSimilarityComputer
   using CSCMatrix = typename Base::CSCMatrix;
   using CSRMatrix = typename Base::CSRMatrix;
   inline JaccardSimilarityComputer(const CSRMatrix &X_arg, Real shrinkage,
-                                   size_t n_thread, size_t max_chunk_size)
-      : Base(X_arg, shrinkage, n_thread, max_chunk_size) {
+                                   size_t n_threads, size_t max_chunk_size)
+      : Base(X_arg, shrinkage, n_threads, max_chunk_size) {
     for (int i = 0; i < this->X_t.cols(); i++) {
       for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
         iter.valueRef() = 1;
@@ -102,9 +102,9 @@ protected:
 public:
   inline AsymmetricCosineSimilarityComputer(const CSRMatrix &X_arg,
                                             Real shrinkage, Real alpha,
-                                            size_t n_thread,
+                                            size_t n_threads,
                                             size_t max_chunk_size)
-      : Base(X_arg, shrinkage, n_thread, max_chunk_size), alpha(alpha) {
+      : Base(X_arg, shrinkage, n_threads, max_chunk_size), alpha(alpha) {
     irspack::check_arg_doubly_bounded<Real>(alpha, 0, 1, "alpha");
     for (int i = 0; i < this->N; i++) {
       Real norm = this->X_t.col(i).squaredNorm();
@@ -140,9 +140,9 @@ protected:
 
 public:
   inline TverskyIndexComputer(const CSRMatrix &X_arg, Real shrinkage,
-                              Real alpha, Real beta, size_t n_thread,
+                              Real alpha, Real beta, size_t n_threads,
                               size_t max_chunk_size)
-      : Base(X_arg, shrinkage, n_thread, max_chunk_size), alpha(alpha),
+      : Base(X_arg, shrinkage, n_threads, max_chunk_size), alpha(alpha),
         beta(beta) {
     irspack::check_arg_lower_bounded<Real>(alpha, 0, "alpha");
     irspack::check_arg_lower_bounded<Real>(beta, 0, "beta");
@@ -194,9 +194,9 @@ protected:
   Real alpha;
 
 public:
-  inline P3alphaComputer(const CSRMatrix &X_arg, Real alpha, size_t n_thread,
+  inline P3alphaComputer(const CSRMatrix &X_arg, Real alpha, size_t n_threads,
                          size_t max_chunk_size)
-      : Base(X_arg, 0, n_thread, max_chunk_size), alpha(alpha) {
+      : Base(X_arg, 0, n_threads, max_chunk_size), alpha(alpha) {
     irspack::check_arg_lower_bounded<Real>(alpha, 0, "alpha");
     // We want ItU * UtI
     // and each rows to be normalized & each *columns* to be top-K constrained,
@@ -265,8 +265,8 @@ protected:
 
 public:
   inline RP3betaComputer(const CSRMatrix &X_arg, Real alpha, Real beta,
-                         size_t n_thread, size_t max_chunk_size)
-      : Base(X_arg, 0, n_thread, max_chunk_size), alpha(alpha), beta(beta) {
+                         size_t n_threads, size_t max_chunk_size)
+      : Base(X_arg, 0, n_threads, max_chunk_size), alpha(alpha), beta(beta) {
     irspack::check_arg_lower_bounded<Real>(alpha, 0, "alpha");
     irspack::check_arg_lower_bounded<Real>(beta, 0, "beta");
     // We want ItU * UtI
@@ -278,23 +278,12 @@ public:
     // (cols sum to 1)
 
     // this->X_t
-    DenseVector norm_temp(this->X_t.cols());       // n_users
-    DenseVector popularity_temp(this->X_t.cols()); // n_items
-
-    // compute popularity
-    popularity_temp.array() = 0;
-    for (int i = 0; i < this->X_t.cols(); i++) {
-      for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
-        popularity_temp(iter.col()) += iter.value();
-      }
-    }
-    popularity_temp.array() = popularity_temp.array().pow(beta);
+    DenseVector norm_temp(this->X_t.cols()); // n_users
 
     norm_temp.array() = 0;
     for (int i = 0; i < this->X_t.cols(); i++) {
       for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
-        iter.valueRef() = std::pow(iter.valueRef(), this->alpha) /
-                          popularity_temp(iter.col());
+        iter.valueRef() = std::pow(iter.valueRef(), this->alpha);
         norm_temp(iter.col()) += iter.valueRef();
       }
     }
@@ -325,14 +314,14 @@ public:
 
     for (int i = 0; i < target.rows(); i++) {
       for (typename CSRMatrix::InnerIterator iter(target, i); iter; ++iter) {
-        iter.valueRef() = std::pow(iter.valueRef(), this->alpha) /
-                          popularity_temp(iter.row());
+        iter.valueRef() = std::pow(iter.valueRef(), this->alpha);
         norm_temp(iter.col()) += iter.valueRef();
       }
     }
     for (int i = 0; i < target.rows(); i++) {
       for (typename CSRMatrix::InnerIterator iter(target, i); iter; ++iter) {
-        iter.valueRef() /= norm_temp(iter.col());
+        iter.valueRef() /=
+            (norm_temp(iter.col()) * popularity_temp(iter.row()));
       }
     }
     return this->compute_similarity(target, top_k).transpose();

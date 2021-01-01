@@ -32,7 +32,7 @@ def test_restriction_global(U: int, I: int, R: int) -> None:
         sps.csr_matrix(X_gt),
         offset=0,
         cutoff=I,
-        n_thread=1,
+        n_threads=1,
         recommendable_items=recommendable,
     )
     # empty mask
@@ -64,7 +64,7 @@ def test_restriction_local(U: int, I: int) -> None:
         sps.csr_matrix(X_gt),
         offset=0,
         cutoff=I,
-        n_thread=1,
+        n_threads=1,
         per_user_recommendable_items=recommendables,
     )
     # empty mask
@@ -91,21 +91,21 @@ def test_irregular(U: int, I: int) -> None:
         sps.csr_matrix(X_gt),
         offset=0,
         cutoff=I,
-        n_thread=1,
+        n_threads=1,
         per_user_recommendable_items=[],
     )
     _ = Evaluator(
         sps.csr_matrix(X_gt),
         offset=0,
         cutoff=I,
-        n_thread=1,
+        n_threads=1,
         per_user_recommendable_items=[[0]],
     )
     _ = Evaluator(
         sps.csr_matrix(X_gt),
         offset=0,
         cutoff=I,
-        n_thread=1,
+        n_threads=1,
         per_user_recommendable_items=[[0] for _ in range(X_gt.shape[0])],
     )
 
@@ -114,7 +114,7 @@ def test_irregular(U: int, I: int) -> None:
             sps.csr_matrix(X_gt),
             offset=0,
             cutoff=I,
-            n_thread=1,
+            n_threads=1,
             per_user_recommendable_items=[[0], [0]],
         )
     with pytest.raises(ValueError):
@@ -122,7 +122,7 @@ def test_irregular(U: int, I: int) -> None:
             sps.csr_matrix(X_gt),
             offset=0,
             cutoff=I,
-            n_thread=1,
+            n_threads=1,
             per_user_recommendable_items=[[0, 0]],
         )
     with pytest.raises(ValueError):
@@ -130,7 +130,7 @@ def test_irregular(U: int, I: int) -> None:
             sps.csr_matrix(X_gt),
             offset=0,
             cutoff=I,
-            n_thread=1,
+            n_threads=1,
             per_user_recommendable_items=[
                 [
                     I,

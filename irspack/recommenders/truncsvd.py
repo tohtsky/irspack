@@ -16,8 +16,18 @@ class TruncatedSVDRecommender(
     BaseRecommenderWithItemEmbedding,
 ):
     def __init__(self, X_train_all: InteractionMatrix, n_components: int = 4) -> None:
+        """Use (randomized) SVD to factorize the input matrix into low-rank matrices.
+
+        Args:
+            X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+                Input interaction matrix.
+
+            n_components (int, optional):
+                The rank of approximation. Defaults to 4.
+                If this is larger than X_train_all, the value will be truncated into ``X_train_all.shape[1]``
+        """
         super().__init__(X_train_all)
-        self.n_components = n_components
+        self.n_components = min(n_components, self.X_train_all.shape[1])
         self.decomposer_: Optional[TruncatedSVD] = None
         self.z_: Optional[DenseMatrix] = None
 

@@ -30,9 +30,12 @@ def test_ials_overfit_cg() -> None:
     assert rec.trainer is not None
     uvec = rec.trainer.core_trainer.transform_user(X.tocsr().astype(np.float32))
     ivec = rec.trainer.core_trainer.transform_item(X.tocsr().astype(np.float32))
-    X = X.toarray()
+    X_dense = X.toarray()
     reprod = uvec.dot(ivec.T)
-    np.testing.assert_allclose(reprod, X, rtol=1e-2, atol=1e-2)
+    np.testing.assert_allclose(reprod, X_dense, rtol=1e-2, atol=1e-2)
+
+    X_encoded = rec.get_score_cold_user(X)
+    np.testing.assert_allclose(X_encoded, X_dense, rtol=1e-2, atol=1e-2)
 
 
 @pytest.mark.xfail
@@ -47,10 +50,12 @@ def test_ials_cg_underfit() -> None:
         max_cg_steps=1,
         max_epoch=10,
     )
+    with pytest.raises(RuntimeError):
+        _ = rec.core_trainer.user
     rec.learn()
     assert rec.trainer is not None
-    uvec = rec.trainer.core_trainer.user
-    ivec = rec.trainer.core_trainer.item
-    X = X.toarray()
+    uvec = rec.core_trainer.user
+    ivec = rec.core_trainer.item
+    X_dense = X.toarray()
     reprod = uvec.dot(ivec.T)
-    np.testing.assert_allclose(reprod, X, rtol=1e-2, atol=1e-2)
+    np.testing.assert_allclose(reprod, X_dense, rtol=1e-2, atol=1e-2)

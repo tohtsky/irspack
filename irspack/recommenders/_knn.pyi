@@ -24,7 +24,7 @@ class AsymmetricSimilarityComputer:
         X: scipy.sparse.csr_matrix[float64],
         shrinkage: float,
         alpha: float,
-        n_thread: int = 1,
+        n_threads: int = 1,
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_similarity(
@@ -38,7 +38,7 @@ class CosineSimilarityComputer:
         X: scipy.sparse.csr_matrix[float64],
         shrinkage: float,
         normalize: bool,
-        n_thread: int = 1,
+        n_threads: int = 1,
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_similarity(
@@ -51,7 +51,7 @@ class JaccardSimilarityComputer:
         self,
         X: scipy.sparse.csr_matrix[float64],
         shrinkage: float,
-        n_thread: int = 1,
+        n_threads: int = 1,
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_similarity(
@@ -64,7 +64,7 @@ class P3alphaComputer:
         self,
         X: scipy.sparse.csr_matrix[float64],
         alpha: float = 0,
-        n_thread: int = 1,
+        n_threads: int = 1,
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_W(
@@ -78,7 +78,7 @@ class RP3betaComputer:
         X: scipy.sparse.csr_matrix[float64],
         alpha: float = 0,
         beta: float = 0,
-        n_thread: int = 1,
+        n_threads: int = 1,
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_W(
@@ -93,7 +93,7 @@ class TverskyIndexComputer:
         shrinkage: float,
         alpha: float,
         beta: float,
-        n_thread: int = 1,
+        n_threads: int = 1,
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_similarity(
