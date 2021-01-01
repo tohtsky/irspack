@@ -29,7 +29,7 @@ class BaseKNNRecommender(
         X_train_all: InteractionMatrix,
         shrinkage: float = 0.0,
         top_k: int = 100,
-        n_threads: Optional[int] = 1,
+        n_threads: Optional[int] = None,
         feature_weighting: str = "NONE",
     ):
         super().__init__(X_train_all, n_threads=n_threads)
@@ -72,7 +72,7 @@ class CosineKNNRecommender(BaseKNNRecommender):
         normalize: bool = False,
         top_k: int = 100,
         feature_weighting: str = "NONE",
-        n_threads: Optional[int] = 1,
+        n_threads: Optional[int] = None,
     ) -> None:
         super().__init__(
             X_train_all,
@@ -98,7 +98,7 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
         beta: float = 0.5,
         top_k: int = 100,
         feature_weighting: str = "NONE",
-        n_threads: Optional[int] = 1,
+        n_threads: Optional[int] = None,
     ) -> None:
         super().__init__(
             X_train_all,
@@ -129,7 +129,7 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         alpha: float = 0.5,
         top_k: int = 100,
         feature_weighting: str = "NONE",
-        n_threads: Optional[int] = 1,
+        n_threads: Optional[int] = None,
     ):
         super().__init__(
             X_train_all,

@@ -32,7 +32,8 @@ class P3alphaRecommender(
         normalize_weight (bool, optional): Whether to perform row-wise normalization of ``W``.
             Defaults to False.
         n_threads (Optional[int], optional): The number of threads to be used for computation.
-            Defaults to 1.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an env var, this will be set to 1. Defaults to None.
     """
 
     def __init__(
@@ -41,7 +42,7 @@ class P3alphaRecommender(
         alpha: float = 1,
         top_k: Optional[int] = None,
         normalize_weight: bool = False,
-        n_threads: Optional[int] = 1,
+        n_threads: Optional[int] = None,
     ):
         """"""
         super().__init__(X_train_all, n_threads=n_threads)

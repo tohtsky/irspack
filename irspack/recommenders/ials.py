@@ -122,7 +122,7 @@ class IALSRecommender(
         max_cg_steps: int = 3,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
-        n_threads: Optional[int] = 1,
+        n_threads: Optional[int] = None,
         max_epoch: int = 300,
     ) -> None:
 

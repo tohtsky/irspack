@@ -61,7 +61,7 @@ class BPRFMRecommender(
         user_alpha: float = 1e-9,
         loss: str = "bpr",
         max_epoch: int = 512,
-        n_threads: Optional[int] = 1,
+        n_threads: Optional[int] = None,
         validate_epoch: int = 5,
         score_degradation_max: int = 3,
     ):

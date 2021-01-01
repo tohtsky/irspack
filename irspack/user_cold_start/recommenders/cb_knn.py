@@ -4,9 +4,8 @@ import numpy as np
 from scipy import sparse as sps
 
 from irspack.definitions import DenseScoreArray
-from irspack.parameter_tuning import IntegerSuggestion, LogUniformSuggestion
 from irspack.recommenders._knn import CosineSimilarityComputer
-from irspack.utils._util_cpp import sparse_mm_threaded
+from irspack.utils import get_n_threads, sparse_mm_threaded
 
 from .base import BaseUserColdStartRecommender, InteractionMatrix, ProfileMatrix
 
@@ -17,15 +16,13 @@ class UserCBCosineKNNRecommender(BaseUserColdStartRecommender):
         X_interaction: InteractionMatrix,
         X_profile: ProfileMatrix,
         top_k: int = 100,
-        n_threads: Optional[int] = 1,
+        n_threads: Optional[int] = None,
         shrink: float = 1e-1,
     ):
-        if n_threads is None:
-            n_threads = 1
-        assert n_threads >= 1
+
         self.top_k = top_k
         self.shrink = shrink
-        self.n_threads = n_threads
+        self.n_threads = get_n_threads(n_threads)
         super().__init__(X_interaction, X_profile)
         self.X_interaction_csc = X_interaction.astype(np.float64).tocsc()
         self.sim_computer: Optional[CosineSimilarityComputer] = None

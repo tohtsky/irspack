@@ -183,7 +183,7 @@ class EvaluatorWithColdUser(Evaluator):
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
         per_item_recommendable_items: Optional[List[List[int]]] = None,
-        n_threads: int = 1,
+        n_threads: Optional[int] = None,
         mb_size: int = 1024,
     ):
 

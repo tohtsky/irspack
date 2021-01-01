@@ -1,9 +1,10 @@
 from collections import OrderedDict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
 from irspack.user_cold_start.recommenders import base
+from irspack.utils import get_n_threads
 
 from ..evaluator import METRIC_NAMES, EvaluatorCore, Metrics
 from ..recommenders.base import InteractionMatrix
@@ -15,7 +16,7 @@ class UserColdStartEvaluator:
         X: InteractionMatrix,
         profiles: base.ProfileMatrix,
         mb_size: int = 1024,
-        n_threads: int = 1,
+        n_threads: Optional[int] = None,
         cutoff: int = 20,
     ):
         assert X.shape[0] == profiles.shape[0]
@@ -26,7 +27,7 @@ class UserColdStartEvaluator:
         self.n_items = X.shape[1]
         self.dim_profile = profiles.shape[1]
         self.mb_size = mb_size
-        self.n_threads = n_threads
+        self.n_threads = get_n_threads(n_threads)
         self.cutoff = cutoff
 
     def get_score(self, model: base.BaseUserColdStartRecommender) -> Dict[str, Any]:
