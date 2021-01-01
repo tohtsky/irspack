@@ -115,7 +115,7 @@ def test_p3(X: sps.csr_matrix, alpha: float) -> None:
 
 
 @pytest.mark.parametrize(
-    "X, alpha, beta", [(X_small, 0.001, 10), (X_many_dense, 2, 10), (X_many, 1, 2)]
+    "X, alpha, beta", [(X_small, 0.001, 3), (X_many_dense, 2, 5), (X_many, 1, 0.2)]
 )
 def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
     rec = RP3betaRecommender(X, alpha=alpha, beta=beta, n_thread=4)
@@ -123,7 +123,6 @@ def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
     W = rec.W.toarray()
     W_sum = W.sum(axis=1)
     W_sum = W_sum[W_sum >= 0]
-    np.testing.assert_allclose(W_sum, 1.0)
 
     popularity = X.sum(axis=0).A1.ravel() ** beta
 
@@ -132,12 +131,19 @@ def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
         X[X == 0] = 1
         return X
 
-    P_ui = np.power(X.toarray(), alpha) / zero_or_1(popularity)[None, :]
-    P_iu = np.power(X.T.toarray(), alpha) / zero_or_1(popularity)[:, None]
+    P_ui = np.power(X.toarray(), alpha)
+    P_iu = np.power(X.T.toarray(), alpha)
 
     P_ui /= zero_or_1(P_ui.sum(axis=1))[:, None]
     P_iu /= zero_or_1(P_iu.sum(axis=1))[:, None]
     W_man = P_iu.dot(P_ui)
+
+    # p_{ui} ^{RP3} = p_{ui} ^{P3} / popularity_i ^ beta
+    from sklearn.preprocessing import normalize
+
+    W_man = W_man / zero_or_1(popularity)[None, :]
+    # W_man = normalize(W_man, axis=1, norm="l1")
+    # print(W_man.sum(axis=1))
     np.testing.assert_allclose(W, W_man)
 
 

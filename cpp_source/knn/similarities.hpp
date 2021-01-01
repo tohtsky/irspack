@@ -278,23 +278,12 @@ public:
     // (cols sum to 1)
 
     // this->X_t
-    DenseVector norm_temp(this->X_t.cols());       // n_users
-    DenseVector popularity_temp(this->X_t.cols()); // n_items
-
-    // compute popularity
-    popularity_temp.array() = 0;
-    for (int i = 0; i < this->X_t.cols(); i++) {
-      for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
-        popularity_temp(iter.col()) += iter.value();
-      }
-    }
-    popularity_temp.array() = popularity_temp.array().pow(beta);
+    DenseVector norm_temp(this->X_t.cols()); // n_users
 
     norm_temp.array() = 0;
     for (int i = 0; i < this->X_t.cols(); i++) {
       for (typename CSCMatrix::InnerIterator iter(this->X_t, i); iter; ++iter) {
-        iter.valueRef() = std::pow(iter.valueRef(), this->alpha) /
-                          popularity_temp(iter.col());
+        iter.valueRef() = std::pow(iter.valueRef(), this->alpha);
         norm_temp(iter.col()) += iter.valueRef();
       }
     }
@@ -325,14 +314,14 @@ public:
 
     for (int i = 0; i < target.rows(); i++) {
       for (typename CSRMatrix::InnerIterator iter(target, i); iter; ++iter) {
-        iter.valueRef() = std::pow(iter.valueRef(), this->alpha) /
-                          popularity_temp(iter.row());
+        iter.valueRef() = std::pow(iter.valueRef(), this->alpha);
         norm_temp(iter.col()) += iter.valueRef();
       }
     }
     for (int i = 0; i < target.rows(); i++) {
       for (typename CSRMatrix::InnerIterator iter(target, i); iter; ++iter) {
-        iter.valueRef() /= norm_temp(iter.col());
+        iter.valueRef() /=
+            (norm_temp(iter.col()) * popularity_temp(iter.row()));
       }
     }
     return this->compute_similarity(target, top_k).transpose();
