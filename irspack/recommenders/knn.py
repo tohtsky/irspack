@@ -230,16 +230,31 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
         alpha: float = 0.5,
         beta: float = 0.5,
         top_k: int = 100,
-        feature_weighting: str = "NONE",
         n_threads: Optional[int] = None,
     ) -> None:
-        super().__init__(
-            X_train_all,
-            shrinkage,
-            top_k,
-            n_threads,
-            feature_weighting=feature_weighting,
-        )
+        """K-nearest neighbor recommender system based on Tversky Index, i.e.
+
+        .. math::
+
+            \mathrm{similarity}_{i,j} = \\frac{ |U_i \cap U_j |}{ |U_i \cap U_j | + \\alpha |U_i \setminus U_j| + \\beta |U_j \setminus U_i| + \mathrm{shrinkage}}
+
+        Args:
+            X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+                Input interaction matrix.
+            shrinkage (float, optional):
+                The shrinkage parameter for regularization. Defaults to 0.0.
+            alpha (float, optional):
+                :math:`alpha` parameter. Defaults to 0.5.
+            beta (float, optional):
+                :math:`beta` parameter. Defaults to 0.5.
+            top_k (int, optional):
+                Specifies the maximal number of allowed neighbors. Defaults to 100.
+            n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+                If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+                and if there is no such an environment variable, it will be set to 1. Defaults to None.
+
+        """
+        super().__init__(X_train_all, shrinkage, top_k, n_threads)
         self.alpha = alpha
         self.beta = beta
 

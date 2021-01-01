@@ -34,6 +34,7 @@ Recommenders
     CosineKNNRecommender
     AsymmetricCosineKNNRecommender
     JaccardKNNRecommender
+    TverskyIndexKNNRecommender
 
 .. currentmodule:: irspack.optimizers
 
@@ -53,3 +54,4 @@ Optimizers
     CosineKNNOptimizer
     AsymmetricCosineKNNOptimizer
     JaccardKNNOptimizer
+    TverskyIndexKNNOptimizer
