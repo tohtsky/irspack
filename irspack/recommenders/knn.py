@@ -88,7 +88,7 @@ class CosineKNNRecommender(BaseKNNRecommender):
             \end{cases}
 
         Args:
-            X_train_all (InteractionMatrix):
+            X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
                 Input interaction matrix.
             shrinkage (float, optional):
                 The shrinkage parameter for regularization. Defaults to 0.0.
@@ -148,7 +148,7 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
             \mathrm{similarity}_{i,j} = \\frac{\sum_{u} X_{ui} X_{uj}}{||X_{*i}||^{2\\alpha}_2 ||X_{*j}||^{2(1-\\alpha)}_2 + \mathrm{shrinkage}}
 
         Args:
-            X_train_all (InteractionMatrix):
+            X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
                 Input interaction matrix.
             shrinkage (float, optional):
                 The shrinkage parameter for regularization. Defaults to 0.0.
@@ -189,6 +189,39 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         )
 
 
+class JaccardKNNRecommender(BaseKNNRecommender):
+    """K-nearest neighbor recommender system based on Jaccard similarity, i.e.
+
+    .. math::
+
+        \mathrm{similarity}_{i,j} = \\frac{ |U_i \cap U_j |}{ |U_i \cup U_j| + \mathrm{shrinkage}}
+
+    Args:
+        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            Input interaction matrix.
+        shrinkage (float, optional):
+            The shrinkage parameter for regularization. Defaults to 0.0.
+        top_k (int, optional):
+            Specifies the maximal number of allowed neighbors. Defaults to 100.
+        n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+
+    """
+
+    def __init__(
+        self,
+        X_train_all: InteractionMatrix,
+        shrinkage: float = 0.0,
+        top_k: int = 100,
+        n_threads: Optional[int] = None,
+    ) -> None:
+        super().__init__(X_train_all, shrinkage, top_k, n_threads)
+
+    def _create_computer(self, X: InteractionMatrix) -> JaccardSimilarityComputer:
+        return JaccardSimilarityComputer(X, self.shrinkage, self.n_threads)
+
+
 class TverskyIndexKNNRecommender(BaseKNNRecommender):
     def __init__(
         self,
@@ -214,8 +247,3 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
         return TverskyIndexComputer(
             X, self.shrinkage, self.alpha, self.beta, self.n_threads
         )
-
-
-class JaccardKNNRecommender(BaseKNNRecommender):
-    def _create_computer(self, X: InteractionMatrix) -> JaccardSimilarityComputer:
-        return JaccardSimilarityComputer(X, self.shrinkage, self.n_threads)
