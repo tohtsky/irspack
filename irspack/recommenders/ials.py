@@ -163,12 +163,10 @@ class IALSRecommender(
         return self.trainer.core_trainer
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        return self.core_trainer.user[user_indices].dot(self.core_trainer.item.T)
+        return self.core_trainer.user[user_indices].dot(self.get_item_embedding().T)
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_block' called before training")
-        return self.trainer.core_trainer.user_scores(begin, end)
+        return self.core_trainer.user_scores(begin, end)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         user_vector = self.compute_user_embedding(X)
@@ -180,13 +178,16 @@ class IALSRecommender(
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return user_embedding.dot(self.core_trainer.item.T).astype(np.float64)
+        return user_embedding.dot(self.get_item_embedding().T).astype(np.float64)
 
     def get_item_embedding(self) -> DenseMatrix:
         return self.core_trainer.item.astype(np.float64)
 
     def compute_user_embedding(self, X: InteractionMatrix) -> DenseMatrix:
         return self.core_trainer.transform_user(X.astype(np.float32).tocsr())
+
+    def compute_item_embedding(self, X: InteractionMatrix) -> DenseMatrix:
+        return self.core_trainer.transform_item(X.astype(np.float32).tocsr())
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
