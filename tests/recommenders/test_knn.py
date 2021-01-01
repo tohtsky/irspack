@@ -63,11 +63,12 @@ def test_jaccard(X: sps.csr_matrix) -> None:
 
 
 @pytest.mark.parametrize(
-    "X, alpha", [(X_many, 0.5), (X_small, 0.7), (X_many_dense, (0.01))]
+    "X, alpha, shrinkage",
+    [(X_many, 0.5, 0.0), (X_small, 0.7, 1.0), (X_many_dense, 0.01, 3)],
 )
-def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float) -> None:
+def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float, shrinkage: float) -> None:
     rec = AsymmetricCosineKNNRecommender(
-        X, shrinkage=0, alpha=alpha, n_threads=1, top_k=X.shape[1]
+        X, shrinkage=shrinkage, alpha=alpha, n_threads=1, top_k=X.shape[1]
     )
     rec.learn()
     sim = rec.W.toarray()
@@ -77,7 +78,7 @@ def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float) -> None:
     norm_alpha = np.power(norm, alpha)
     norm_1malpha = np.power(norm, 1 - alpha)
     manual_sim = manual.dot(manual.T)
-    denom = norm_alpha[:, None] * norm_1malpha[None, :] + 1e-6
+    denom = norm_alpha[:, None] * norm_1malpha[None, :] + 1e-6 + shrinkage
     manual_sim /= denom
     np.fill_diagonal(manual_sim, 0)
     np.testing.assert_allclose(

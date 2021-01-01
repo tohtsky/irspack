@@ -2,8 +2,6 @@ import enum
 from abc import abstractmethod
 from typing import Optional, Union
 
-import numpy as np
-
 from ..definitions import InteractionMatrix
 from ..utils import okapi_BM_25_weight, remove_diagonal, tf_idf_weight
 from ._knn import (
@@ -31,11 +29,15 @@ class BaseKNNRecommender(
         top_k: int = 100,
         n_threads: Optional[int] = None,
         feature_weighting: str = "NONE",
+        bm25_k1: float = 1.2,
+        bm25_b: float = 0.75,
     ):
         super().__init__(X_train_all, n_threads=n_threads)
         self.shrinkage = shrinkage
         self.top_k = top_k
         self.feature_weighting = FeatureWeightingScheme(feature_weighting)
+        self.bm25_k1 = bm25_k1
+        self.bm25_b = bm25_b
 
     @abstractmethod
     def _create_computer(
@@ -54,7 +56,7 @@ class BaseKNNRecommender(
         elif self.feature_weighting == FeatureWeightingScheme.TF_IDF:
             X_weighted = tf_idf_weight(self.X_train_all)
         elif self.feature_weighting == FeatureWeightingScheme.BM_25:
-            X_weighted = okapi_BM_25_weight(self.X_train_all)
+            X_weighted = okapi_BM_25_weight(self.X_train_all, self.bm25_k1, self.bm25_b)
         else:
             raise RuntimeError("Unknown weighting scheme.")
 
@@ -72,20 +74,118 @@ class CosineKNNRecommender(BaseKNNRecommender):
         normalize: bool = False,
         top_k: int = 100,
         feature_weighting: str = "NONE",
+        bm25_k1: float = 1.2,
+        bm25_b: float = 0.75,
         n_threads: Optional[int] = None,
     ) -> None:
+        """K-nearest neighbor recommender system based on cosine similarity, i.e.
+
+        .. math::
+
+            \mathrm{similarity}_{i,j} = \\begin{cases}
+                \\frac{\sum_{u} X_{ui} X_{uj}}{||X_{*i}||_2 ||X_{*j}||_2 + \mathrm{shrinkage}} & (\\text{if normalize = True}) \\\\
+                \sum_{u} X_{ui} X_{uj} & (\\text{if normalize = False})
+            \end{cases}
+
+        Args:
+            X_train_all (InteractionMatrix):
+                Input interaction matrix.
+            shrinkage (float, optional):
+                The shrinkage parameter for regularization. Defaults to 0.0.
+            normalize (bool, optional):
+                Whether to normalize the similarity. Defaults to False.
+            top_k (int, optional):
+                Specifies the maximal number of allowed neighbors. Defaults to 100.
+            feature_weighting (str, optional):
+                Specifies how to weight the feature. Must be one of:
+
+                    - "NONE" : no feature weighting
+                    - "TF_IDF" : TF-IDF weighting
+                    - "BM_25" : `Okapi BM-25 weighting <https://en.wikipedia.org/wiki/Okapi_BM25>`_
+
+                Defaults to "NONE".
+            bm25_k1 (float, optional):
+                The k1 parameter for BM25. Ignored if ``feature_weighting`` is not "BM_25". Defaults to 1.2.
+            bm25_b (float, optional):
+                The b parameter for BM25. Ignored if ``feature_weighting`` is not "BM_25". Defaults to 0.75.
+            n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+                If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+                and if there is no such an environment variable, it will be set to 1. Defaults to None.
+        """
         super().__init__(
             X_train_all,
             shrinkage,
             top_k,
             n_threads,
             feature_weighting=feature_weighting,
+            bm25_k1=bm25_k1,
+            bm25_b=bm25_b,
         )
         self.normalize = normalize
 
     def _create_computer(self, X: InteractionMatrix) -> CosineSimilarityComputer:
         return CosineSimilarityComputer(
             X, self.shrinkage, self.normalize, self.n_threads
+        )
+
+
+class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
+    def __init__(
+        self,
+        X_train_all: InteractionMatrix,
+        shrinkage: float = 0.0,
+        alpha: float = 0.5,
+        top_k: int = 100,
+        feature_weighting: str = "NONE",
+        bm25_k1: float = 1.2,
+        bm25_b: float = 0.75,
+        n_threads: Optional[int] = None,
+    ):
+        """K-nearest neighbor recommender system based on asymmetric cosine similarity, i.e.
+
+        .. math::
+
+            \mathrm{similarity}_{i,j} = \\frac{\sum_{u} X_{ui} X_{uj}}{||X_{*i}||^{2\\alpha}_2 ||X_{*j}||^{2(1-\\alpha)}_2 + \mathrm{shrinkage}}
+
+        Args:
+            X_train_all (InteractionMatrix):
+                Input interaction matrix.
+            shrinkage (float, optional):
+                The shrinkage parameter for regularization. Defaults to 0.0.
+            alpha (bool, optional):
+                Specifies :math:`\\alpha`. Defaults to 0.5.
+            top_k (int, optional):
+                Specifies the maximal number of allowed neighbors. Defaults to 100.
+            feature_weighting (str, optional):
+                Specifies how to weight the feature. Must be one of:
+
+                    - "NONE" : no feature weighting
+                    - "TF_IDF" : TF-IDF weighting
+                    - "BM_25" : `Okapi BM-25 weighting <https://en.wikipedia.org/wiki/Okapi_BM25>`_
+
+                Defaults to "NONE".
+            bm25_k1 (float, optional):
+                The k1 parameter for BM25. Ignored if ``feature_weighting`` is not "BM_25". Defaults to 1.2.
+            bm25_b (float, optional):
+                The b parameter for BM25. Ignored if ``feature_weighting`` is not "BM_25". Defaults to 0.75.
+            n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+                If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+                and if there is no such an environment variable, it will be set to 1. Defaults to None.
+        """
+        super().__init__(
+            X_train_all,
+            shrinkage,
+            top_k,
+            n_threads,
+            feature_weighting=feature_weighting,
+            bm25_k1=bm25_k1,
+            bm25_b=bm25_b,
+        )
+        self.alpha = alpha
+
+    def _create_computer(self, X: InteractionMatrix) -> AsymmetricSimilarityComputer:
+        return AsymmetricSimilarityComputer(
+            X, self.shrinkage, self.alpha, self.n_threads
         )
 
 
@@ -119,28 +219,3 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
 class JaccardKNNRecommender(BaseKNNRecommender):
     def _create_computer(self, X: InteractionMatrix) -> JaccardSimilarityComputer:
         return JaccardSimilarityComputer(X, self.shrinkage, self.n_threads)
-
-
-class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
-    def __init__(
-        self,
-        X_train_all: InteractionMatrix,
-        shrinkage: float = 0.0,
-        alpha: float = 0.5,
-        top_k: int = 100,
-        feature_weighting: str = "NONE",
-        n_threads: Optional[int] = None,
-    ):
-        super().__init__(
-            X_train_all,
-            shrinkage,
-            top_k,
-            n_threads,
-            feature_weighting=feature_weighting,
-        )
-        self.alpha = alpha
-
-    def _create_computer(self, X: InteractionMatrix) -> AsymmetricSimilarityComputer:
-        return AsymmetricSimilarityComputer(
-            X, self.shrinkage, self.alpha, self.n_threads
-        )

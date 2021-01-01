@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
+    "sphinx.ext.mathjax",
     "sphinx_rtd_theme",
 ]
 
