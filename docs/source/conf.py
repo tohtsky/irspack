@@ -54,7 +54,7 @@ napoleon_include_special_with_doc = False
 
 
 autosummary_generate = True
-
+autoclass_content = "class"
 autodoc_typehints = "description"
 autodoc_type_aliases = {
     "InteractionMatrix": "Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]",

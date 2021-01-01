@@ -16,6 +16,12 @@ __all__ = [
 
 class Suggestion(object, metaclass=ABCMeta):
     def __init__(self, name: str):
+        """The base class to controll optuna's ``Trial`` behavior during
+            hyper parameter optimization.
+
+        Args:
+            name (str): The name of the parameter to be tuned.
+        """
         self.name = name
 
     @abstractmethod

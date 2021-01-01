@@ -1,11 +1,7 @@
 import warnings
-from typing import List
+from typing import List, Type
 
-from ..optimizers.base_optimizer import (
-    BaseOptimizer,
-    BaseOptimizerWithEarlyStopping,
-    BaseOptimizerWithThreadingSupport,
-)
+from ..optimizers.base_optimizer import BaseOptimizer, BaseOptimizerWithEarlyStopping
 from ..parameter_tuning import (
     CategoricalSuggestion,
     IntegerSuggestion,
@@ -41,16 +37,60 @@ class TopPopOptimizer(BaseOptimizer):
     recommender_class = TopPopRecommender
 
 
-class P3alphaOptimizer(BaseOptimizerWithThreadingSupport):
-    default_tune_range = [
-        LogUniformSuggestion("alpha", low=1e-10, high=2),
-        IntegerSuggestion("top_k", low=10, high=1000),
-        CategoricalSuggestion("normalize_weight", [True, False]),
-    ]
-    recommender_class = P3alphaRecommender
+def _add_docstring(cls: Type[BaseOptimizer]) -> None:
+
+    if cls.default_tune_range:
+
+        ranges = ""
+        for suggest in cls.default_tune_range:
+            ranges += f"          - {suggest!r}\n"
+
+        ranges += "\n"
+        tune_range = f"""The default tune range is
+
+{ranges}"""
+    else:
+        tune_range = "   There is no tunable parameters."
+    docs = f"""Optimizer class for {cls.recommender_class.__name__}.
+
+{tune_range}
+
+    Args:
+        data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The train data.
+        val_evaluator (Evaluator):
+            The validation evaluator which measures the performance of the recommenders.
+        metric (str, optional) :
+            Target metric. Defaults to "ndcg".
+        logger (Optional[logging.Logger], optional) :
+            The logger used during the optimization steps. Defaults to None.
+            If ``None``, the default logger of irspack will be used.
+        suggest_overwrite (List[Suggestion], optional) :
+            Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
+            the default parameter search space defined by ``default_tune_range``
+            Defaults to list().
+        fixed_params (Dict[str, Any], optional):
+            Fixed parameters passed to recommenders during the optimization procedure.
+            If such a parameter exists in ``default_tune_range``, it will not be tuned.
+            Defaults to dict().
+    """
+    cls.__doc__ = docs
 
 
-class IALSOptimizer(BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport):
+_add_docstring(TopPopOptimizer)
+
+
+class IALSOptimizer(BaseOptimizerWithEarlyStopping):
+    """Optimizer class for IALSRecommender.
+
+    The default search space is
+
+        - ``IntegerSuggestion("n_components", 4, 200)``
+        - ``LogUniformSuggestion("alpha", 1, 50)``
+        - ``LogUniformSuggestion("reg", 1e-10, 1e-2)``
+
+    """
+
     default_tune_range = [
         IntegerSuggestion("n_components", 4, 200),
         LogUniformSuggestion("alpha", 1, 50),
@@ -59,9 +99,24 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSu
     recommender_class = IALSRecommender
 
 
+class P3alphaOptimizer(BaseOptimizer):
+    default_tune_range = [
+        LogUniformSuggestion("alpha", low=1e-10, high=2),
+        IntegerSuggestion("top_k", low=10, high=1000),
+        CategoricalSuggestion("normalize_weight", [True, False]),
+    ]
+    recommender_class = P3alphaRecommender
+
+
+_add_docstring(P3alphaOptimizer)
+
+
 class DenseSLIMOptimizer(BaseOptimizer):
     default_tune_range = [LogUniformSuggestion("reg", 1, 1e4)]
     recommender_class = DenseSLIMRecommender
+
+
+_add_docstring(DenseSLIMOptimizer)
 
 
 class RP3betaOptimizer(BaseOptimizer):
@@ -74,9 +129,15 @@ class RP3betaOptimizer(BaseOptimizer):
     recommender_class = RP3betaRecommender
 
 
+_add_docstring(RP3betaOptimizer)
+
+
 class TruncatedSVDOptimizer(BaseOptimizer):
     default_tune_range = [IntegerSuggestion("n_components", 4, 512)]
     recommender_class = TruncatedSVDRecommender
+
+
+_add_docstring(TruncatedSVDOptimizer)
 
 
 class RandomWalkWithRestartOptimizer(BaseOptimizer):
@@ -90,11 +151,16 @@ class RandomWalkWithRestartOptimizer(BaseOptimizer):
 
 
 class SLIMOptimizer(BaseOptimizer):
+    """Optimizer class for SLIMRecommender."""
+
     default_tune_range = [
         UniformSuggestion("alpha", 0, 1),
         LogUniformSuggestion("l1_ratio", 1e-6, 1),
     ]
     recommender_class = SLIMRecommender
+
+
+_add_docstring(SLIMOptimizer)
 
 
 class NMFOptimizer(BaseOptimizer):
@@ -107,7 +173,10 @@ class NMFOptimizer(BaseOptimizer):
     recommender_class = NMFRecommender
 
 
-class CosineKNNOptimizer(BaseOptimizerWithThreadingSupport):
+_add_docstring(NMFOptimizer)
+
+
+class CosineKNNOptimizer(BaseOptimizer):
     default_tune_range = default_tune_range_knn.copy() + [
         CategoricalSuggestion("normalize", [False, True])
     ]
@@ -115,13 +184,19 @@ class CosineKNNOptimizer(BaseOptimizerWithThreadingSupport):
     recommender_class = CosineKNNRecommender
 
 
-class JaccardKNNOptimizer(BaseOptimizerWithThreadingSupport):
+_add_docstring(CosineKNNOptimizer)
+
+
+class JaccardKNNOptimizer(BaseOptimizer):
 
     default_tune_range = default_tune_range_knn.copy()
     recommender_class = JaccardKNNRecommender
 
 
-class TverskyIndexKNNOptimizer(BaseOptimizerWithThreadingSupport):
+_add_docstring(JaccardKNNOptimizer)
+
+
+class TverskyIndexKNNOptimizer(BaseOptimizer):
     default_tune_range = default_tune_range_knn.copy() + [
         UniformSuggestion("alpha", 0, 2),
         UniformSuggestion("beta", 0, 2),
@@ -130,18 +205,21 @@ class TverskyIndexKNNOptimizer(BaseOptimizerWithThreadingSupport):
     recommender_class = TverskyIndexKNNRecommender
 
 
-class AsymmetricCosineKNNOptimizer(BaseOptimizerWithThreadingSupport):
+_add_docstring(TverskyIndexKNNOptimizer)
+
+
+class AsymmetricCosineKNNOptimizer(BaseOptimizer):
     default_tune_range = default_tune_range_knn + [UniformSuggestion("alpha", 0, 1)]
 
     recommender_class = AsymmetricCosineKNNRecommender
 
 
+_add_docstring(AsymmetricCosineKNNOptimizer)
+
 try:
     from ..recommenders.bpr import BPRFMRecommender
 
-    class BPRFMOptimizer(
-        BaseOptimizerWithEarlyStopping, BaseOptimizerWithThreadingSupport
-    ):
+    class BPRFMOptimizer(BaseOptimizerWithEarlyStopping):
         default_tune_range = [
             IntegerSuggestion("n_components", 4, 256),
             LogUniformSuggestion("item_alpha", 1e-9, 1e-2),

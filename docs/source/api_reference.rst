@@ -30,3 +30,22 @@ Recommenders
     DenseSLIMRecommender
     P3alphaRecommender
     RP3betaRecommender
+
+.. currentmodule:: irspack.optimizers
+
+Optimizers
+-----------
+.. autosummary::
+    :toctree: api_reference
+    :nosignatures:
+
+    BaseOptimizer
+    TopPopOptimizer
+    IALSOptimizer
+    DenseSLIMOptimizer
+    P3alphaOptimizer
+    RP3betaOptimizer
+    TruncatedSVDOptimizer
+    CosineKNNOptimizer
+    AsymmetricCosineKNNOptimizer
+    JaccardKNNOptimizer
