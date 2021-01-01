@@ -25,15 +25,15 @@ using CSCMatrix = Eigen::SparseMatrix<Real, Eigen::ColMajor>;
 template <typename Real>
 inline CSRMatrix<Real> parallel_sparse_product(const CSRMatrix<Real> &left,
                                                const CSCMatrix<Real> &right,
-                                               const size_t n_thread) {
+                                               const size_t n_threads) {
   CSRMatrix<Real> result(left.rows(), right.cols());
-  check_arg(n_thread > 0, "n_thraed must be > 0");
+  check_arg(n_threads > 0, "n_thraed must be > 0");
   const int n_row = left.rows();
-  const int rows_per_block = n_row / n_thread;
-  const int remnant = n_row % n_thread;
+  const int rows_per_block = n_row / n_threads;
+  const int remnant = n_row % n_threads;
   int start = 0;
   std::vector<std::future<CSRMatrix<Real>>> workers;
-  for (int i = 0; i < static_cast<int>(n_thread); i++) {
+  for (int i = 0; i < static_cast<int>(n_threads); i++) {
     int block_size = rows_per_block;
     if (i < remnant) {
       ++block_size;
@@ -46,7 +46,7 @@ inline CSRMatrix<Real> parallel_sparse_product(const CSRMatrix<Real> &left,
     start += block_size;
   }
   start = 0;
-  for (int i = 0; i < static_cast<int>(n_thread); i++) {
+  for (int i = 0; i < static_cast<int>(n_threads); i++) {
     int block_size = rows_per_block;
     if (i < remnant) {
       ++block_size;

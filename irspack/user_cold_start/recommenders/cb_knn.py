@@ -17,22 +17,22 @@ class UserCBCosineKNNRecommender(BaseUserColdStartRecommender):
         X_interaction: InteractionMatrix,
         X_profile: ProfileMatrix,
         top_k: int = 100,
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = 1,
         shrink: float = 1e-1,
     ):
-        if n_thread is None:
-            n_thread = 1
-        assert n_thread >= 1
+        if n_threads is None:
+            n_threads = 1
+        assert n_threads >= 1
         self.top_k = top_k
         self.shrink = shrink
-        self.n_thread = n_thread
+        self.n_threads = n_threads
         super().__init__(X_interaction, X_profile)
         self.X_interaction_csc = X_interaction.astype(np.float64).tocsc()
         self.sim_computer: Optional[CosineSimilarityComputer] = None
 
     def _learn(self) -> None:
         self.sim_computer = CosineSimilarityComputer(
-            self.X_profile, self.shrink, normalize=True, n_thread=self.n_thread
+            self.X_profile, self.shrink, normalize=True, n_threads=self.n_threads
         )
 
     def get_score(self, profile: ProfileMatrix) -> DenseScoreArray:
@@ -41,5 +41,5 @@ class UserCBCosineKNNRecommender(BaseUserColdStartRecommender):
         if not sps.issparse(profile):
             profile = sps.csr_matrix(profile)
         similarity = self.sim_computer.compute_similarity(profile, self.top_k)
-        score = sparse_mm_threaded(similarity, self.X_interaction_csc, self.n_thread)
+        score = sparse_mm_threaded(similarity, self.X_interaction_csc, self.n_threads)
         return score.astype(np.float64).toarray()

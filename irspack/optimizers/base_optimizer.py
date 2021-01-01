@@ -253,7 +253,7 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
         logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
         fixed_params: Dict[str, Any] = dict(),
-        n_thread: Optional[int] = None,
+        n_threads: Optional[int] = None,
         **kwargs: Any,
     ):
         super().__init__(
@@ -264,9 +264,9 @@ class BaseOptimizerWithThreadingSupport(BaseOptimizer):
             suggest_overwrite=suggest_overwrite,
             fixed_params=fixed_params,
         )
-        self.n_thread = n_thread
+        self.n_threads = n_threads
 
     def get_model_arguments(
         self, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super().get_model_arguments(*args, n_thread=self.n_thread, **kwargs)
+        return super().get_model_arguments(*args, n_threads=self.n_threads, **kwargs)

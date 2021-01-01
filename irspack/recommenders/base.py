@@ -1,10 +1,11 @@
 from abc import ABCMeta, abstractmethod
-from os import environ
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import numpy as np
 from optuna.trial import Trial
 from scipy import sparse as sps
+
+from irspack.utils import get_n_threads
 
 if TYPE_CHECKING:
     from .. import evaluator
@@ -158,19 +159,11 @@ class BaseRecommender(object, metaclass=ABCMeta):
 
 class BaseRecommenderWithThreadingSupport(BaseRecommender):
     def __init__(
-        self, X_train_all: InteractionMatrix, n_thread: Optional[int], **kwargs: Any
+        self, X_train_all: InteractionMatrix, n_threads: Optional[int], **kwargs: Any
     ):
 
         super(BaseRecommenderWithThreadingSupport, self).__init__(X_train_all, **kwargs)
-        if n_thread is not None:
-            self.n_thread = n_thread
-        else:
-            try:
-                self.n_thread = int(environ.get("IRSPACK_NUM_THREADS_DEFAULT", "1"))
-            except:
-                raise ValueError(
-                    'failed to interpret "IRSPACK_NUM_THREADS_DEFAULT" as an integer.'
-                )
+        self.n_threads = get_n_threads(n_threads)
 
 
 class BaseSimilarityRecommender(BaseRecommender):

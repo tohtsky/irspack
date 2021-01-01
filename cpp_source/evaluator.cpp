@@ -117,20 +117,20 @@ struct EvaluatorCore {
   }
 
   inline Metrics get_metrics(const Eigen::Ref<DenseMatrix> &scores,
-                             size_t cutoff, size_t offset, size_t n_thread,
+                             size_t cutoff, size_t offset, size_t n_threads,
                              bool recall_with_cutoff = false) {
     Metrics overall(n_items);
-    check_arg(n_thread > 0, "n_threads == 0");
+    check_arg(n_threads > 0, "n_threads == 0");
     check_arg(n_users > offset, "got offset >= n_users");
     check_arg(cutoff > 0, "cutoff must be strictly greather than 0.");
     check_arg(cutoff <= n_items, "cutoff must not exeeed the number of items.");
 
-    std::vector<std::vector<int>> uinds(n_thread);
+    std::vector<std::vector<int>> uinds(n_threads);
     for (int u = 0; u < scores.rows(); u++) {
-      uinds[u % n_thread].push_back(u);
+      uinds[u % n_threads].push_back(u);
     }
     std::vector<std::future<Metrics>> workers;
-    for (size_t th = 0; th < n_thread; th++) {
+    for (size_t th = 0; th < n_threads; th++) {
       workers.emplace_back(
           std::async(std::launch::async, [th, this, &scores, &uinds, cutoff,
                                           offset, recall_with_cutoff]() {
@@ -270,7 +270,7 @@ PYBIND11_MODULE(_evaluator, m) {
                     const std::vector<std::vector<size_t>> &>(),
            py::arg("grount_truth"), py::arg("recommendable"))
       .def("get_metrics", &EvaluatorCore::get_metrics, py::arg("score_array"),
-           py::arg("cutoff"), py::arg("offset"), py::arg("n_thread"),
+           py::arg("cutoff"), py::arg("offset"), py::arg("n_threads"),
            py::arg("recall_with_cutoff") = false)
       .def("get_ground_truth", &EvaluatorCore::get_ground_truth);
 }

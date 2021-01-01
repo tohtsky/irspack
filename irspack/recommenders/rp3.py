@@ -1,7 +1,5 @@
-from typing import List, Optional
+from typing import Optional
 
-import numpy as np
-from scipy import sparse as sps
 from sklearn.preprocessing import normalize
 
 from ..definitions import InteractionMatrix
@@ -34,7 +32,7 @@ class RP3betaRecommender(
         for each column of the similarity matrix ``W``.
         normalize_weight (bool, optional): Whether to perform row-wise normalization of ``W``.
             Defaults to False.
-        n_thread (Optional[int], optional): The number of threads to be used for computation.
+        n_threads (Optional[int], optional): The number of threads to be used for computation.
             Defaults to 1.
     """
 
@@ -45,9 +43,9 @@ class RP3betaRecommender(
         beta: float = 0.6,
         top_k: Optional[int] = None,
         normalize_weight: bool = False,
-        n_thread: Optional[int] = None,
+        n_threads: Optional[int] = None,
     ):
-        super().__init__(X_train_all, n_thread=n_thread)
+        super().__init__(X_train_all, n_threads=n_threads)
         self.alpha = alpha
         self.beta = beta
         self.top_k = top_k
@@ -58,7 +56,7 @@ class RP3betaRecommender(
             self.X_train_all.T,
             alpha=self.alpha,
             beta=self.beta,
-            n_thread=self.n_thread,
+            n_threads=self.n_threads,
         )
         top_k = self.X_train_all.shape[1] if self.top_k is None else self.top_k
         self.W_ = computer.compute_W(self.X_train_all.T, top_k)

@@ -52,13 +52,13 @@ if __name__ == "__main__":
         input_interaction=data_val.X_learn,
         ground_truth=data_val.X_predict,
         cutoff=BASE_CUTOFF,
-        n_thread=8,
+        n_threads=8,
     )
     test_evaluator = EvaluatorWithColdUser(
         input_interaction=data_test.X_learn,
         ground_truth=data_test.X_predict,
         cutoff=BASE_CUTOFF,
-        n_thread=8,
+        n_threads=8,
     )
 
     test_results = []

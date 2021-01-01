@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
 
-from ._evaluator import EvaluatorCore, Metrics
-from .definitions import DenseScoreArray, InteractionMatrix
+from irspack._evaluator import EvaluatorCore, Metrics
+from irspack.definitions import DenseScoreArray, InteractionMatrix
+from irspack.utils import get_n_threads
 
 if TYPE_CHECKING:
     from .recommenders import base as base_recommender
@@ -49,7 +50,7 @@ class Evaluator:
             and compute the ranking performance within this subset.
         per_user_recommendable_items (Optional[List[List[int]]], optional):
             Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
-        n_thread (int, optional): Number of threads to sort the score and compute the
+        n_threads (int, optional): Number of threads to sort the score and compute the
             evaluation metrics. Defaults to 1.
         mb_size (int, optional): The rows of chunked user score. Defaults to 1024.
     """
@@ -62,7 +63,7 @@ class Evaluator:
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
         per_user_recommendable_items: Optional[List[List[int]]] = None,
-        n_thread: int = 1,
+        n_threads: Optional[int] = None,
         mb_size: int = 1024,
     ) -> None:
 
@@ -81,7 +82,7 @@ class Evaluator:
         self.n_users = ground_truth.shape[0]
         self.target_metric = TargetMetric(target_metric)
         self.cutoff = cutoff
-        self.n_thread = n_thread
+        self.n_threads = get_n_threads(n_threads)
         self.mb_size = mb_size
 
     def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
@@ -140,7 +141,7 @@ class Evaluator:
                 scores = model.get_score_remove_seen(np.arange(chunk_start, chunk_end))
             for i, c in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
-                    scores, c, chunk_start - self.offset, self.n_thread, False
+                    scores, c, chunk_start - self.offset, self.n_threads, False
                 )
                 metrics[i].merge(chunked_metric)
 
@@ -169,7 +170,7 @@ class EvaluatorWithColdUser(Evaluator):
             and compute the ranking performance within this subset.
         per_user_recommendable_items (Optional[List[List[int]]], optional):
             Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
-        n_thread (int, optional): Number of threads to sort the score and compute the
+        n_threads (int, optional): Number of threads to sort the score and compute the
             evaluation metrics. Defaults to 1.
         mb_size (int, optional): The rows of chunked user score. Defaults to 1024.
     """
@@ -182,7 +183,7 @@ class EvaluatorWithColdUser(Evaluator):
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
         per_item_recommendable_items: Optional[List[List[int]]] = None,
-        n_thread: int = 1,
+        n_threads: int = 1,
         mb_size: int = 1024,
     ):
 
@@ -193,7 +194,7 @@ class EvaluatorWithColdUser(Evaluator):
             target_metric,
             recommendable_items,
             per_item_recommendable_items,
-            n_thread,
+            n_threads,
             mb_size,
         )
         self.input_interaction = input_interaction
@@ -228,7 +229,7 @@ class EvaluatorWithColdUser(Evaluator):
 
             for i, c in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
-                    scores, c, chunk_start, self.n_thread, False
+                    scores, c, chunk_start, self.n_threads, False
                 )
                 metrics[i].merge(chunked_metric)
 

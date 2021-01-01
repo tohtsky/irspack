@@ -15,7 +15,7 @@ class UserColdStartEvaluator:
         X: InteractionMatrix,
         profiles: base.ProfileMatrix,
         mb_size: int = 1024,
-        n_thread: int = 1,
+        n_threads: int = 1,
         cutoff: int = 20,
     ):
         assert X.shape[0] == profiles.shape[0]
@@ -26,7 +26,7 @@ class UserColdStartEvaluator:
         self.n_items = X.shape[1]
         self.dim_profile = profiles.shape[1]
         self.mb_size = mb_size
-        self.n_thread = n_thread
+        self.n_threads = n_threads
         self.cutoff = cutoff
 
     def get_score(self, model: base.BaseUserColdStartRecommender) -> Dict[str, Any]:
@@ -35,7 +35,7 @@ class UserColdStartEvaluator:
             end = min(start + self.mb_size, self.n_users)
             score_mb = model.get_score(self.profiles[start:end])
             metric = self.core.get_metrics(
-                score_mb, self.cutoff, start, self.n_thread, False
+                score_mb, self.cutoff, start, self.n_threads, False
             )
             metric_base.merge(metric)
         return metric_base.as_dict()
@@ -66,7 +66,7 @@ class UserColdStartEvaluator:
             score_mb = model.get_score(self.profiles[chunk_start:chunk_end])
             for i, cutoff in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
-                    score_mb, cutoff, chunk_start, self.n_thread, False
+                    score_mb, cutoff, chunk_start, self.n_threads, False
                 )
                 metrics[i].merge(chunked_metric)
         return [item.as_dict() for item in metrics]

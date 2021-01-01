@@ -27,7 +27,7 @@ X_many_dense = sps.csr_matrix(np.random.rand(133, 245))
 )
 def test_cosine(X: sps.csr_matrix, normalize: bool) -> None:
     rec = CosineKNNRecommender(
-        X, shrinkage=0, n_thread=5, top_k=X.shape[1], normalize=normalize
+        X, shrinkage=0, n_threads=5, top_k=X.shape[1], normalize=normalize
     )
     rec.learn()
     sim = rec.W.toarray()
@@ -46,7 +46,7 @@ def test_cosine(X: sps.csr_matrix, normalize: bool) -> None:
 
 @pytest.mark.parametrize("X", [X_many, X_small, X_many_dense])
 def test_jaccard(X: sps.csr_matrix) -> None:
-    rec = JaccardKNNRecommender(X, shrinkage=0, top_k=X.shape[1], n_thread=1)
+    rec = JaccardKNNRecommender(X, shrinkage=0, top_k=X.shape[1], n_threads=1)
     rec.learn()
     sim = rec.W.toarray()
     X_bin = X.copy()
@@ -67,7 +67,7 @@ def test_jaccard(X: sps.csr_matrix) -> None:
 )
 def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float) -> None:
     rec = AsymmetricCosineKNNRecommender(
-        X, shrinkage=0, alpha=alpha, n_thread=1, top_k=X.shape[1]
+        X, shrinkage=0, alpha=alpha, n_threads=1, top_k=X.shape[1]
     )
     rec.learn()
     sim = rec.W.toarray()
@@ -88,7 +88,7 @@ def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float) -> None:
 
 @pytest.mark.parametrize("X", [X_many, X_small])
 def test_topk(X: sps.csr_matrix) -> None:
-    rec = CosineKNNRecommender(X, shrinkage=0, top_k=30, n_thread=5)
+    rec = CosineKNNRecommender(X, shrinkage=0, top_k=30, n_threads=5)
     rec.learn()
     sim = rec.W.toarray()
     assert np.all((sim > 0).sum(axis=1) <= 30)
@@ -96,7 +96,7 @@ def test_topk(X: sps.csr_matrix) -> None:
 
 @pytest.mark.parametrize("X, alpha", [(X_small, 0.001), (X_many_dense, 2), (X_many, 1)])
 def test_p3(X: sps.csr_matrix, alpha: float) -> None:
-    rec = P3alphaRecommender(X, alpha=alpha, n_thread=4)
+    rec = P3alphaRecommender(X, alpha=alpha, n_threads=4)
     rec.learn()
     W = rec.W.toarray()
 
@@ -118,7 +118,7 @@ def test_p3(X: sps.csr_matrix, alpha: float) -> None:
     "X, alpha, beta", [(X_small, 0.001, 3), (X_many_dense, 2, 5), (X_many, 1, 0.2)]
 )
 def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
-    rec = RP3betaRecommender(X, alpha=alpha, beta=beta, n_thread=4)
+    rec = RP3betaRecommender(X, alpha=alpha, beta=beta, n_threads=4)
     rec.learn()
     W = rec.W.toarray()
     W_sum = W.sum(axis=1)
@@ -149,11 +149,11 @@ def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
 
 def test_raise_shrinkage() -> None:
     with pytest.raises(ValueError):
-        _ = P3alphaRecommender(X_many.T, alpha=1.0, n_thread=0)
+        _ = P3alphaRecommender(X_many.T, alpha=1.0, n_threads=0)
         _.learn()
 
     with pytest.raises(ValueError):
-        _ = P3alphaRecommender(X_many.T, alpha=-1.0, n_thread=1)
+        _ = P3alphaRecommender(X_many.T, alpha=-1.0, n_threads=1)
         _.learn()
 
     with pytest.raises(ValueError):

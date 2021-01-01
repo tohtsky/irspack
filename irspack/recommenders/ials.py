@@ -29,7 +29,7 @@ class IALSTrainer(TrainerBase):
         init_std: float,
         use_cg: bool,
         max_cg_steps: int,
-        n_thread: int,
+        n_threads: int,
     ):
         X_train_all_f32 = X.astype(np.int32)
         config = (
@@ -38,7 +38,7 @@ class IALSTrainer(TrainerBase):
             .set_init_stdev(init_std)
             .set_alpha(alpha)
             .set_reg(reg)
-            .set_n_threads(n_thread)
+            .set_n_threads(n_threads)
             .set_use_cg(use_cg)
             .set_max_cg_steps(max_cg_steps)
             .build()
@@ -104,7 +104,7 @@ class IALSRecommender(
             Frequency of validation score measurement (if any). Defaults to 5.
         score_degradation_max (int, optional):
             Maximal number of allowed score degradation. Defaults to 5.
-        n_thread (Optional[int], optional):
+        n_threads (Optional[int], optional):
             The number of threads. Defaults to 1.
         max_epoch (int, optional):
             Maximal number of epochs. Defaults to 300.
@@ -122,7 +122,7 @@ class IALSRecommender(
         max_cg_steps: int = 3,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = 1,
         max_epoch: int = 300,
     ) -> None:
 
@@ -131,7 +131,7 @@ class IALSRecommender(
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
-            n_thread=n_thread,
+            n_threads=n_threads,
         )
 
         self.n_components = n_components
@@ -152,7 +152,7 @@ class IALSRecommender(
             self.init_std,
             self.use_cg,
             self.max_cg_steps,
-            self.n_thread,
+            self.n_threads,
         )
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:

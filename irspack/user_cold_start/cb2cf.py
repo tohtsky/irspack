@@ -90,7 +90,7 @@ class CB2CFUserOptimizerBase(object):
         X_all: InteractionMatrix,
         X_profile: ProfileMatrix,
         cf_evaluator_config: Dict[str, Any] = dict(
-            cutoff=20, n_thread=4, target_metric="ndcg"
+            cutoff=20, n_threads=4, target_metric="ndcg"
         ),
         cf_split_config: Dict[str, Any] = dict(random_seed=42, test_ratio=0.2),
         nn_search_config: Optional[MLPSearchConfig] = None,

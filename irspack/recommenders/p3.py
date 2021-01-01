@@ -31,7 +31,7 @@ class P3alphaRecommender(
             for each column of the similarity matrix ``W``.
         normalize_weight (bool, optional): Whether to perform row-wise normalization of ``W``.
             Defaults to False.
-        n_thread (Optional[int], optional): The number of threads to be used for computation.
+        n_threads (Optional[int], optional): The number of threads to be used for computation.
             Defaults to 1.
     """
 
@@ -41,10 +41,10 @@ class P3alphaRecommender(
         alpha: float = 1,
         top_k: Optional[int] = None,
         normalize_weight: bool = False,
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = 1,
     ):
         """"""
-        super().__init__(X_train_all, n_thread=n_thread)
+        super().__init__(X_train_all, n_threads=n_threads)
         self.alpha = alpha
         self.top_k = top_k
         self.normalize_weight = normalize_weight
@@ -53,7 +53,7 @@ class P3alphaRecommender(
         computer = P3alphaComputer(
             self.X_train_all.T,
             alpha=self.alpha,
-            n_thread=self.n_thread,
+            n_threads=self.n_threads,
         )
         top_k = self.X_train_all.shape[1] if self.top_k is None else self.top_k
         self.W_ = computer.compute_W(self.X_train_all.T, top_k)

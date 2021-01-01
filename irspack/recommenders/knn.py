@@ -29,10 +29,10 @@ class BaseKNNRecommender(
         X_train_all: InteractionMatrix,
         shrinkage: float = 0.0,
         top_k: int = 100,
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = 1,
         feature_weighting: str = "NONE",
     ):
-        super().__init__(X_train_all, n_thread=n_thread)
+        super().__init__(X_train_all, n_threads=n_threads)
         self.shrinkage = shrinkage
         self.top_k = top_k
         self.feature_weighting = FeatureWeightingScheme(feature_weighting)
@@ -72,20 +72,20 @@ class CosineKNNRecommender(BaseKNNRecommender):
         normalize: bool = False,
         top_k: int = 100,
         feature_weighting: str = "NONE",
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = 1,
     ) -> None:
         super().__init__(
             X_train_all,
             shrinkage,
             top_k,
-            n_thread,
+            n_threads,
             feature_weighting=feature_weighting,
         )
         self.normalize = normalize
 
     def _create_computer(self, X: InteractionMatrix) -> CosineSimilarityComputer:
         return CosineSimilarityComputer(
-            X, self.shrinkage, self.normalize, self.n_thread
+            X, self.shrinkage, self.normalize, self.n_threads
         )
 
 
@@ -98,13 +98,13 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
         beta: float = 0.5,
         top_k: int = 100,
         feature_weighting: str = "NONE",
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = 1,
     ) -> None:
         super().__init__(
             X_train_all,
             shrinkage,
             top_k,
-            n_thread,
+            n_threads,
             feature_weighting=feature_weighting,
         )
         self.alpha = alpha
@@ -112,13 +112,13 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
 
     def _create_computer(self, X: InteractionMatrix) -> TverskyIndexComputer:
         return TverskyIndexComputer(
-            X, self.shrinkage, self.alpha, self.beta, self.n_thread
+            X, self.shrinkage, self.alpha, self.beta, self.n_threads
         )
 
 
 class JaccardKNNRecommender(BaseKNNRecommender):
     def _create_computer(self, X: InteractionMatrix) -> JaccardSimilarityComputer:
-        return JaccardSimilarityComputer(X, self.shrinkage, self.n_thread)
+        return JaccardSimilarityComputer(X, self.shrinkage, self.n_threads)
 
 
 class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
@@ -129,18 +129,18 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         alpha: float = 0.5,
         top_k: int = 100,
         feature_weighting: str = "NONE",
-        n_thread: Optional[int] = 1,
+        n_threads: Optional[int] = 1,
     ):
         super().__init__(
             X_train_all,
             shrinkage,
             top_k,
-            n_thread,
+            n_threads,
             feature_weighting=feature_weighting,
         )
         self.alpha = alpha
 
     def _create_computer(self, X: InteractionMatrix) -> AsymmetricSimilarityComputer:
         return AsymmetricSimilarityComputer(
-            X, self.shrinkage, self.alpha, self.n_thread
+            X, self.shrinkage, self.alpha, self.n_threads
         )

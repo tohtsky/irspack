@@ -13,9 +13,9 @@ class RandomWalkWithRestartRecommender(
         cutoff: int = 1000,
         n_samples: int = 1000,
         random_seed: int = 42,
-        n_thread: int = 4,
+        n_threads: int = 4,
     ):
-        super().__init__(X_train_all, n_thread=n_thread)
+        super().__init__(X_train_all, n_threads=n_threads)
         self.decay = decay
         self.n_samples = n_samples
         self.cutoff = cutoff
@@ -27,7 +27,7 @@ class RandomWalkWithRestartRecommender(
             self.decay,
             self.cutoff,
             self.n_samples,
-            self.n_thread,
+            self.n_threads,
             self.random_seed,
         )
         self.W_ = self.W_.tocsc() / self.n_samples
