@@ -20,7 +20,7 @@ from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
 
 class BaseOptimizer(object, metaclass=ABCMeta):
-    """Optimization class for recommender classes:
+    """The base optimizer class for recommender classes.
 
     The child class must define
 
@@ -169,6 +169,39 @@ class BaseOptimizer(object, metaclass=ABCMeta):
 
 
 class BaseOptimizerWithEarlyStopping(BaseOptimizer):
+    """The Base Optimizer class for early-stoppable recommenders.
+
+    The child class must define
+
+        - ``recommender_class``
+        - ``default_tune_range``
+
+
+    Args:
+        data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The train data.
+        val_evaluator (Evaluator):
+            The validation evaluator which measures the performance of the recommenders.
+        metric (str, optional): Target metric. Defaults to "ndcg".
+        logger (Optional[logging.Logger], optional):
+            The logger used during the optimization steps. Defaults to None.
+            If ``None``, the default logger of irspack will be used.
+        suggest_overwrite (List[Suggestion], optional):
+            Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
+            the default parameter search space defined by ``default_tune_range``
+            Defaults to list().
+        fixed_params (Dict[str, Any], optional):
+            Fixed parameters passed to recommenders during the optimization procedure.
+            If such a parameter exists in ``default_tune_range``, it will not be tuned.
+            Defaults to dict().
+        max_epoch (int, optional):
+            The maximal number of epochs for the training. Defaults to 512.
+        validate_epoch (int, optional):
+            The frequency of validation score measurement. Defaults to 5.
+        score_degradation_max (int, optional):
+            Maximal number of allowed score degradation. Defaults to 5. Defaults to 5.
+    """
+
     recommender_class: Type[BaseRecommenderWithEarlyStopping]
 
     def __init__(
@@ -184,6 +217,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         score_degradation_max: int = 5,
         **kwargs: Any,
     ):
+
         super().__init__(
             data,
             val_evaluator,
