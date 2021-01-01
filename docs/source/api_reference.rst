@@ -30,6 +30,10 @@ Recommenders
     DenseSLIMRecommender
     P3alphaRecommender
     RP3betaRecommender
+    TruncatedSVDRecommender
+    CosineKNNRecommender
+    AsymmetricCosineKNNRecommender
+    JaccardKNNRecommender
 
 .. currentmodule:: irspack.optimizers
 

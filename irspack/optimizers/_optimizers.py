@@ -1,6 +1,8 @@
 import warnings
 from typing import List, Type
 
+from irspack import recommenders
+
 from ..optimizers.base_optimizer import BaseOptimizer, BaseOptimizerWithEarlyStopping
 from ..parameter_tuning import (
     CategoricalSuggestion,
@@ -30,11 +32,6 @@ default_tune_range_knn = [
     UniformSuggestion("shrinkage", 0, 1000),
     CategoricalSuggestion("feature_weighting", ["NONE", "TF_IDF", "BM_25"]),
 ]
-
-
-class TopPopOptimizer(BaseOptimizer):
-    default_tune_range: List[Suggestion] = []
-    recommender_class = TopPopRecommender
 
 
 _BaseOptimizerArgsString = """Args:
@@ -99,12 +96,19 @@ def _add_docstring(
 {ranges}"""
     else:
         tune_range = "   There is no tunable parameters."
-    docs = f"""Optimizer class for :class:`{cls.recommender_class.__name__}`.
+    docs = f"""Optimizer class for :class:`irspack.recommenders.{cls.recommender_class.__name__}`.
 
 {tune_range}
 
+{args}
+
     """
     cls.__doc__ = docs
+
+
+class TopPopOptimizer(BaseOptimizer):
+    default_tune_range: List[Suggestion] = []
+    recommender_class = TopPopRecommender
 
 
 _add_docstring(TopPopOptimizer)
@@ -264,6 +268,8 @@ try:
         ]
         recommender_class = BPRFMRecommender
 
+    _add_docstring(BPRFMOptimizer, _BaseOptimizerWithEarlyStoppingArgsString)
+
 
 except:
     pass
@@ -279,6 +285,8 @@ try:
             CategoricalSuggestion("kl_anneal_goal", [0.1, 0.2, 0.4]),
         ]
         recommender_class = MultVAERecommender
+
+    _add_docstring(MultVAEOptimizer, _BaseOptimizerWithEarlyStoppingArgsString)
 
 
 except:

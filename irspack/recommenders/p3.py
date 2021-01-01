@@ -10,7 +10,7 @@ from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
 class P3alphaRecommender(
     BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
 ):
-    """Recommendation with 3-steps random walk:
+    """Recommendation with 3-steps random walk, proposed in
 
         - `Random Walks in Recommender Systems: Exact Computation and Simulations
           <https://nms.kcl.ac.uk/colin.cooper/papers/recommender-rw.pdf>`_
