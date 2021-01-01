@@ -31,9 +31,9 @@ class P3alphaRecommender(
             for each column of the similarity matrix ``W``.
         normalize_weight (bool, optional): Whether to perform row-wise normalization of ``W``.
             Defaults to False.
-        n_threads (Optional[int], optional): The number of threads to be used for computation.
+        n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if there is no such an env var, this will be set to 1. Defaults to None.
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
     """
 
     def __init__(

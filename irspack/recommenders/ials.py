@@ -104,8 +104,9 @@ class IALSRecommender(
             Frequency of validation score measurement (if any). Defaults to 5.
         score_degradation_max (int, optional):
             Maximal number of allowed score degradation. Defaults to 5.
-        n_threads (Optional[int], optional):
-            The number of threads. Defaults to 1.
+        n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
         max_epoch (int, optional):
             Maximal number of epochs. Defaults to 300.
 
