@@ -156,12 +156,14 @@ class IALSRecommender(
             self.n_threads,
         )
 
-    def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
+    @property
+    def core_trainer(self) -> CoreTrainer:
         if self.trainer is None:
-            raise RuntimeError("'get_score' called before training")
-        return self.trainer.core_trainer.user[user_indices].dot(
-            self.trainer.core_trainer.item.T
-        )
+            raise RuntimeError("tried to fetch core_trainer before the training.")
+        return self.trainer.core_trainer
+
+    def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
+        return self.core_trainer.user[user_indices].dot(self.core_trainer.item.T)
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         if self.trainer is None:
@@ -169,39 +171,28 @@ class IALSRecommender(
         return self.trainer.core_trainer.user_scores(begin, end)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_cols_user' called before training")
-        user_vector = self.trainer.core_trainer.transform_user(
-            X.astype(np.float32).tocsr()
-        )
-        return user_vector.dot(self.trainer.core_trainer.item.T).astype(np.float64)
+        user_vector = self.compute_user_embedding(X)
+        return self.get_score_from_user_embedding(user_vector)
 
     def get_user_embedding(self) -> DenseMatrix:
-        if self.trainer is None:
-            raise RuntimeError("'get_user_embedding' called before training")
-
-        return self.trainer.core_trainer.user.astype(np.float64)
+        return self.core_trainer.user.astype(np.float64)
 
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_from_user_embedding' called before training")
-
-        return user_embedding.dot(self.trainer.core_trainer.item.T)
+        return user_embedding.dot(self.core_trainer.item.T).astype(np.float64)
 
     def get_item_embedding(self) -> DenseMatrix:
-        if self.trainer is None:
-            raise RuntimeError("'get_item_embedding' called before training")
-        return self.trainer.core_trainer.item.astype(np.float64)
+        return self.core_trainer.item.astype(np.float64)
+
+    def compute_user_embedding(self, X: InteractionMatrix) -> DenseMatrix:
+        return self.core_trainer.transform_user(X.astype(np.float32).tocsr())
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_from_item_embedding' called before training")
         return (
-            self.trainer.core_trainer.user[user_indices]
+            self.core_trainer.user[user_indices]
             .dot(item_embedding.T)
             .astype(np.float64)
         )
