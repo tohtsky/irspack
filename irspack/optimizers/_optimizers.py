@@ -30,6 +30,11 @@ from ..recommenders import (
 default_tune_range_knn = [
     IntegerSuggestion("top_k", 4, 1000),
     UniformSuggestion("shrinkage", 0, 1000),
+]
+
+default_tune_range_knn_with_weighting = [
+    IntegerSuggestion("top_k", 4, 1000),
+    UniformSuggestion("shrinkage", 0, 1000),
     CategoricalSuggestion("feature_weighting", ["NONE", "TF_IDF", "BM_25"]),
 ]
 
@@ -217,7 +222,7 @@ _add_docstring(NMFOptimizer)
 
 
 class CosineKNNOptimizer(BaseOptimizer):
-    default_tune_range = default_tune_range_knn.copy() + [
+    default_tune_range = default_tune_range_knn_with_weighting.copy() + [
         CategoricalSuggestion("normalize", [False, True])
     ]
 
@@ -249,7 +254,9 @@ _add_docstring(TverskyIndexKNNOptimizer)
 
 
 class AsymmetricCosineKNNOptimizer(BaseOptimizer):
-    default_tune_range = default_tune_range_knn + [UniformSuggestion("alpha", 0, 1)]
+    default_tune_range = default_tune_range_knn_with_weighting + [
+        UniformSuggestion("alpha", 0, 1)
+    ]
 
     recommender_class = AsymmetricCosineKNNRecommender
 
