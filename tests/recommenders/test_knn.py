@@ -214,4 +214,4 @@ def test_n_threads(X: sps.csr_matrix) -> None:
         rec = CosineKNNRecommender(X)
     os.environ.pop("IRSPACK_NUM_THREADS_DEFAULT")
     rec = CosineKNNRecommender(X)
-    assert rec.n_threads == 31
+    assert rec.n_threads == 1
