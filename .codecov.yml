@@ -1,8 +1,17 @@
 coverage:
   status:
-    project: yes
-    patch: yes
-    changes: yes
+    project:
+      default:
+        # basic
+        target: auto
+        threshold: 1%
+        base: auto
+    patch:
+      default:
+        # basic
+        target: 50%
+        threshold: 1%
+        base: auto
 
 comment:
   layout: "header, diff"

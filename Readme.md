@@ -127,3 +127,4 @@ See `examples/` for more complete examples.
 
 - complete documentation
 - more splitting schemes
+- more benchmark dataset

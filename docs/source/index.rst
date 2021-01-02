@@ -1,7 +1,7 @@
 irspack - Train, Evaluate, and Optimize Recommender Systems with Implicit-Feedback
 ===================================================================================
 
-**irspack** is a collection of recommender systems algorithms for implicit feedback data.
+**irspack** is a collection of recommender system algorithms for implicit feedback data.
 
 Notable features include:
 
