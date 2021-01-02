@@ -20,7 +20,8 @@ public:
   inline CosineSimilarityComputer(const CSRMatrix &X_arg, Real shrinkage,
                                   bool normalize, size_t n_threads,
                                   size_t max_chunk_size)
-      : Base(X_arg, shrinkage, n_threads, max_chunk_size), normalize(normalize) {
+      : Base(X_arg, shrinkage, n_threads, max_chunk_size),
+        normalize(normalize) {
     for (int i = 0; i < this->N; i++) {
       this->norms(i) = this->X_t.col(i).norm();
     }
@@ -36,6 +37,47 @@ public:
     }
     for (int i = 0; i < block_size; i++) {
       Real target_norm = target.row(start + i).norm();
+      for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
+        iter.valueRef() /=
+            (this->norms(iter.col()) * target_norm + this->shrinkage + 1e-6);
+      }
+    }
+    return result;
+  }
+};
+
+template <typename Real>
+struct AsymmetricCosineSimilarityComputer
+    : KNNComputer<Real, AsymmetricCosineSimilarityComputer<Real>> {
+  using Base = KNNComputer<Real, AsymmetricCosineSimilarityComputer>;
+  using CSCMatrix = typename Base::CSCMatrix;
+  using CSRMatrix = typename Base::CSRMatrix;
+  using DenseVector = typename Base::DenseVector;
+
+protected:
+  Real alpha;
+
+public:
+  inline AsymmetricCosineSimilarityComputer(const CSRMatrix &X_arg,
+                                            Real shrinkage, Real alpha,
+                                            size_t n_threads,
+                                            size_t max_chunk_size)
+      : Base(X_arg, shrinkage, n_threads, max_chunk_size), alpha(alpha) {
+    irspack::check_arg_doubly_bounded<Real>(alpha, 0, 1, "alpha");
+    for (int i = 0; i < this->N; i++) {
+      Real norm = this->X_t.col(i).squaredNorm();
+      this->norms(i) = norm;
+    }
+    this->norms.array() = this->norms.array().pow((1 - alpha));
+  }
+  inline CSRMatrix compute_similarity_imple(const CSRMatrix &target,
+                                            size_t start, size_t end) const {
+    int block_size = end - start;
+    CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
+    result.makeCompressed();
+    for (int i = 0; i < block_size; i++) {
+      Real target_norm =
+          std::pow(target.row(start + i).squaredNorm(), this->alpha);
       for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
         iter.valueRef() /=
             (this->norms(iter.col()) * target_norm + this->shrinkage + 1e-6);
@@ -89,47 +131,6 @@ struct JaccardSimilarityComputer
 };
 
 template <typename Real>
-struct AsymmetricCosineSimilarityComputer
-    : KNNComputer<Real, AsymmetricCosineSimilarityComputer<Real>> {
-  using Base = KNNComputer<Real, AsymmetricCosineSimilarityComputer>;
-  using CSCMatrix = typename Base::CSCMatrix;
-  using CSRMatrix = typename Base::CSRMatrix;
-  using DenseVector = typename Base::DenseVector;
-
-protected:
-  Real alpha;
-
-public:
-  inline AsymmetricCosineSimilarityComputer(const CSRMatrix &X_arg,
-                                            Real shrinkage, Real alpha,
-                                            size_t n_threads,
-                                            size_t max_chunk_size)
-      : Base(X_arg, shrinkage, n_threads, max_chunk_size), alpha(alpha) {
-    irspack::check_arg_doubly_bounded<Real>(alpha, 0, 1, "alpha");
-    for (int i = 0; i < this->N; i++) {
-      Real norm = this->X_t.col(i).squaredNorm();
-      this->norms(i) = norm;
-    }
-    this->norms.array() = this->norms.array().pow((1 - alpha));
-  }
-  inline CSRMatrix compute_similarity_imple(const CSRMatrix &target,
-                                            size_t start, size_t end) const {
-    int block_size = end - start;
-    CSRMatrix result = target.middleRows(start, block_size) * (this->X_t);
-    result.makeCompressed();
-    for (int i = 0; i < block_size; i++) {
-      Real target_norm =
-          std::pow(target.row(start + i).squaredNorm(), this->alpha);
-      for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
-        iter.valueRef() /=
-            (this->norms(iter.col()) * target_norm + this->shrinkage + 1e-6);
-      }
-    }
-    return result;
-  }
-};
-
-template <typename Real>
 struct TverskyIndexComputer : KNNComputer<Real, TverskyIndexComputer<Real>> {
   using Base = KNNComputer<Real, TverskyIndexComputer<Real>>;
   using CSCMatrix = typename Base::CSCMatrix;
@@ -175,8 +176,8 @@ public:
       for (typename CSRMatrix::InnerIterator iter(result, i); iter; ++iter) {
         Real itv = iter.value();
         iter.valueRef() /=
-            (itv + this->alpha * (this->norms(iter.col()) - itv) +
-             this->beta * (target_norm - itv) + this->shrinkage + 1e-6);
+            (itv + this->beta * (this->norms(iter.col()) - itv) +
+             this->alpha * (target_norm - itv) + this->shrinkage + 1e-6);
       }
     }
     return result;
