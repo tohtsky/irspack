@@ -88,54 +88,43 @@ class BPRFMRecommender(
             self.n_threads,
         )
 
-    def get_score(self, index: UserIndexArray) -> np.ndarray:
+    @property
+    def fm(self) -> LightFM:
         if self.trainer is None:
-            raise RuntimeError("get_score called before training")
+            raise RuntimeError("tried to fetch fm instance before the fit.")
+
+    def get_score(self, index: UserIndexArray) -> np.ndarray:
         return (
-            self.trainer.fm.user_embeddings[index].dot(
-                self.trainer.fm.item_embeddings.T
-            )
-            + self.trainer.fm.item_biases[np.newaxis, :]
+            self.fm.user_embeddings[index].dot(self.fm.item_embeddings.T)
+            + self.fm.item_biases[np.newaxis, :]
         )
 
     def get_score_block(self, begin: int, end: int) -> np.ndarray:
-        if self.trainer is None:
-            raise RuntimeError("get_score called before training")
         return (
-            self.trainer.fm.user_embeddings[begin:end].dot(
-                self.trainer.fm.item_embeddings.T
-            )
-            + self.trainer.fm.item_biases[np.newaxis, :]
+            self.fm.user_embeddings[begin:end].dot(self.fm.item_embeddings.T)
+            + self.fm.item_biases[np.newaxis, :]
         )
 
     def get_user_embedding(self) -> DenseMatrix:
-        if self.trainer is None:
-            raise RuntimeError("'get_user_embedding' called before training")
-        return self.trainer.fm.user_embeddings.astype(np.float64)
+        return self.fm.user_embeddings.astype(np.float64)
 
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_from_user_embedding' called before training")
         return (
-            user_embedding.dot(self.trainer.fm.item_embeddings.T)
-            + self.trainer.fm.item_biases[np.newaxis, :]
+            user_embedding.dot(self.fm.item_embeddings.T)
+            + self.fm.item_biases[np.newaxis, :]
         )
 
     def get_item_embedding(self) -> DenseMatrix:
-        if self.trainer is None:
-            raise RuntimeError("'get_item_embedding' called before training")
-        return self.trainer.fm.item_embeddings.astype(np.float64)
+        return self.fm.item_embeddings.astype(np.float64)
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_from_item_embedding' called before training")
         # ignore bias
         return (
-            self.trainer.fm.user_embeddings[user_indices]
+            self.fm.user_embeddings[user_indices]
             .dot(item_embedding.T)
             .astype(np.float64)
         )
