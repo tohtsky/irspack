@@ -23,7 +23,7 @@ If you have a standard Python environment on MacOS/Linux, you can install the li
    pip install git+https://github.com/tohtsky/irspack
 
 .. toctree::
-   :caption: Tutorials
+   :caption: Basic Tutorials
    :maxdepth: 1
 
    tuto1
