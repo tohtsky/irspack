@@ -44,6 +44,14 @@ A LightFM wrapper for BPR matrix factorization (requires a separate installation
 
     BPRFMRecommender
 
+As a reference code based on neural networks, we have implemented a JAX version of `Mult-VAE <https://arxiv.org/abs/1802.05814>`_,
+which requires ``jax``, ``jaxlib``, ``dm-haiku``, and ``optax``:
+
+.. autosummary::
+    :toctree: api_reference
+    :nosignatures:
+
+    MultVAERecommender
 
 
 .. currentmodule:: irspack.optimizers
@@ -65,3 +73,4 @@ Optimizers
     AsymmetricCosineKNNOptimizer
     JaccardKNNOptimizer
     TverskyIndexKNNOptimizer
+    MultVAEOptimizer

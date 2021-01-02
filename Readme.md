@@ -1,6 +1,6 @@
 # irspack
 
-irspack is a Python package to train, evaluate, and optimize recommender systems based on implicit feedback.
+**irspack** is a Python package to train, evaluate, and optimize recommender systems based on implicit feedback.
 
 While there are already many other great packages for this purpose, like
 

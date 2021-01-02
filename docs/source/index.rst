@@ -3,14 +3,32 @@ irspack - Train, Evaluate, and Optimize Recommender Systems with Implicit-Feedba
 
 **irspack** is a collection of recommender system algorithms for implicit feedback data.
 
-Notable features include:
+Currently, in my opinion, there is no all-purpose algorithm for the recommendation tasks with implicit-feedback.
 
-   -  `Optuna <https://optuna.org/>`_-backed hyperparameter optimization.
-   -  Simple and fast implementation for a number of algorithms with `Pybind11 <https://github.com/pybind/pybind11>`_ and `Eigen <http://eigen.tuxfamily.org/index.php?title=Main_Page>`_.
+So the key is to try out different algorithms, evaluate its performance against validation dataset, and optimize their performance.
+irspack is built to make this procedure easy for you.
+
+Nota ble features include:
+
+   -  `optuna <https://optuna.org/>`_-backed, efficient hyperparameter optimization.
+      In particular, `pruning <https://optuna.readthedocs.io/en/stable/tutorial/007_pruning.html?>`_ is used to speed-up the parameter search for several algorithms.
+   -  Implementation of several parallelizable algorithms with `Pybind11 <https://github.com/pybind/pybind11>`_ and `Eigen <http://eigen.tuxfamily.org/index.php?title=Main_Page>`_.
+      Evaluation of recommenders' performance (which involves score-sorting and ranking metric computation) can be also done efficiently using these technologies.
+
+Installation
+-------------
 
 If you have a standard Python environment on MacOS/Linux, you can install the library from github by: ::
 
    pip install git+https://github.com/tohtsky/irspack
+
+.. toctree::
+   :caption: Tutorials
+   :maxdepth: 1
+
+   tuto1
+   tuto2
+   tuto3
 
 .. toctree::
    :caption: Details
