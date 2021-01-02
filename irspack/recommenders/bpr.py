@@ -53,6 +53,44 @@ class BPRFMRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
+    """A `LightFM <https://github.com/lyst/lightfm>`_ wrapper for our interface.
+
+    This will create ``LightFM`` instance by
+
+    .. code-block:: python
+
+        fm = LightFM(
+            no_components=n_components,
+            item_alpha=item_alpha,
+            user_alpha=user_alpha,
+            loss=loss,
+        )
+
+    and run ``fm.fit_partial(X, num_threads=self.n_threads)`` to train through a single epoch.
+
+
+    Args:
+        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            Input interaction matrix.
+        n_components (int, optional):
+            The dimension for latent factor. Defaults to 128.
+        item_alpha (float, optional):
+            The regularization coefficient for item factors. Defaults to 1e-9.
+        user_alpha (float, optional):
+            The regularization coefficient for user factors. Defaults to 1e-9.
+        loss (str, optional):
+            Specifies the loss function type of LightFM. Must be one of {"bpr", "warp"}. Defaults to "bpr".
+        validate_epoch (int, optional):
+            Frequency of validation score measurement (if any). Defaults to 5.
+        score_degradation_max (int, optional):
+            Maximal number of allowed score degradation. Defaults to 5.
+        n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+        max_epoch (int, optional):
+            Maximal number of epochs. Defaults to 512.
+    """
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -60,10 +98,10 @@ class BPRFMRecommender(
         item_alpha: float = 1e-9,
         user_alpha: float = 1e-9,
         loss: str = "bpr",
-        max_epoch: int = 512,
-        n_threads: Optional[int] = None,
         validate_epoch: int = 5,
         score_degradation_max: int = 3,
+        n_threads: Optional[int] = None,
+        max_epoch: int = 512,
     ):
         super().__init__(
             X_train_all,
@@ -75,6 +113,8 @@ class BPRFMRecommender(
         self.n_components = n_components
         self.item_alpha = item_alpha
         self.user_alpha = user_alpha
+        if loss not in {"bpr", "warp"}:
+            raise ValueError('BPRFM loss must be either "bpr" or "warp".')
         self.loss = loss
         self.trainer: Optional[BPRFMTrainer] = None
 
@@ -88,54 +128,44 @@ class BPRFMRecommender(
             self.n_threads,
         )
 
-    def get_score(self, index: UserIndexArray) -> np.ndarray:
+    @property
+    def fm(self) -> LightFM:
         if self.trainer is None:
-            raise RuntimeError("get_score called before training")
+            raise RuntimeError("tried to fetch fm instance before the fit.")
+        return self.trainer.fm
+
+    def get_score(self, index: UserIndexArray) -> np.ndarray:
         return (
-            self.trainer.fm.user_embeddings[index].dot(
-                self.trainer.fm.item_embeddings.T
-            )
-            + self.trainer.fm.item_biases[np.newaxis, :]
+            self.fm.user_embeddings[index].dot(self.fm.item_embeddings.T)
+            + self.fm.item_biases[np.newaxis, :]
         )
 
     def get_score_block(self, begin: int, end: int) -> np.ndarray:
-        if self.trainer is None:
-            raise RuntimeError("get_score called before training")
         return (
-            self.trainer.fm.user_embeddings[begin:end].dot(
-                self.trainer.fm.item_embeddings.T
-            )
-            + self.trainer.fm.item_biases[np.newaxis, :]
+            self.fm.user_embeddings[begin:end].dot(self.fm.item_embeddings.T)
+            + self.fm.item_biases[np.newaxis, :]
         )
 
     def get_user_embedding(self) -> DenseMatrix:
-        if self.trainer is None:
-            raise RuntimeError("'get_user_embedding' called before training")
-        return self.trainer.fm.user_embeddings.astype(np.float64)
+        return self.fm.user_embeddings.astype(np.float64)
 
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_from_user_embedding' called before training")
         return (
-            user_embedding.dot(self.trainer.fm.item_embeddings.T)
-            + self.trainer.fm.item_biases[np.newaxis, :]
+            user_embedding.dot(self.fm.item_embeddings.T)
+            + self.fm.item_biases[np.newaxis, :]
         )
 
     def get_item_embedding(self) -> DenseMatrix:
-        if self.trainer is None:
-            raise RuntimeError("'get_item_embedding' called before training")
-        return self.trainer.fm.item_embeddings.astype(np.float64)
+        return self.fm.item_embeddings.astype(np.float64)
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.trainer is None:
-            raise RuntimeError("'get_score_from_item_embedding' called before training")
         # ignore bias
         return (
-            self.trainer.fm.user_embeddings[user_indices]
+            self.fm.user_embeddings[user_indices]
             .dot(item_embedding.T)
             .astype(np.float64)
         )

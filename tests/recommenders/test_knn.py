@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 import scipy.sparse as sps
@@ -6,6 +8,7 @@ from irspack.recommenders.knn import (
     AsymmetricCosineKNNRecommender,
     CosineKNNRecommender,
     JaccardKNNRecommender,
+    TverskyIndexKNNRecommender,
 )
 from irspack.recommenders.p3 import P3alphaRecommender
 from irspack.recommenders.rp3 import RP3betaRecommender
@@ -59,7 +62,7 @@ def test_jaccard(X: sps.csr_matrix) -> None:
     denom[denom <= 1e-10] = 1e-10
     manual = manual / denom
     np.fill_diagonal(manual, 0)
-    assert np.all(np.abs(sim - manual) <= 1e-5)
+    np.testing.assert_allclose(sim, manual)
 
 
 @pytest.mark.parametrize(
@@ -85,6 +88,42 @@ def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float, shrinkage: float) ->
         sim,
         manual_sim,
     )
+
+
+@pytest.mark.parametrize(
+    "X, alpha, beta, shrinkage",
+    [(X_small, 0.7, 2, 0.0), (X_many, 0.5, 0.5, 0), (X_many_dense, 0.01, 0, 3)],
+)
+def test_tversky_index(
+    X: sps.csr_matrix, alpha: float, beta: float, shrinkage: float
+) -> None:
+    RNS = np.random.RandomState(0)
+    rec = TverskyIndexKNNRecommender(
+        X, shrinkage=shrinkage, alpha=alpha, beta=beta, n_threads=1, top_k=X.shape[1]
+    )
+    rec.learn()
+    sim = rec.W.toarray()
+    tested_index_row = RNS.randint(0, sim.shape[0], size=100)
+    tested_index_col = RNS.randint(0, sim.shape[0], size=100)
+    X_csc = X.tocsc()
+    X_csc.sorted_indices()
+    for i, j in zip(tested_index_row, tested_index_col):
+        if i == j:
+            continue
+        computed = sim[i, j]
+        U_i = set(X_csc[:, i].nonzero()[0])
+        U_j = set(X_csc[:, j].nonzero()[0])
+        intersect = U_i.intersection(U_j)
+        Ui_minus_Uj = U_i.difference(U_j)
+        Uj_minus_Ui = U_j.difference(U_i)
+        target = len(intersect) / (
+            len(intersect)
+            + alpha * len(Ui_minus_Uj)
+            + beta * len(Uj_minus_Ui)
+            + shrinkage
+            + 1e-6
+        )
+        assert computed == pytest.approx(target)
 
 
 @pytest.mark.parametrize("X", [X_many, X_small])
@@ -160,3 +199,19 @@ def test_raise_shrinkage() -> None:
     with pytest.raises(ValueError):
         rec = AsymmetricCosineKNNRecommender(X_many, 0, alpha=1.5)
         rec.learn()
+
+
+@pytest.mark.parametrize(
+    "X",
+    [X_small],
+)
+def test_n_threads(X: sps.csr_matrix) -> None:
+    os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "31"
+    rec = CosineKNNRecommender(X)
+    assert rec.n_threads == 31
+    os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "NOT_A_INTEGER"
+    with pytest.raises(ValueError):
+        rec = CosineKNNRecommender(X)
+    os.environ.pop("IRSPACK_NUM_THREADS_DEFAULT")
+    rec = CosineKNNRecommender(X)
+    assert rec.n_threads == 1

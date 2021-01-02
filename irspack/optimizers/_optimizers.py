@@ -1,8 +1,6 @@
 import warnings
 from typing import List, Type
 
-from irspack import recommenders
-
 from ..optimizers.base_optimizer import BaseOptimizer, BaseOptimizerWithEarlyStopping
 from ..parameter_tuning import (
     CategoricalSuggestion,
@@ -28,6 +26,11 @@ from ..recommenders import (
 )
 
 default_tune_range_knn = [
+    IntegerSuggestion("top_k", 4, 1000),
+    UniformSuggestion("shrinkage", 0, 1000),
+]
+
+default_tune_range_knn_with_weighting = [
     IntegerSuggestion("top_k", 4, 1000),
     UniformSuggestion("shrinkage", 0, 1000),
     CategoricalSuggestion("feature_weighting", ["NONE", "TF_IDF", "BM_25"]),
@@ -115,16 +118,6 @@ _add_docstring(TopPopOptimizer)
 
 
 class IALSOptimizer(BaseOptimizerWithEarlyStopping):
-    """Optimizer class for IALSRecommender.
-
-    The default search space is
-
-        - ``IntegerSuggestion("n_components", 4, 200)``
-        - ``LogUniformSuggestion("alpha", 1, 50)``
-        - ``LogUniformSuggestion("reg", 1e-10, 1e-2)``
-
-    """
-
     default_tune_range = [
         IntegerSuggestion("n_components", 4, 200),
         LogUniformSuggestion("alpha", 1, 50),
@@ -191,8 +184,6 @@ _add_docstring(RandomWalkWithRestartOptimizer)
 
 
 class SLIMOptimizer(BaseOptimizer):
-    """Optimizer class for SLIMRecommender."""
-
     default_tune_range = [
         UniformSuggestion("alpha", 0, 1),
         LogUniformSuggestion("l1_ratio", 1e-6, 1),
@@ -217,7 +208,7 @@ _add_docstring(NMFOptimizer)
 
 
 class CosineKNNOptimizer(BaseOptimizer):
-    default_tune_range = default_tune_range_knn.copy() + [
+    default_tune_range = default_tune_range_knn_with_weighting.copy() + [
         CategoricalSuggestion("normalize", [False, True])
     ]
 
@@ -249,7 +240,9 @@ _add_docstring(TverskyIndexKNNOptimizer)
 
 
 class AsymmetricCosineKNNOptimizer(BaseOptimizer):
-    default_tune_range = default_tune_range_knn + [UniformSuggestion("alpha", 0, 1)]
+    default_tune_range = default_tune_range_knn_with_weighting + [
+        UniformSuggestion("alpha", 0, 1)
+    ]
 
     recommender_class = AsymmetricCosineKNNRecommender
 
