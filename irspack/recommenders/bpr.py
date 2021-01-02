@@ -92,6 +92,7 @@ class BPRFMRecommender(
     def fm(self) -> LightFM:
         if self.trainer is None:
             raise RuntimeError("tried to fetch fm instance before the fit.")
+        return self.trainer.fm
 
     def get_score(self, index: UserIndexArray) -> np.ndarray:
         return (
