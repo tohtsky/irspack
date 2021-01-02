@@ -1,8 +1,6 @@
 import warnings
 from typing import List, Type
 
-from irspack import recommenders
-
 from ..optimizers.base_optimizer import BaseOptimizer, BaseOptimizerWithEarlyStopping
 from ..parameter_tuning import (
     CategoricalSuggestion,
@@ -120,16 +118,6 @@ _add_docstring(TopPopOptimizer)
 
 
 class IALSOptimizer(BaseOptimizerWithEarlyStopping):
-    """Optimizer class for IALSRecommender.
-
-    The default search space is
-
-        - ``IntegerSuggestion("n_components", 4, 200)``
-        - ``LogUniformSuggestion("alpha", 1, 50)``
-        - ``LogUniformSuggestion("reg", 1e-10, 1e-2)``
-
-    """
-
     default_tune_range = [
         IntegerSuggestion("n_components", 4, 200),
         LogUniformSuggestion("alpha", 1, 50),
@@ -196,8 +184,6 @@ _add_docstring(RandomWalkWithRestartOptimizer)
 
 
 class SLIMOptimizer(BaseOptimizer):
-    """Optimizer class for SLIMRecommender."""
-
     default_tune_range = [
         UniformSuggestion("alpha", 0, 1),
         LogUniformSuggestion("l1_ratio", 1e-6, 1),

@@ -84,10 +84,8 @@ class IALSRecommender(
     Args:
         X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
             Input interaction matrix.
-
         n_components (int, optional):
             The dimension for latent factor. Defaults to 20.
-
         alpha (float, optional):
             The confidence parameter alpha in the original paper. Defaults to 0.0.
         reg (float, optional):
@@ -108,8 +106,7 @@ class IALSRecommender(
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if there is no such an environment variable, it will be set to 1. Defaults to None.
         max_epoch (int, optional):
-            Maximal number of epochs. Defaults to 300.
-
+            Maximal number of epochs. Defaults to 512.
     """
 
     def __init__(
@@ -124,7 +121,7 @@ class IALSRecommender(
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
         n_threads: Optional[int] = None,
-        max_epoch: int = 300,
+        max_epoch: int = 512,
     ) -> None:
 
         super().__init__(

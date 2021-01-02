@@ -36,6 +36,16 @@ Recommenders
     JaccardKNNRecommender
     TverskyIndexKNNRecommender
 
+A LightFM wrapper for BPR matrix factorization (requires a separate installation of `lightFM <https://github.com/lyst/lightfm>`_).
+
+.. autosummary::
+    :toctree: api_reference
+    :nosignatures:
+
+    BPRFMRecommender
+
+
+
 .. currentmodule:: irspack.optimizers
 
 Optimizers
