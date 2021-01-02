@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 import scipy.sparse as sps
@@ -197,3 +199,19 @@ def test_raise_shrinkage() -> None:
     with pytest.raises(ValueError):
         rec = AsymmetricCosineKNNRecommender(X_many, 0, alpha=1.5)
         rec.learn()
+
+
+@pytest.mark.parametrize(
+    "X",
+    [X_small],
+)
+def test_n_threads(X: sps.csr_matrix) -> None:
+    os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "31"
+    rec = CosineKNNRecommender(X)
+    assert rec.n_threads == 31
+    os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "NOT_A_INTEGER"
+    with pytest.raises(ValueError):
+        rec = CosineKNNRecommender(X)
+    os.environ.pop("IRSPACK_NUM_THREADS_DEFAULT")
+    rec = CosineKNNRecommender(X)
+    assert rec.n_threads == 31
