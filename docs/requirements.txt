@@ -1,0 +1,6 @@
+jax
+jaxlib
+dm-haiku
+optax
+lightfm
+optuna>=1.5.0
