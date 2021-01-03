@@ -33,6 +33,7 @@ release = "0.1.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "nbsphinx",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
@@ -40,6 +41,14 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
     "sphinx_rtd_theme",
+]
+
+suppress_warnings = [
+    "nbsphinx.localfile",
+    "nbsphinx.gallery",
+    "nbsphinx.thumbnail",
+    "nbsphinx.notebooktitle",
+    "nbsphinx.ipywidgets",
 ]
 
 napoleon_google_docstring = True
@@ -72,7 +81,7 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns: List[str] = []
+exclude_patterns: List[str] = ["_build", "**.ipynb_checkpoints"]
 
 
 # -- Options for HTML output -------------------------------------------------

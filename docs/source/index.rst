@@ -26,7 +26,7 @@ If you have a standard Python environment on MacOS/Linux, you can install the li
    :caption: Basic Tutorials
    :maxdepth: 1
 
-   tuto1
+   examples/train-first-recommender
    tuto2
    tuto3
 
