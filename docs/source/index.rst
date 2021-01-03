@@ -27,7 +27,7 @@ If you have a standard Python environment on MacOS/Linux, you can install the li
 
    examples/train-first-recommender
    examples/evaluate-recommender
-   tuto3
+   examples/hyperparameter-optimization
 
 .. toctree::
    :caption: Details
