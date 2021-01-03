@@ -34,7 +34,7 @@ class MovieLens100KDataManager(BaseMovieLenstDataLoader):
                 sep="|",
                 header=None,
                 names=["userId", "age", "gender", "occupation", "zipcode"],
-            )
+            ).set_index("userId")
 
     def _read_genre(self) -> List[str]:
         with self._read_as_istream(self.GENRE_PATH) as ifs:
@@ -47,18 +47,19 @@ class MovieLens100KDataManager(BaseMovieLenstDataLoader):
 
         genres = self._read_genre()
         df.columns = [
-            "movie_id",
+            "movieId",
             "title",
             "release_date",
             "video_release_date",
             "URL",
         ] + genres
-        movie_ids = df.movie_id.values
+        movie_ids = df.movieId.values
         df["release_date"] = pd.to_datetime(df.release_date)
         genre_df = pd.DataFrame(
             [
-                dict(movie_id=movie_ids[row], genre=genres[col])
+                dict(movieId=movie_ids[row], genre=genres[col])
                 for row, col in zip(*df[genres].values.nonzero())
             ]
         )
+        df = df.set_index("movieId")
         return df.drop(columns=genres), genre_df
