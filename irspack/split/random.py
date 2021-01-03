@@ -9,7 +9,7 @@ from irspack.definitions import InteractionMatrix
 from irspack.utils import rowwise_train_test_split
 
 
-class UserSplitLearnPredictPair(object):
+class UserLearnPredictPair(object):
     def __init__(
         self,
         user_ids: List[Any],
@@ -44,7 +44,7 @@ def split_train_test_userwise(
     heldout_ratio: float,
     rns: np.random.RandomState,
     rating_column: Optional[str] = None,
-) -> UserSplitLearnPredictPair:
+) -> UserLearnPredictPair:
     """Split the user x item data frame into a pair of sparse matrix (represented as a UserDataSet).
 
     Parameters
@@ -92,10 +92,10 @@ def split_train_test_userwise(
         random_seed=rns.randint(-(2 ** 32), 2 ** 32 - 1),
     )
 
-    return UserSplitLearnPredictPair(user_ids, X_learn.tocsr(), X_predict.tocsr())
+    return UserLearnPredictPair(user_ids, X_learn.tocsr(), X_predict.tocsr())
 
 
-def dataframe_split_user_level(
+def split_dataframe_partial_user_holdout(
     df_all: pd.DataFrame,
     user_column: str,
     item_column: str,
@@ -107,12 +107,47 @@ def dataframe_split_user_level(
     heldout_ratio_val: float = 0.5,
     heldout_ratio_test: float = 0.5,
     random_state: int = 42,
-) -> Tuple[Dict[str, UserSplitLearnPredictPair], List[Any]]:
-    """
-    df: contains user & item_id and rating (if any)
-    user_column: column name for user_id
-    item_column: column name for item_id
-    rating_column: column name for rating. If this is None, all the ratings are regarded as 1.
+) -> Tuple[Dict[str, UserLearnPredictPair], List[Any]]:
+    """We split the data frame and build an interaction matrix
+    while holding out random interactions for a subset of randomly selected users
+    (we call them "validation users" and "test users").
+
+    Args:
+        df_all:
+            The user-item interaction event log.
+        user_column:
+            The column name for user_id.
+        item_column:
+            The column name for movie_id.
+        rating_column:
+            The column name for ratings. If ``None``, the rating will be treated as
+            ``1`` for all interactions. Defaults to None.
+        n_val_user:
+            The number of "validation users". Defaults to None.
+        n_test_user:
+            The number of "test users". Defaults to None.
+        val_user_ratio:
+            The percentage of "validation users" with respect to all users.
+            Ignored when ``n_val_user`` is set. Defaults to 0.1.
+        test_user_ratio:
+            The percentage of "test users" with respect to all users.
+            Ignored when ``n_text_user`` is set. Defaults to 0.1.
+        heldout_ratio_val:
+            The percentage of held-out interactions for "validation users". Defaults to 0.5.
+        heldout_ratio_test:
+            The percentage of held-out interactions for "test users". Defaults to 0.5.
+        random_state:
+            The random seed for this procedure. Defaults to 42.
+
+    Raises:
+        ValueError: When ``n_val_user + n_test_user`` is greater than the number of total users.
+
+    Returns:
+        A tuple consisting of:
+
+            1. A dictionary with ``"train"``, ``"val"``, ``"test"`` as its keys and the
+               coressponding dataset as its values.
+            2. List of unique item ids (which corresponds to the columns of the datasets).
     """
     assert (test_user_ratio <= 1) and (test_user_ratio >= 0)
     assert (val_user_ratio <= 1) and (val_user_ratio >= 0)
@@ -172,8 +207,8 @@ def dataframe_split_user_level(
         1 if rating_column is None else df_train[rating_column]
     )
 
-    valid_data: Dict[str, UserSplitLearnPredictPair] = dict(
-        train=UserSplitLearnPredictPair(train_uids, X_train, None)
+    valid_data: Dict[str, UserLearnPredictPair] = dict(
+        train=UserLearnPredictPair(train_uids, X_train, None)
     )
 
     for df_, dataset_name, heldout_ratio in [
