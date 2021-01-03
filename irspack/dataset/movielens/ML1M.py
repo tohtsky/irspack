@@ -14,13 +14,18 @@ class MovieLens1MDataManager(BaseMovieLenstDataLoader):
 
     def read_interaction(self) -> pd.DataFrame:
         with self._read_as_istream(self.INTERACTION_PATH) as ifs:
+            # This is a hack.
+            # The true separator is "::", but this will force pandas
+            # to use python engine, which is much slower.
+            # instead we regard the separator to be ':' and imagine there is an empty (NaN).
+            # values between "::"
             df = pd.read_csv(
                 ifs,
-                sep="\:\:",
+                sep=":",
                 header=None,
-                names=["userId", "movieId", "rating", "timestamp"],
-                engine="python",
-            )
+            )[[0, 2, 4, 6]].copy()
+
+            df.columns = ["userId", "movieId", "rating", "timestamp"]
             df["timestamp"] = pd.to_datetime(df.timestamp, unit="s")
             return df
 

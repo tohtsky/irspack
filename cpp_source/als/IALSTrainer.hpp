@@ -42,15 +42,16 @@ struct Solver {
     std::vector<std::future<DenseMatrix>> workers;
     for (size_t i = 0; i < config.n_threads; i++) {
       workers.emplace_back(std::async(std::launch::async, [this, &other_factor,
-                                                           &cursor, mb_size ]() {
+                                                           &cursor, mb_size]() {
         DenseMatrix P_local =
             DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
         while (true) {
           int64_t cursor_local = cursor.fetch_add(mb_size);
           if (cursor_local >= other_factor.rows())
             break;
-          int64_t block_end = std::min<int64_t>(cursor_local + mb_size,
-                                      static_cast<int64_t>(other_factor.rows()));
+          int64_t block_end =
+              std::min<int64_t>(cursor_local + mb_size,
+                                static_cast<int64_t>(other_factor.rows()));
           P_local.noalias() +=
               other_factor.middleRows(cursor_local, block_end - cursor_local)
                   .transpose() *
@@ -102,19 +103,26 @@ struct Solver {
             break;
           }
 
+          b.array() = 0;
+
           x = target_factor.row(cursor_local)
                   .transpose(); // use the previous value
-          b.array() = 0;
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
             b.noalias() += (it.value() * (1 + config.alpha)) *
                            other_factor.row(it.col()).transpose();
           }
 
           r = b - P * x;
+          size_t nnz = 0;
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
             Real vdotx = other_factor.row(it.col()) * x;
             r.noalias() -= (it.value() * config.alpha * vdotx) *
                            other_factor.row(it.col()).transpose();
+            nnz++;
+          }
+          if (nnz == 0u) {
+            target_factor.row(cursor_local).array() = 0;
+            continue;
           }
           p = r;
 
@@ -260,12 +268,12 @@ struct IALSTrainer {
       if (ind < remnant) {
         block_size++;
       }
-      workers.emplace_back(
-          [this, block_begin, userblock_begin, block_size, &result]() {
-            result.middleRows(block_begin - userblock_begin, block_size).noalias() =
-                this->user.middleRows(block_begin, block_size) *
-                this->item.transpose();
-          });
+      workers.emplace_back([this, block_begin, userblock_begin, block_size,
+                            &result]() {
+        result.middleRows(block_begin - userblock_begin, block_size).noalias() =
+            this->user.middleRows(block_begin, block_size) *
+            this->item.transpose();
+      });
       block_begin += block_size;
     }
     for (auto &worker : workers) {

@@ -14,10 +14,10 @@ install_requires = (
         "pandas>=1.0.0",
         "scikit-learn>=0.21.0",
         "scipy>=1.0",
-        "colorlog>=4"
-        # "lightfm>=1.15",
+        "colorlog>=4",
     ],
 )
+
 setup_requires = ["pybind11>=2.4", "requests"]
 IRSPACK_TESTING = os.environ.get("IRSPACK_TESTING", None) is not None
 
