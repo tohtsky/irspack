@@ -1,3 +1,5 @@
+from typing import Dict
+
 import numpy as np
 import pytest
 import scipy.sparse as sps
@@ -9,8 +11,10 @@ X_small = sps.csr_matrix(
 )
 
 
-def test_ials_overfit_cholesky() -> None:
-    X = X_small
+def test_ials_overfit_cholesky(
+    test_interaction_data: Dict[str, sps.csr_matrix]
+) -> None:
+    X = test_interaction_data["X_small"]
     rec = IALSRecommender(X, n_components=4, alpha=0, reg=0, use_cg=False)
     rec.learn()
     assert rec.trainer is not None
@@ -21,8 +25,8 @@ def test_ials_overfit_cholesky() -> None:
     np.testing.assert_allclose(reprod, X, rtol=1e-2, atol=1e-2)
 
 
-def test_ials_overfit_cg() -> None:
-    X = X_small
+def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
+    X = test_interaction_data["X_small"]
     rec = IALSRecommender(
         X, n_components=4, alpha=0, reg=1e-2, use_cg=True, max_cg_steps=4
     )
@@ -45,8 +49,8 @@ def test_ials_overfit_cg() -> None:
 
 
 @pytest.mark.xfail
-def test_ials_cg_underfit() -> None:
-    X = X_small
+def test_ials_cg_underfit(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
+    X = test_interaction_data["X_small"]
     rec = IALSRecommender(
         X,
         n_components=4,
