@@ -4,11 +4,10 @@ irspack - Train, Evaluate, and Optimize Recommender Systems with Implicit-Feedba
 **irspack** is a collection of recommender system algorithms for implicit feedback data.
 
 Currently, in my opinion, there is no all-purpose algorithm for the recommendation tasks with implicit-feedback.
-
 So the key is to try out different algorithms, evaluate its performance against validation dataset, and optimize their performance.
 irspack is built to make this procedure easy for you.
 
-Nota ble features include:
+Notable features include:
 
    -  `optuna <https://optuna.org/>`_-backed, efficient hyperparameter optimization.
       In particular, `pruning <https://optuna.readthedocs.io/en/stable/tutorial/007_pruning.html?>`_ is used to speed-up the parameter search for several algorithms.
@@ -26,7 +25,7 @@ If you have a standard Python environment on MacOS/Linux, you can install the li
    :caption: Basic Tutorials
    :maxdepth: 1
 
-   tuto1
+   examples/train-first-recommender
    tuto2
    tuto3
 
