@@ -16,15 +16,6 @@ class MovieLens100KDataManager(BaseMovieLenstDataLoader):
     ITEM_INFO_PATH = "ml-100k/u.item"
     GENRE_PATH = "ml-100k/u.genre"
 
-    def read_user_info(self) -> pd.DataFrame:
-        with self._read_as_istream(self.USER_INFO_PATH) as ifs:
-            return pd.read_csv(
-                ifs,
-                sep="|",
-                header=None,
-                names=["userId", "age", "gender", "occupation", "zipcode"],
-            )
-
     def read_interaction(self) -> pd.DataFrame:
         with self._read_as_istream(self.INTERACTION_PATH) as ifs:
             data = pd.read_csv(
@@ -35,6 +26,15 @@ class MovieLens100KDataManager(BaseMovieLenstDataLoader):
             )
             data["timestamp"] = pd.to_datetime(data["timestamp"], unit="s")
             return data
+
+    def read_user_info(self) -> pd.DataFrame:
+        with self._read_as_istream(self.USER_INFO_PATH) as ifs:
+            return pd.read_csv(
+                ifs,
+                sep="|",
+                header=None,
+                names=["userId", "age", "gender", "occupation", "zipcode"],
+            )
 
     def _read_genre(self) -> List[str]:
         with self._read_as_istream(self.GENRE_PATH) as ifs:

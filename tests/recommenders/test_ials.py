@@ -41,6 +41,9 @@ def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> No
     X_reproduced = rec.get_score_cold_user(X)
     np.testing.assert_allclose(X_reproduced, X_dense, rtol=1e-2, atol=1e-2)
 
+    with pytest.raises(ValueError):
+        _ = rec.compute_item_embedding(X.T)
+
     reproduced_item_vector = rec.compute_item_embedding(X)
     X_reproduced_item = rec.get_score_from_item_embedding(
         np.arange(X.shape[0]), reproduced_item_vector
