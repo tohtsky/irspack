@@ -4,7 +4,7 @@ import scipy.sparse as sps
 
 from irspack.definitions import InteractionMatrix, ProfileMatrix
 from irspack.evaluator import Evaluator
-from irspack.split.userwise import rowwise_train_test_split
+from irspack.split import rowwise_train_test_split
 from irspack.user_cold_start.cb2cf import CB2IALSOptimizer
 
 RNS = np.random.RandomState(0)
