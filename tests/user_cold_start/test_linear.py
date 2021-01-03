@@ -4,7 +4,7 @@ import scipy.sparse as sps
 
 from irspack.definitions import InteractionMatrix, ProfileMatrix
 from irspack.evaluator import Evaluator
-from irspack.split.userwise import rowwise_train_test_split
+from irspack.split import rowwise_train_test_split
 from irspack.user_cold_start.evaluator import UserColdStartEvaluator
 from irspack.user_cold_start.optimizers import LinearMethodOptimizer
 from irspack.user_cold_start.recommenders import LinearMethodRecommender

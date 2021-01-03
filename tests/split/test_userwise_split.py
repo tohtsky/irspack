@@ -1,7 +1,7 @@
 import numpy as np
 
 from irspack.dataset.movielens import MovieLens100KDataManager
-from irspack.split import dataframe_split_user_level
+from irspack.split import split_dataframe_partial_user_holdout
 
 RNS = np.random.RandomState(0)
 
@@ -9,7 +9,7 @@ df = MovieLens100KDataManager(force_download=True).read_interaction()
 
 
 def test_user_level_split() -> None:
-    dataset, mid_list = dataframe_split_user_level(
+    dataset, mid_list = split_dataframe_partial_user_holdout(
         df,
         user_column="userId",
         item_column="movieId",

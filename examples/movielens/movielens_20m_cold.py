@@ -19,7 +19,7 @@ from irspack.optimizers import (
     SLIMOptimizer,
     TopPopOptimizer,
 )
-from irspack.split import dataframe_split_user_level
+from irspack.split import split_dataframe_partial_user_holdout
 
 N_CPUS = os.cpu_count()
 if N_CPUS is None:
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     user_cnt = user_cnt[user_cnt >= 5]
     df_all = df_all[df_all.userId.isin(user_cnt.index)]
 
-    data_all, _ = dataframe_split_user_level(
+    data_all, _ = split_dataframe_partial_user_holdout(
         df_all,
         "userId",
         "movieId",

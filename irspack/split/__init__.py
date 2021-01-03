@@ -1,8 +1,8 @@
 from ..utils import rowwise_train_test_split
-from .userwise import UserSplitLearnPredictPair, dataframe_split_user_level
+from .random import UserLearnPredictPair, split_dataframe_partial_user_holdout
 
 __all__ = [
-    "UserSplitLearnPredictPair",
-    "dataframe_split_user_level",
+    "UserLearnPredictPair",
+    "split_dataframe_partial_user_holdout",
     "rowwise_train_test_split",
 ]

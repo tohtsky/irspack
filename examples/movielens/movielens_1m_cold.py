@@ -19,7 +19,7 @@ from irspack.optimizers import (  # SLIMOptimizer,; MultVAEOptimizer,
     TopPopOptimizer,
     TverskyIndexKNNOptimizer,
 )
-from irspack.split import dataframe_split_user_level
+from irspack.split import split_dataframe_partial_user_holdout
 
 os.environ["OMP_NUM_THREADS"] = "8"
 os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "8"
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     data_manager = MovieLens1MDataManager()
     df_all = data_manager.read_interaction()
 
-    data_all, _ = dataframe_split_user_level(
+    data_all, _ = split_dataframe_partial_user_holdout(
         df_all,
         "userId",
         "movieId",
