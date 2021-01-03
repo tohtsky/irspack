@@ -26,7 +26,7 @@ If you have a standard Python environment on MacOS/Linux, you can install the li
    :maxdepth: 1
 
    examples/train-first-recommender
-   tuto2
+   examples/evaluate-recommender
    tuto3
 
 .. toctree::
