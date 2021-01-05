@@ -47,14 +47,15 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: false
       - name: Build manylinux Python wheels
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: RalfG/python-wheels-manylinux-build@v0.2.2-manylinux2014_x86_64
+        # for now (until publish succeeds)
+        if: matrix.os == 'ubuntu-latest' # && github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        uses: RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2014_x86_64
         with:
           python-versions: "cp36-cp36m cp37-cp37m cp38-cp38"
           build-requirements: "pybind11 requests"
           pre-build-command: "sh pre-build-wheel-script.sh"
       - name: Build sdist
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        if: matrix.os == 'ubuntu-latest' # && github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
         run: |
           python setup.py sdist
       - name: Publish package
