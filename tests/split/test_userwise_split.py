@@ -19,11 +19,11 @@ def test_user_level_split() -> None:
         heldout_ratio_val=0.3,
     )
     train = dataset["train"]
-    assert train.X_predict is None
+    assert train.X_test is None
     for key, ratio in [("val", 0.3), ("test", 0.5)]:
         train_predict_pair = dataset[key]
-        X_learn = train_predict_pair.X_learn
-        X_predict = train_predict_pair.X_predict
+        X_learn = train_predict_pair.X_train
+        X_predict = train_predict_pair.X_test
         intersect = X_learn.multiply(X_predict)
         assert intersect.count_nonzero() == 0
         index = RNS.choice(np.arange(train_predict_pair.n_users), size=10)

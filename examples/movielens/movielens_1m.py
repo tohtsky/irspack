@@ -46,18 +46,18 @@ if __name__ == "__main__":
     data_test = data_all["test"]
 
     X_train_all: sps.csr_matrix = sps.vstack(
-        [data_train.X_learn, data_val.X_learn, data_test.X_learn], format="csr"
+        [data_train.X_train, data_val.X_train, data_test.X_train], format="csr"
     )
     X_train_val_all: sps.csr_matrix = sps.vstack(
-        [data_train.X_all, data_val.X_all, data_test.X_learn], format="csr"
+        [data_train.X_all, data_val.X_all, data_test.X_train], format="csr"
     )
     valid_evaluator = Evaluator(
-        ground_truth=data_val.X_predict,
+        ground_truth=data_val.X_test,
         offset=data_train.n_users,
         cutoff=BASE_CUTOFF,
     )
     test_evaluator = Evaluator(
-        ground_truth=data_test.X_predict,
+        ground_truth=data_test.X_test,
         offset=data_train.n_users + data_val.n_users,
         cutoff=BASE_CUTOFF,
     )

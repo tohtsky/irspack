@@ -74,3 +74,16 @@ Optimizers
     JaccardKNNOptimizer
     TverskyIndexKNNOptimizer
     MultVAEOptimizer
+
+.. currentmodule:: irspack.split
+
+SplitFunctions
+--------------
+.. autosummary::
+    :toctree: api_reference
+    :nosignatures:
+
+    UserTrainTestInteractionPair
+    rowwise_train_test_split
+    split_dataframe_partial_user_holdout
+    holdout_specific_interactions

@@ -64,7 +64,7 @@ train_test_split_rowwise(const CSRMatrix<Real> &X, const double test_ratio,
   using Triplet = Eigen::Triplet<Integer>;
   std::mt19937 random_state(random_seed);
   check_arg(((test_ratio <= 1.0 && (test_ratio >= 0.0))),
-            "test_ratio must be within [0, 1]");
+            "test_ratio must be within [0.0, 1.0]");
   std::vector<Integer> col_buffer;
   std::vector<Real> data_buffer;
   std::vector<uint64_t> index_;
