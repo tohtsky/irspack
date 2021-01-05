@@ -10,25 +10,31 @@ from irspack.utils import rowwise_train_test_split
 
 
 class UserTrainTestInteractionPair(object):
+    """A class to hold train & test (if any) interaction and user_ids.
+
+    Args:
+        user_ids:
+            List of user ids. Its ``i``th element should correspond to ``i``th row
+            of ``X_train``.
+        X_train:
+            The train part of interactions.
+        X_test:
+            The test part of interactions (if any). Defaults to None.
+
+    Raises:
+        ValueError:
+            when ``X_train`` and ``user_ids`` have inconsistent size.
+        ValueError:
+            when ``X_train`` and ``X_test`` have inconsistent size.
+    """
+
     def __init__(
         self,
         user_ids: List[Any],
         X_train: InteractionMatrix,
         X_test: Optional[InteractionMatrix],
     ):
-        """A class to hold train & test
 
-        Args:
-            user_ids (List[Any]): [description]
-            X_train (InteractionMatrix): [description]
-            X_test (Optional[InteractionMatrix]): [description]
-
-        Raises:
-            ValueError:
-                when ``X_train`` and ``user_ids`` have inconsistent size.
-            ValueError:
-                when ``X_train`` and ``X_test`` have inconsistent size.
-        """
         if len(user_ids) != X_train.shape[0]:
             raise ValueError("user_ids and X_train have different shapes.")
 

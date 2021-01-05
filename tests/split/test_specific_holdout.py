@@ -98,5 +98,5 @@ def test_holdout_particular_item_interaction() -> None:
         == df_master.shape[0]
     )
 
-    assert 0.4 > ((n_validatable_users_in_train - 1) / total_validatable_users)
-    assert 0.4 < ((n_validatable_users_in_train + 1) / total_validatable_users)
+    assert 0.4 >= ((n_validatable_users_in_train - 1) / total_validatable_users)
+    assert 0.4 <= ((n_validatable_users_in_train + 1) / total_validatable_users)
