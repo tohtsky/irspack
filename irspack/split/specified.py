@@ -107,7 +107,7 @@ def holdout_specific_interactions(
                 (np.ones(df.shape[0], dtype=np.float64), (uindex, iindex)),
                 shape=(len(uid_unique), len(unique_item_ids)),
             )
-            return UserTrainTestInteractionPair(uid_unique, X_learn=X, X_predict=None)
+            return UserTrainTestInteractionPair(uid_unique, X_train=X, X_test=None)
         (learn_index,) = np.where((df[flg_colname] == 0).values)
         (predict_index,) = np.where((df[flg_colname] > 0).values)
         X_learn = sps.csr_matrix(
@@ -125,7 +125,7 @@ def holdout_specific_interactions(
             shape=(len(uid_unique), len(unique_item_ids)),
         )
         return UserTrainTestInteractionPair(
-            uid_unique, X_learn=X_learn, X_predict=X_predict
+            uid_unique, X_train=X_learn, X_test=X_predict
         )
 
     dataset = {

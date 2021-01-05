@@ -13,29 +13,31 @@ class UserTrainTestInteractionPair(object):
     def __init__(
         self,
         user_ids: List[Any],
-        X_learn: InteractionMatrix,
-        X_predict: Optional[InteractionMatrix],
+        X_train: InteractionMatrix,
+        X_test: Optional[InteractionMatrix],
     ):
         """A class to hold train & test
 
         Args:
             user_ids (List[Any]): [description]
-            X_learn (InteractionMatrix): [description]
-            X_predict (Optional[InteractionMatrix]): [description]
+            X_train (InteractionMatrix): [description]
+            X_test (Optional[InteractionMatrix]): [description]
 
         Raises:
-            ValueError: [description]
-            ValueError: [description]
+            ValueError:
+                when ``X_train`` and ``user_ids`` have inconsistent size.
+            ValueError:
+                when ``X_train`` and ``X_test`` have inconsistent size.
         """
-        if len(user_ids) != X_learn.shape[0]:
-            raise ValueError("user_ids and X_learn have different shapes.")
+        if len(user_ids) != X_train.shape[0]:
+            raise ValueError("user_ids and X_train have different shapes.")
 
-        if X_predict is not None:
-            if X_learn.shape != X_predict.shape:
-                raise ValueError("X_learn and X_predict have different shapes.")
+        if X_test is not None:
+            if X_train.shape != X_test.shape:
+                raise ValueError("X_train and X_test have different shapes.")
         self.user_ids = user_ids
-        self.X_train = X_learn
-        self.X_test = X_predict
+        self.X_train = X_train
+        self.X_test = X_test
         self.n_users: int = self.X_train.shape[0]
         self.n_items: int = self.X_train.shape[1]
 
@@ -211,14 +213,21 @@ def split_dataframe_partial_user_holdout(
 
     train_uids = df_train[user_column].unique()
     train_uid_to_iid = {uid: iid for iid, uid in enumerate(train_uids)}
-    X_train = sps.lil_matrix((len(train_uids), len(item_id_to_iid)), dtype=(np.int32))
 
-    X_train[(df_train[user_column].map(train_uid_to_iid).values, df_train.item_iid)] = (
-        1 if rating_column is None else df_train[rating_column]
+    train_user_row = df_train[user_column].map(train_uid_to_iid).values
+    train_user_col = df_train.item_iid
+    if rating_column is None:
+        train_user_data = np.ones(df_train.shape[0])
+    else:
+        train_user_data = df_train[rating_column].values
+
+    train_user_interactions = sps.csr_matrix(
+        (train_user_data, (train_user_row, train_user_col)),
+        shape=(len(train_uids), len(item_id_to_iid)),
     )
 
     valid_data: Dict[str, UserTrainTestInteractionPair] = dict(
-        train=UserTrainTestInteractionPair(train_uids, X_train, None)
+        train=UserTrainTestInteractionPair(train_uids, train_user_interactions, None)
     )
 
     for df_, dataset_name, heldout_ratio in [
