@@ -1,10 +1,13 @@
 import os
+import re
 import sys
 from typing import Any, Dict, List
 
 import setuptools
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
+
+SETUP_DIRECTORY = os.path.abspath(os.path.dirname(__file__))
 
 install_requires = (
     [
@@ -32,12 +35,12 @@ class get_eigen_include(object):
         if eigen_include_dir is not None:
             return eigen_include_dir
 
-        basedir = os.path.dirname(__file__)
-        target_dir = os.path.join(basedir, self.EIGEN3_DIRNAME)
+        SETUP_DIRECTORY = os.path.dirname(__file__)
+        target_dir = os.path.join(SETUP_DIRECTORY, self.EIGEN3_DIRNAME)
         if os.path.exists(target_dir):
             return target_dir
 
-        download_target_dir = os.path.join(basedir, "eigen3.zip")
+        download_target_dir = os.path.join(SETUP_DIRECTORY, "eigen3.zip")
         import zipfile
 
         import requests
@@ -155,6 +158,17 @@ def cpp_flag(compiler: Any) -> str:
     raise RuntimeError("Unsupported compiler -- at least C++11 support " "is needed!")
 
 
+def get_version() -> str:
+    VERSIONFILE = os.path.join("irspack", "__init__.py")
+    lines = open(VERSIONFILE).readlines()
+    version_regex = r"^__version__ = ['\"]([^'\"]*)['\"]"
+    for line in lines:
+        mo = re.search(version_regex, line, re.M)
+        if mo:
+            return mo.group(1)
+    raise RuntimeError(f"Unable to find version in {VERSIONFILE}.")
+
+
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
 
@@ -201,7 +215,7 @@ class BuildExt(build_ext):
 
 setup(
     name="irspack",
-    version="0.1.0.dev0",
+    version=get_version(),
     author="Tomoki Ohtsuki",
     author_email="tomoki.otsuki129@gmail.com",
     description="Implicit feedback-based recommender system pack",
