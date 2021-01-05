@@ -28,6 +28,11 @@ df_master["timestamp"] = RNS.randint(-1000, 1000, size=df_master.shape[0])
 
 def test_holdout_particular_item_interaction() -> None:
     df = df_master.copy()
+    val_validatable_user_ratio = 0.3
+    test_validatable_user_ratio = 0.3
+    train_validatable_user_ratio = (
+        1 - val_validatable_user_ratio - test_validatable_user_ratio
+    )
     validatable_item_ids = np.random.choice(
         item_ids, size=len(item_ids) // 5, replace=False
     )
@@ -37,8 +42,8 @@ def test_holdout_particular_item_interaction() -> None:
         "user_id",
         "item_id",
         interaction_indicator=indicator,
-        validatable_user_ratio_val=0.3,
-        validatable_user_ratio_test=0.3,
+        validatable_user_ratio_val=val_validatable_user_ratio,
+        validatable_user_ratio_test=test_validatable_user_ratio,
     )
     np.testing.assert_array_equal(item_id_reprod, np.sort(item_ids))
     item_id_to_index = {iid: i for i, iid in enumerate(item_id_reprod)}
@@ -61,13 +66,27 @@ def test_holdout_particular_item_interaction() -> None:
     ).sum()
 
     total_validatable_users = n_validatable_users_in_train + val.n_users + test.n_users
+
+    assert train_validatable_user_ratio >= (
+        (n_validatable_users_in_train - 1) / total_validatable_users
+    )
+    assert train_validatable_user_ratio <= (
+        (n_validatable_users_in_train + 1) / total_validatable_users
+    )
+    assert val_validatable_user_ratio <= ((val.n_users + 1) / total_validatable_users)
+    assert val_validatable_user_ratio >= ((val.n_users - 1) / total_validatable_users)
+    assert test_validatable_user_ratio <= ((test.n_users + 1) / total_validatable_users)
+    assert test_validatable_user_ratio >= ((test.n_users - 1) / total_validatable_users)
+
     assert (
         total_validatable_users
         == np.unique(df[df.item_id.isin(validatable_item_ids)].user_id).shape[0]
     )
     assert val.n_users > 0
     assert test.n_users > 0
+    assert val.X_test is not None
     assert val.X_test.sum(axis=1).A1.min() >= 1
+    assert test.X_test is not None
     assert test.X_test.sum(axis=1).A1.min() >= 1
 
     def X_to_df(X: sps.csr_matrix, uids: np.ndarray) -> pd.DataFrame:
@@ -98,5 +117,69 @@ def test_holdout_particular_item_interaction() -> None:
         == df_master.shape[0]
     )
 
-    assert 0.4 >= ((n_validatable_users_in_train - 1) / total_validatable_users)
-    assert 0.4 <= ((n_validatable_users_in_train + 1) / total_validatable_users)
+
+def test_raise() -> None:
+    df = df_master.copy()
+    TS_CUTPOINT = 100
+    validatable_user_ratio_val = 0.6
+    validatable_user_ratio_test = 0.5
+    validatable_interactions = (df.timestamp >= 0).values
+    with pytest.raises(ValueError):
+        unique_item_ids, dataset = holdout_specific_interactions(
+            df,
+            "user_id",
+            "item_id",
+            validatable_interactions,
+            validatable_user_ratio_val=validatable_user_ratio_val,
+            validatable_user_ratio_test=validatable_user_ratio_test,
+            random_seed=0,
+        )
+
+
+def test_holdout_future() -> None:
+    df = df_master.copy()
+    TS_CUTPOINT = 100
+    validatable_interactions = (df.timestamp >= 0).values
+    validatable_user_ratio_val = 0.5
+    validatable_user_ratio_test = 0.5
+    unique_item_ids, dataset = holdout_specific_interactions(
+        df,
+        "user_id",
+        "item_id",
+        validatable_interactions,
+        validatable_user_ratio_val=validatable_user_ratio_val,
+        validatable_user_ratio_test=validatable_user_ratio_test,
+        random_seed=0,
+    )
+    train_users = dataset["train"]
+    val_users = dataset["val"]
+    test_users = dataset["test"]
+
+    df_past = df[df.timestamp < 0]
+    df_future = df[df.timestamp >= 0]
+    users_past_only = np.unique(
+        df_past[~df_past.user_id.isin(df_future.user_id)].user_id
+    )
+    np.testing.assert_array_equal(train_users.user_ids, users_past_only)
+
+    def X_to_df(X: sps.csr_matrix, uids: np.ndarray) -> pd.DataFrame:
+        row, col = X.nonzero()
+        return pd.DataFrame(dict(user_id=uids[row], item_id=unique_item_ids[col]))
+
+    for userset in [val_users, test_users]:
+        # check all of the train_interactions are in the future
+        train_interactions = X_to_df(userset.X_train, userset.user_ids)
+        train_interactions_with_ts = train_interactions.merge(
+            df_master, on=["user_id", "item_id"], how="inner"
+        )
+        assert train_interactions.shape[0] == train_interactions_with_ts.shape[0]
+        assert np.all(train_interactions_with_ts.timestamp.values < 0)
+
+        # check all of the test_interactions are in the future
+        test_interactions = X_to_df(userset.X_test, userset.user_ids)
+        test_interactions_with_ts = test_interactions.merge(
+            df_master, on=["user_id", "item_id"], how="inner"
+        )
+
+        assert test_interactions.shape[0] == test_interactions_with_ts.shape[0]
+        assert np.all(test_interactions_with_ts.timestamp.values >= 0)
