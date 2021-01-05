@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from irspack.definitions import InteractionMatrix
 
-from .random import UserLearnPredictPair
+from .random import UserTrainTestInteractionPair
 
 
 def holdout_specific_interactions(
@@ -19,7 +19,7 @@ def holdout_specific_interactions(
     validatable_user_ratio_val: float = 0.2,
     validatable_user_ratio_test: float = 0.2,
     random_seed: Optional[int] = None,
-) -> Tuple[List[Any], Dict[str, UserLearnPredictPair]]:
+) -> Tuple[List[Any], Dict[str, UserTrainTestInteractionPair]]:
     """Holds-out (part of) the interactions specified by the users.
 
     All the users will be split into two category:
@@ -67,15 +67,17 @@ def holdout_specific_interactions(
         )
 
     df = df[[user_column, item_column]].copy()
+
     unique_item_ids, item_index = np.unique(df[item_column], return_inverse=True)
     item_index_colname = str(uuid.uuid1())
     df[item_index_colname] = item_index
 
-    held_out_interactions = df.iloc[interaction_indicator].copy()
     flg_colname = str(uuid.uuid1())
-    df[flg_colname] = 0
-    df[flg_colname].iloc[held_out_interactions] = 1
-    validatable_users = np.unique(df[user_column])
+    flg_column = np.zeros(df.shape[0])
+    flg_column[interaction_indicator] = 1
+    df[flg_colname] = flg_column
+
+    validatable_users = np.unique(df[flg_column > 0][user_column])
     v_train_users, v_val_test_users = train_test_split(
         validatable_users,
         test_size=(1 - v_user_ratio_train),
@@ -86,14 +88,18 @@ def holdout_specific_interactions(
         test_size=(validatable_user_ratio_test) / (1 - v_user_ratio_train),
         random_state=random_seed,
     )
-    df_train = (
-        df[df[user_column].isin(v_train_users)]
-        + df[~df[user_column].isin(validatable_users)]
+    df_train = pd.concat(
+        [
+            df[df[user_column].isin(v_train_users)],
+            df[~df[user_column].isin(validatable_users)],
+        ]
     )
     df_val = df[df[user_column].isin(v_val_users)]
     df_test = df[df[user_column].isin(v_test_users)]
 
-    def df_to_dataset(df: pd.DataFrame, train: bool = False) -> UserLearnPredictPair:
+    def df_to_dataset(
+        df: pd.DataFrame, train: bool = False
+    ) -> UserTrainTestInteractionPair:
         uid_unique, uindex = np.unique(df[user_column], return_inverse=True)
         iindex = df[item_index_colname].values
         if train:
@@ -101,9 +107,9 @@ def holdout_specific_interactions(
                 (np.ones(df.shape[0], dtype=np.float64), (uindex, iindex)),
                 shape=(len(uid_unique), len(unique_item_ids)),
             )
-            return UserLearnPredictPair(uid_unique, X_learn=X, X_predict=None)
-        (learn_index,) = np.where((df[flg_colname] > 0).values)
-        (predict_index,) = np.where((df[flg_colname] == 0).values)
+            return UserTrainTestInteractionPair(uid_unique, X_learn=X, X_predict=None)
+        (learn_index,) = np.where((df[flg_colname] == 0).values)
+        (predict_index,) = np.where((df[flg_colname] > 0).values)
         X_learn = sps.csr_matrix(
             (
                 np.ones(learn_index.shape[0], dtype=np.float64),
@@ -118,7 +124,9 @@ def holdout_specific_interactions(
             ),
             shape=(len(uid_unique), len(unique_item_ids)),
         )
-        return UserLearnPredictPair(uid_unique, X_learn=X_learn, X_predict=X_predict)
+        return UserTrainTestInteractionPair(
+            uid_unique, X_learn=X_learn, X_predict=X_predict
+        )
 
     dataset = {
         "train": df_to_dataset(df_train, train=True),

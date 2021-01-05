@@ -21,8 +21,25 @@ def rowwise_train_test_split(
     test_ratio: float = 0.5,
     random_seed: Optional[int] = None,
 ) -> Tuple[InteractionMatrix, InteractionMatrix]:
-    if (test_ratio < 0) or (test_ratio > 1.0):
-        raise ValueError("test_ratio must be a float within [0.0, 1.0]")
+    """Splits the non-zero elements of a sparse matrix into two (train & test interactions).
+    For each row, the ratio of non-zero elements that become the test interaction
+    is (approximately) constant.
+
+    Args:
+        X:
+            The source sparse matrix.
+        test_ratio:
+            The ratio of test interactions for each row.
+            That is, for each row, if it contains ``NNZ``-nonzero elements,
+            the number of elements entering into the test interaction
+            will be ``math.floor(test_ratio * NNZ)``.
+            Defaults to 0.5.
+        random_seed:
+            The random seed. Defaults to None.
+
+    Returns:
+        A tuple of train & test interactions, which sum back to the original matrix.
+    """
     if random_seed is None:
         random_seed = random.randint(-(2 ** 32), 2 ** 32 - 1)
     if X.dtype == np.float32:

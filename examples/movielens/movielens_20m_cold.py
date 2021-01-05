@@ -60,13 +60,13 @@ if __name__ == "__main__":
         [data_train.X_all, data_val.X_all], format="csr"
     )
     valid_evaluator = EvaluatorWithColdUser(
-        input_interaction=data_val.X_learn,
-        ground_truth=data_val.X_predict,
+        input_interaction=data_val.X_train,
+        ground_truth=data_val.X_test,
         cutoff=BASE_CUTOFF,
     )
     test_evaluator = EvaluatorWithColdUser(
-        input_interaction=data_test.X_learn,
-        ground_truth=data_test.X_predict,
+        input_interaction=data_test.X_train,
+        ground_truth=data_test.X_test,
         cutoff=BASE_CUTOFF,
     )
 

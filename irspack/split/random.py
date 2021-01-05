@@ -9,14 +9,24 @@ from irspack.definitions import InteractionMatrix
 from irspack.utils import rowwise_train_test_split
 
 
-class UserLearnPredictPair(object):
+class UserTrainTestInteractionPair(object):
     def __init__(
         self,
         user_ids: List[Any],
         X_learn: InteractionMatrix,
         X_predict: Optional[InteractionMatrix],
     ):
-        # check shape
+        """A class to hold train & test
+
+        Args:
+            user_ids (List[Any]): [description]
+            X_learn (InteractionMatrix): [description]
+            X_predict (Optional[InteractionMatrix]): [description]
+
+        Raises:
+            ValueError: [description]
+            ValueError: [description]
+        """
         if len(user_ids) != X_learn.shape[0]:
             raise ValueError("user_ids and X_learn have different shapes.")
 
@@ -24,16 +34,16 @@ class UserLearnPredictPair(object):
             if X_learn.shape != X_predict.shape:
                 raise ValueError("X_learn and X_predict have different shapes.")
         self.user_ids = user_ids
-        self.X_learn = X_learn
-        self.X_predict = X_predict
-        self.n_users: int = self.X_learn.shape[0]
-        self.n_items: int = self.X_learn.shape[1]
+        self.X_train = X_learn
+        self.X_test = X_predict
+        self.n_users: int = self.X_train.shape[0]
+        self.n_items: int = self.X_train.shape[1]
 
     @property
     def X_all(self) -> InteractionMatrix:
-        if self.X_predict is None:
-            return self.X_learn
-        return self.X_learn + self.X_predict
+        if self.X_test is None:
+            return self.X_train
+        return self.X_train + self.X_test
 
 
 def split_train_test_userwise(
@@ -44,7 +54,7 @@ def split_train_test_userwise(
     heldout_ratio: float,
     rns: np.random.RandomState,
     rating_column: Optional[str] = None,
-) -> UserLearnPredictPair:
+) -> UserTrainTestInteractionPair:
     """Split the user x item data frame into a pair of sparse matrix (represented as a UserDataSet).
 
     Parameters
@@ -92,7 +102,7 @@ def split_train_test_userwise(
         random_seed=rns.randint(-(2 ** 32), 2 ** 32 - 1),
     )
 
-    return UserLearnPredictPair(user_ids, X_learn.tocsr(), X_predict.tocsr())
+    return UserTrainTestInteractionPair(user_ids, X_learn.tocsr(), X_predict.tocsr())
 
 
 def split_dataframe_partial_user_holdout(
@@ -107,10 +117,10 @@ def split_dataframe_partial_user_holdout(
     heldout_ratio_val: float = 0.5,
     heldout_ratio_test: float = 0.5,
     random_state: int = 42,
-) -> Tuple[Dict[str, UserLearnPredictPair], List[Any]]:
-    """We split the data frame and build an interaction matrix
-    while holding out random interactions for a subset of randomly selected users
-    (we call them "validation users" and "test users").
+) -> Tuple[Dict[str, UserTrainTestInteractionPair], List[Any]]:
+    """Splits the DataFrame and build an interaction matrix,
+    holding out random interactions for a subset of randomly selected users
+    (whom we call "validation users" and "test users").
 
     Args:
         df_all:
@@ -207,8 +217,8 @@ def split_dataframe_partial_user_holdout(
         1 if rating_column is None else df_train[rating_column]
     )
 
-    valid_data: Dict[str, UserLearnPredictPair] = dict(
-        train=UserLearnPredictPair(train_uids, X_train, None)
+    valid_data: Dict[str, UserTrainTestInteractionPair] = dict(
+        train=UserTrainTestInteractionPair(train_uids, X_train, None)
     )
 
     for df_, dataset_name, heldout_ratio in [
