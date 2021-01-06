@@ -1,4 +1,4 @@
-name: pytest for irspack
+name: Test & Publish
 on: [push]
 jobs:
   run:
