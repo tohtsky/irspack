@@ -41,7 +41,7 @@ struct Solver {
 
     std::vector<std::future<DenseMatrix>> workers;
     for (size_t i = 0; i < config.n_threads; i++) {
-      workers.emplace_back(std::async(std::launch::async, [this, &other_factor,
+      workers.emplace_back(std::async(std::launch::async, [&other_factor,
                                                            &cursor, mb_size]() {
         DenseMatrix P_local =
             DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
