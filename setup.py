@@ -9,6 +9,9 @@ from setuptools.command.build_ext import build_ext
 
 SETUP_DIRECTORY = os.path.abspath(os.path.dirname(__file__))
 
+with open(os.path.join(SETUP_DIRECTORY, "Readme.md")) as ifs:
+    LONG_DESCRIPTION = ifs.read()
+
 install_requires = (
     [
         "numpy >= 1.11",
@@ -21,7 +24,7 @@ install_requires = (
     ],
 )
 
-setup_requires = ["pybind11>=2.4", "requests"]
+setup_requires = ["pybind11>=2.4", "requests", "setuptools_scm"]
 IRSPACK_TESTING = os.environ.get("IRSPACK_TESTING", None) is not None
 
 
@@ -184,7 +187,7 @@ class BuildExt(build_ext):
     else:
         c_opts = {
             "msvc": ["/EHsc"],
-            "unix": ["-march=native"],
+            "unix": [],
         }
         l_opts = {
             "msvc": [],
@@ -215,11 +218,14 @@ class BuildExt(build_ext):
 
 setup(
     name="irspack",
-    version=get_version(),
+    # version=get_version(),
+    url="https://irspack.readthedocs.io/",
+    use_scm_version=True,
     author="Tomoki Ohtsuki",
     author_email="tomoki.otsuki129@gmail.com",
     description="Implicit feedback-based recommender system pack",
-    long_description="",
+    long_description=LONG_DESCRIPTION,
+    long_description_content_type="text/markdown",
     ext_modules=ext_modules,
     install_requires=install_requires,
     include_package_data=True,
