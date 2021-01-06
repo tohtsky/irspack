@@ -1,0 +1,44 @@
+name: Test & Publish (MacOS)
+on: [push]
+jobs:
+  run:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8]
+    env:
+      OS: macos-latest
+      PYTHON: ${{matrix.python-version}}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{matrix.python-version}}
+      - name: Build irspack
+        run: |
+          pip install --upgrade --no-cache-dir pip
+          export CFLAGS="-march=core-avx-i"
+          pip install .
+      - name: Run pytest
+        run: |
+          pip install pytest pytest-cov
+          pip install lightfm jaxlib jax dm-haiku optax
+          pytest --cov=./irspack tests/
+      - name: Build wheel & putlish to TestPyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_APITOKEN}}
+        run: |
+          pip install twine
+          pip wheel -w ./dist --no-deps .
+          twine upload --repository testpypi --skip-existing --verbose dist/*
+      - name: Publish package to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_APITOKEN}}
+        run: |
+          twine upload --skip-existing --verbose dist/*

@@ -16,11 +16,19 @@ I have decided to implement my own one to
 
 # Installation & Optional Dependencies
 
-(To appear soon on PyPI)
+There binaries for Linux & MacOS with python 3.7, 3.8. You can install them by
 
 ```sh
-pip install git+https://github.com/tohtsky/irspack
+pip install irspack
 ```
+
+The binary has been compiled to use AVX instruction. If you want to use AVX2/AVX512 or your environment does not support AVX, install it from source like
+
+```sh
+CFLAGS="-march=native" pip install https://github.com/tohtsky/irspack
+```
+
+## Optional Dependencies
 
 I have also prepared a wrapper class (`BPRFMRecommender`) to train and optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately by e.g.,
 

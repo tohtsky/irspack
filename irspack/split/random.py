@@ -9,12 +9,12 @@ from irspack.definitions import InteractionMatrix
 from irspack.utils import rowwise_train_test_split
 
 
-class UserTrainTestInteractionPair(object):
-    """A class to hold train & test (if any) interaction and user_ids.
+class UserTrainTestInteractionPair:
+    """A class to hold users' train & test (if any) interactions and their ids.
 
     Args:
         user_ids:
-            List of user ids. Its ``i``th element should correspond to ``i``th row
+            List of user ids. Its ``i``-th element should correspond to ``i``-th row
             of ``X_train``.
         X_train:
             The train part of interactions.
@@ -26,7 +26,17 @@ class UserTrainTestInteractionPair(object):
             when ``X_train`` and ``user_ids`` have inconsistent size.
         ValueError:
             when ``X_train`` and ``X_test`` have inconsistent size.
+
     """
+
+    X_train: InteractionMatrix
+    """The train part of users' interactions."""
+    X_test: Optional[InteractionMatrix]
+    """The test part of users' interactions."""
+    n_users: int
+    """The number of users"""
+    X_all: sps.csr_matrix
+    """If ``X_test`` is not ``None``, equal to ``X_train + X_test``.Otherwise equals X_train."""
 
     def __init__(
         self,
@@ -44,14 +54,11 @@ class UserTrainTestInteractionPair(object):
         self.user_ids = user_ids
         self.X_train = X_train
         self.X_test = X_test
-        self.n_users: int = self.X_train.shape[0]
-        self.n_items: int = self.X_train.shape[1]
-
-    @property
-    def X_all(self) -> InteractionMatrix:
+        self.n_users = self.X_train.shape[0]
         if self.X_test is None:
-            return self.X_train
-        return self.X_train + self.X_test
+            self.X_all = sps.csr_matrix(self.X_train)
+        else:
+            self.X_all = sps.csr_matrix((self.X_train + self.X_test))
 
 
 def split_train_test_userwise(

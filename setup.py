@@ -1,10 +1,16 @@
 import os
+import re
 import sys
 from typing import Any, Dict, List
 
 import setuptools
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
+
+SETUP_DIRECTORY = os.path.abspath(os.path.dirname(__file__))
+
+with open(os.path.join(SETUP_DIRECTORY, "Readme.md")) as ifs:
+    LONG_DESCRIPTION = ifs.read()
 
 install_requires = (
     [
@@ -18,7 +24,7 @@ install_requires = (
     ],
 )
 
-setup_requires = ["pybind11>=2.4", "requests"]
+setup_requires = ["pybind11>=2.4", "requests", "setuptools_scm"]
 IRSPACK_TESTING = os.environ.get("IRSPACK_TESTING", None) is not None
 
 
@@ -32,12 +38,12 @@ class get_eigen_include(object):
         if eigen_include_dir is not None:
             return eigen_include_dir
 
-        basedir = os.path.dirname(__file__)
-        target_dir = os.path.join(basedir, self.EIGEN3_DIRNAME)
+        SETUP_DIRECTORY = os.path.dirname(__file__)
+        target_dir = os.path.join(SETUP_DIRECTORY, self.EIGEN3_DIRNAME)
         if os.path.exists(target_dir):
             return target_dir
 
-        download_target_dir = os.path.join(basedir, "eigen3.zip")
+        download_target_dir = os.path.join(SETUP_DIRECTORY, "eigen3.zip")
         import zipfile
 
         import requests
@@ -170,7 +176,7 @@ class BuildExt(build_ext):
     else:
         c_opts = {
             "msvc": ["/EHsc"],
-            "unix": ["-march=native"],
+            "unix": [],
         }
         l_opts = {
             "msvc": [],
@@ -199,17 +205,27 @@ class BuildExt(build_ext):
         build_ext.build_extensions(self)
 
 
+def local_scheme(version: Any) -> str:
+    return ""
+
+
 setup(
     name="irspack",
-    version="0.1.0.dev0",
+    # version=get_version(),
+    url="https://irspack.readthedocs.io/",
+    use_scm_version={
+        "local_scheme": local_scheme
+    },  # https://github.com/pypa/setuptools_scm/issues/342
     author="Tomoki Ohtsuki",
     author_email="tomoki.otsuki129@gmail.com",
     description="Implicit feedback-based recommender system pack",
-    long_description="",
+    long_description=LONG_DESCRIPTION,
+    long_description_content_type="text/markdown",
     ext_modules=ext_modules,
     install_requires=install_requires,
     include_package_data=True,
     setup_requires=setup_requires,
     cmdclass={"build_ext": BuildExt},
     packages=find_packages(),
+    python_requires=">=3.7",
 )

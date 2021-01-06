@@ -41,7 +41,7 @@ struct Solver {
 
     std::vector<std::future<DenseMatrix>> workers;
     for (size_t i = 0; i < config.n_threads; i++) {
-      workers.emplace_back(std::async(std::launch::async, [this, &other_factor,
+      workers.emplace_back(std::async(std::launch::async, [&other_factor,
                                                            &cursor, mb_size]() {
         DenseMatrix P_local =
             DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
@@ -96,7 +96,6 @@ struct Solver {
                             &config]() {
         DenseVector b(P.rows()), x(P.rows()), r(P.rows()), p(P.rows()),
             Ap(P.rows());
-        Real alpha;
         while (true) {
           int cursor_local = cursor.fetch_add(1);
           if (cursor_local >= target_factor.rows()) {
@@ -177,7 +176,6 @@ struct Solver {
           }
           P_local.noalias() = P;
           B.array() = static_cast<Real>(0);
-          const int64_t ROW = P.rows();
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
             std::int64_t other_index = it.col();
             Real alphaX = (config.alpha * it.value());

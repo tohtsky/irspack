@@ -1,0 +1,65 @@
+name: Test & Publish (Ubuntu)
+on: [push]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      OS: ubuntu-latest
+      PYTHON: "3.7"
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@master
+        with:
+          python-version: 3.7
+      - name: Build irspack (ubuntu)
+        run: |
+          sudo apt-get install lcov
+          IRSPACK_TESTING="true" python setup.py install
+      - name: Run pytest
+        run: |
+          pip install pytest pytest-cov
+          pip install lightfm jaxlib jax dm-haiku optax
+          pytest --cov=./irspack tests/
+      - name: Generate coverage (ubuntu)
+        run: |
+          coverage xml
+          lcov -d `pwd` -c -o coverage.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          files: ./coverage.xml,./coverage.info
+          verbose: false
+          env_vars: OS,PYTHON
+          name: codecov-umbrella
+          fail_ci_if_error: false
+      - name: Build manylinux Python wheels
+        uses: RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64
+        with:
+          python-versions: "cp37-cp37m cp38-cp38"
+          build-requirements: "pybind11 requests setuptools_scm"
+          pre-build-command: "source pre-build-wheel-script.sh"
+      - name: Retain manylinux only
+        run: |
+          mkdir manylinux-dist
+          cp dist/*-manylinux*.whl manylinux-dist/
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_APITOKEN }}
+          packages_dir: manylinux-dist/
+          repository_url: https://test.pypi.org/legacy/
+          verbose: true
+          skip_existing: true
+      - name: Publish package to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_APITOKEN }}
+          packages_dir: manylinux-dist/
+          verbose: true
+          skip_existing: true

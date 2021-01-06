@@ -61,6 +61,7 @@ def holdout_specific_interactions(
             * A dictionary with train/val/test user pairs.
     """
     v_user_ratio_train = 1 - validatable_user_ratio_val - validatable_user_ratio_test
+
     if v_user_ratio_train < -1e-10:
         raise ValueError(
             "validatable_use_ratio_val + validatable_user_ratio_test exceeds 1."
@@ -78,11 +79,16 @@ def holdout_specific_interactions(
     df[flg_colname] = flg_column
 
     validatable_users = np.unique(df[flg_column > 0][user_column])
-    v_train_users, v_val_test_users = train_test_split(
-        validatable_users,
-        test_size=(1 - v_user_ratio_train),
-        random_state=random_seed,
-    )
+    val_test_ratio = 1 - v_user_ratio_train
+    if val_test_ratio >= 1.0:
+        v_train_users = np.ndarray((0,), dtype=validatable_users.dtype)
+        v_val_test_users = validatable_users
+    else:
+        v_train_users, v_val_test_users = train_test_split(
+            validatable_users,
+            test_size=val_test_ratio,
+            random_state=random_seed,
+        )
     v_val_users, v_test_users = train_test_split(
         v_val_test_users,
         test_size=(validatable_user_ratio_test) / (1 - v_user_ratio_train),
