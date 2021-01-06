@@ -227,5 +227,5 @@ setup(
     setup_requires=setup_requires,
     cmdclass={"build_ext": BuildExt},
     packages=find_packages(),
-    python_requires=">=3.7",
+    python_requires=">=3.6",
 )
