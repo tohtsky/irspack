@@ -17,9 +17,16 @@ Notable features include:
 Installation
 -------------
 
-If you have a standard Python environment on MacOS/Linux, you can install the library from github by: ::
+If you have a standard Python environment on MacOS/Linux, you can install the library from PyPI using pip: ::
 
-   pip install git+https://github.com/tohtsky/irspack
+   pip install irspack
+
+The binaries on PyPI have been built to use AVX instruction.
+If you want to use AVX2/AVX512 or your environment does not support AVX, install it from source by e.g., : ::
+
+   CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
+
+
 
 .. toctree::
    :caption: Basic Tutorials

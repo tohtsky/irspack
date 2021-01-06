@@ -1,5 +1,11 @@
 # irspack
 
+[![Python](https://img.shields.io/badge/python-3.7%20%7C%203.8-blue)](https://www.python.org)
+[![pypi](https://img.shields.io/pypi/v/irspack.svg)](https://pypi.python.org/pypi/irspack)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tohtsky/irspack)
+[![Read the Docs](https://readthedocs.org/projects/irspack/badge/?version=stable)](https://irspack.readthedocs.io/en/stable/)
+[![codecov](https://codecov.io/gh/tohtsky/irspack/branch/main/graph/badge.svg?token=kLgOKTQqcV)](https://codecov.io/gh/tohtsky/irspack)
+
 **irspack** is a Python package to train, evaluate, and optimize recommender systems based on implicit feedback.
 
 While there are already many other great packages for this purpose, like
@@ -16,7 +22,7 @@ I have decided to implement my own one to
 
 # Installation & Optional Dependencies
 
-There binaries for Linux & MacOS with python 3.7, 3.8. You can install them by
+There are binaries for Linux & MacOS with python 3.7, 3.8. You can install them via
 
 ```sh
 pip install irspack
@@ -25,7 +31,7 @@ pip install irspack
 The binary has been compiled to use AVX instruction. If you want to use AVX2/AVX512 or your environment does not support AVX, install it from source like
 
 ```sh
-CFLAGS="-march=native" pip install https://github.com/tohtsky/irspack
+CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
 ```
 
 ## Optional Dependencies
