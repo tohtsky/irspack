@@ -14,6 +14,8 @@ using namespace ials11;
 using std::vector;
 
 PYBIND11_MODULE(_ials, m) {
+  py::print("info: irspack's _ials core built to use\n\t",
+            Eigen::SimdInstructionSetsInUse());
   py::class_<IALSLearningConfig>(m, "IALSLearningConfig")
       .def(py::init<size_t, Real, Real, Real, int, size_t, bool, size_t>())
       .def(py::pickle(

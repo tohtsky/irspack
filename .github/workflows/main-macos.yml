@@ -1,0 +1,50 @@
+name: Test & Publish (MacOS)
+on: [push]
+jobs:
+  run:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+    env:
+      OS: macos-latest
+      PYTHON: ${{matrix.python-version}}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{matrix.python-version}}
+      - name: Build irspack
+        if: matrix.os != 'ubuntu-latest'
+        run: |
+          export CFLAGS="-march=core-avx-i"
+          pip install wheel
+          python setup.py install
+          python setup.py bdist_wheel
+          python setup.py sdist
+      - name: Run pytest
+        run: |
+          pip install pytest pytest-cov
+          pip install lightfm jaxlib jax dm-haiku optax
+          pytest --cov=./irspack tests/
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_APITOKEN }}
+          packages_dir: manylinux-dist/
+          repository_url: https://test.pypi.org/legacy/
+          verbose: true
+          skip_existing: true
+      - name: Publish package to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_APITOKEN }}
+          packages_dir: manylinux-dist/
+          verbose: true
+          skip_existing: true
