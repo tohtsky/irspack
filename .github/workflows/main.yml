@@ -54,11 +54,18 @@ jobs:
           python-versions: "cp36-cp36m cp37-cp37m cp38-cp38"
           build-requirements: "pybind11 requests"
           pre-build-command: "sh pre-build-wheel-script.sh"
+      - name: Retain manylinux only
+        if: matrix.os == 'ubuntu-latest' # && github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        run: |
+          mkdir manylinux-dist
+          cp dist/*-manylinux*.whl manylinux-dist/
       - name: Publish package
         if: matrix.os == 'ubuntu-latest' # && github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
           password: ${{ secrets.TEST_PYPI_APITOKEN }}
+          packages_dir: manylinux-dist/
           repository_url: https://test.pypi.org/legacy/
           verbose: true
+          skip_existing: true
