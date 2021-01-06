@@ -5,7 +5,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8]
+        python-version: [3.6, 3.7, 3.8]
     env:
       OS: macos-latest
       PYTHON: ${{matrix.python-version}}
@@ -33,6 +33,7 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_APITOKEN}}
         run: |
           pip install twine
+          export CFLAGS="-march=core-avx-i"
           python setup.py sdist
           pip wheel -w ./dist --no-deps .
           twine upload --repository testpypi --skip-existing --verbose dist/*
