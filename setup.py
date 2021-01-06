@@ -161,17 +161,6 @@ def cpp_flag(compiler: Any) -> str:
     raise RuntimeError("Unsupported compiler -- at least C++11 support " "is needed!")
 
 
-def get_version() -> str:
-    VERSIONFILE = os.path.join("irspack", "__init__.py")
-    lines = open(VERSIONFILE).readlines()
-    version_regex = r"^__version__ = ['\"]([^'\"]*)['\"]"
-    for line in lines:
-        mo = re.search(version_regex, line, re.M)
-        if mo:
-            return mo.group(1)
-    raise RuntimeError(f"Unable to find version in {VERSIONFILE}.")
-
-
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
 
@@ -216,11 +205,17 @@ class BuildExt(build_ext):
         build_ext.build_extensions(self)
 
 
+def local_scheme(version: Any) -> str:
+    return ""
+
+
 setup(
     name="irspack",
     # version=get_version(),
     url="https://irspack.readthedocs.io/",
-    use_scm_version=True,
+    use_scm_version={
+        "local_scheme": local_scheme
+    },  # https://github.com/pypa/setuptools_scm/issues/342
     author="Tomoki Ohtsuki",
     author_email="tomoki.otsuki129@gmail.com",
     description="Implicit feedback-based recommender system pack",
