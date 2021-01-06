@@ -40,7 +40,7 @@ jobs:
         with:
           python-versions: "cp37-cp37m cp38-cp38"
           build-requirements: "pybind11 requests setuptools_scm"
-          pre-build-command: "sh pre-build-wheel-script.sh"
+          pre-build-command: "source pre-build-wheel-script.sh"
       - name: Retain manylinux only
         run: |
           mkdir manylinux-dist
