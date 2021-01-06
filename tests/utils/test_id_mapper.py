@@ -1,4 +1,5 @@
 import uuid
+from typing import Any, List, Tuple
 
 import numpy as np
 import pytest
@@ -26,6 +27,19 @@ class MockRecommender(BaseRecommender):
         return score
 
 
+def check_descending(id_score: List[Tuple[Any, float]]) -> None:
+    for i, (_, score) in enumerate(id_score):
+        if i > 0:
+            if score > id_score[i - 1][1]:
+                raise RuntimeError("not descending!")
+
+
+def test_check_descending_1() -> None:
+    check_descending([("1", 100), ("2", 99), ("100", 99), ("3", -1000)])
+    with pytest.raises(RuntimeError):
+        check_descending([("1", 100), ("2", 99), ("3", -1000), ("", -999)])
+
+
 def test_basic_usecase() -> None:
     RNS = np.random.RandomState(0)
     n_users = 31
@@ -44,11 +58,13 @@ def test_basic_usecase() -> None:
 
     with pytest.raises(RuntimeError):
         mapped_rec.get_recommendation_for_known_user_id(str(uuid.uuid4()))
+
     for i, uid in enumerate(user_ids):
         nonzero_items = [item_ids[j] for j in X[i].nonzero()[1]]
         recommended = mapped_rec.get_recommendation_for_known_user_id(
             uid, cutoff=n_items
         )
+        check_descending(recommended)
         recommended_ids = {rec[0] for rec in recommended}
         assert len(recommended_ids.intersection(nonzero_items)) == 0
         assert len(recommended_ids.union(nonzero_items)) == n_items
@@ -56,6 +72,7 @@ def test_basic_usecase() -> None:
         recommended_with_cutoff = mapped_rec.get_recommendation_for_known_user_id(
             uid, cutoff=cutoff
         )
+        check_descending(recommended_with_cutoff)
         assert len(recommended_with_cutoff) <= cutoff
 
         forbbiden_item = list(
@@ -71,6 +88,7 @@ def test_basic_usecase() -> None:
         recommended_with_restriction = mapped_rec.get_recommendation_for_known_user_id(
             uid, cutoff=n_items, forbidden_item_ids=forbbiden_item
         )
+        check_descending(recommended_with_restriction)
         for iid, score in recommended_with_restriction:
             assert iid not in forbbiden_item
 
@@ -80,11 +98,13 @@ def test_basic_usecase() -> None:
                 size=min(n_items - len(nonzero_items), n_items // 3),
             )
         )
+        random_allowed_items += [str(uuid.uuid1())]
         with_allowed_item = mapped_rec.get_recommendation_for_known_user_id(
             uid,
             cutoff=n_items,
             allowed_item_ids=random_allowed_items,
         )
+        check_descending(with_allowed_item)
         for id, _ in with_allowed_item:
             assert id in random_allowed_items
 
