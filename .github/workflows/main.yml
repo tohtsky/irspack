@@ -17,7 +17,7 @@ jobs:
       - name: Build irspack (ubuntu)
         run: |
           sudo apt-get install lcov
-          IRSPACK_TESTING="true" python setup.py install
+          IRSPACK_TESTING="true" python setup.py develop
       - name: Run pytest
         run: |
           pip install pytest pytest-cov
