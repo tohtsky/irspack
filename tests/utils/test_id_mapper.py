@@ -60,7 +60,7 @@ def test_basic_usecase() -> None:
 
         forbbiden_item = list(
             set(
-                np.random.choice(
+                RNS.choice(
                     list(item_id_set.difference(nonzero_items)),
                     replace=False,
                     size=(n_items - len(nonzero_items)) // 2,
@@ -73,6 +73,20 @@ def test_basic_usecase() -> None:
         )
         for iid, score in recommended_with_restriction:
             assert iid not in forbbiden_item
+
+        random_allowed_items = list(
+            RNS.choice(
+                list(item_id_set.difference(nonzero_items)),
+                size=min(n_items - len(nonzero_items), n_items // 3),
+            )
+        )
+        with_allowed_item = mapped_rec.get_recommendation_for_known_user_id(
+            uid,
+            cutoff=n_items,
+            allowed_item_ids=random_allowed_items,
+        )
+        for id, _ in with_allowed_item:
+            assert id in random_allowed_items
 
         allowed_only_forbidden = mapped_rec.get_recommendation_for_known_user_id(
             uid,
