@@ -30,3 +30,7 @@ def test_truncsvd() -> None:
     X_frobenius = (X.data ** 2).sum()
     residual = (X_reproduced - X).A1
     assert ((residual ** 2).sum() / X_frobenius) < 1e-3
+
+    X_reproduced_cold = overfit_rec.get_score_cold_user(X)
+    residual_cold = (X_reproduced_cold - X).A1
+    assert ((residual_cold ** 2).sum() / X_frobenius) < 1e-3

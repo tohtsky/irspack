@@ -153,6 +153,15 @@ def test_p3(X: sps.csr_matrix, alpha: float) -> None:
     W_man = P_iu.dot(P_ui)
     np.testing.assert_allclose(W, W_man)
 
+    rec_norm = P3alphaRecommender(
+        X, alpha=alpha, n_threads=4, top_k=2, normalize_weight=True
+    )
+    rec_norm.learn()
+    # rec
+    W_sum = rec_norm.W.sum(axis=1).A1
+    for w in W_sum:
+        assert w == pytest.approx(1.0)
+
 
 @pytest.mark.parametrize(
     "X, alpha, beta", [(X_small, 0.001, 3), (X_many_dense, 2, 5), (X_many, 1, 0.2)]
@@ -185,6 +194,15 @@ def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
     # W_man = normalize(W_man, axis=1, norm="l1")
     # print(W_man.sum(axis=1))
     np.testing.assert_allclose(W, W_man)
+
+    rec_norm = RP3betaRecommender(
+        X, alpha=alpha, n_threads=4, top_k=2, normalize_weight=True
+    )
+    rec_norm.learn()
+    # rec
+    W_sum = rec_norm.W.sum(axis=1).A1
+    for w in W_sum:
+        assert w == pytest.approx(1.0)
 
 
 def test_raise_shrinkage() -> None:

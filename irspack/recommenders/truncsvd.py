@@ -83,9 +83,6 @@ class TruncatedSVDRecommender(
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        if self.decomposer is None:
-            raise RuntimeError("No fit yet")
-
         return user_embedding.dot(self.decomposer.components_)
 
     def get_item_embedding(self) -> DenseMatrix:
