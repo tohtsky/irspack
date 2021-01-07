@@ -20,13 +20,14 @@ jobs:
       - name: Build irspack
         run: |
           pip install --upgrade --no-cache-dir pip
+          pip install wheel
           export CFLAGS="-march=core-avx-i"
           pip install .
       - name: Run pytest
         run: |
           pip install pytest pytest-cov
           pip install lightfm jaxlib jax dm-haiku optax
-          pytest --cov=./irspack tests/
+          pytest tests/
       - name: Build wheel & putlish to TestPyPI
         env:
           TWINE_USERNAME: __token__

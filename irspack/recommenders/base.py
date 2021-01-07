@@ -194,8 +194,6 @@ class BaseSimilarityRecommender(BaseRecommender):
             return self.X_train_all[user_indices].dot(self.W)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        if self.W is None:
-            raise RuntimeError("'get_score_cold_user' called before the fit")
         if sps.issparse(self.W):
             return X.dot(self.W).toarray()
         else:
@@ -223,7 +221,6 @@ class BaseRecommenderWithUserEmbedding(BaseRecommender):
             The latent vector representation of users.
             Its number of rows is equal to the number of the users.
         """
-        pass
 
     @abstractmethod
     def get_score_from_user_embedding(
@@ -237,7 +234,7 @@ class BaseRecommenderWithUserEmbedding(BaseRecommender):
         Returns:
             DenseScoreArray: The score array. Its shape will be ``(user_embedding.shape[0], self.n_items)``
         """
-        pass
+        raise NotImplementedError("get_score_from_item_embedding must be implemtented.")
 
 
 class BaseRecommenderWithItemEmbedding(BaseRecommender):
@@ -256,11 +253,11 @@ class BaseRecommenderWithItemEmbedding(BaseRecommender):
             Its number of rows is equal to the number of the items.
         """
         raise NotImplementedError(
-            "get_item_embedding must be implemented"
+            "get_item_embedding must be implemented."
         )  # pragma: no cover
 
     @abstractmethod
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        pass  # pragma: no cover
+        raise NotImplementedError("get_score_from_item_embedding must be implemented.")

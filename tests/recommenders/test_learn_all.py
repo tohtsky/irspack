@@ -58,6 +58,11 @@ except:
 
 @pytest.mark.parametrize("RecommenderClass", rec_classes)
 def test_recs(RecommenderClass: Type[BaseRecommender]) -> None:
+    """Test the learning of recommenders exit normally, and they are picklable.
+
+    Args:
+        RecommenderClass (Type[BaseRecommender]): The recommender class to be tested.
+    """
     rec = RecommenderClass(X_train)
     rec.learn()
 
@@ -65,9 +70,12 @@ def test_recs(RecommenderClass: Type[BaseRecommender]) -> None:
     eval = Evaluator(X_test, 0, 20)
     with pytest.raises(ValueError):
         eval.get_score(rec)
-    eval.get_scores(rec, cutoffs=[X_train.shape[1]])
+    metrics = eval.get_scores(rec, cutoffs=[X_train.shape[1]])
     assert np.all(np.isfinite(scores))
     assert np.all(~np.isnan(scores))
+    for value in metrics.values():
+        assert ~np.isnan(value)
+        assert np.isfinite(value)
     with open("temp.pkl", "wb") as ofs:
         pickle.dump(rec, ofs)
     with open("temp.pkl", "rb") as ifs:

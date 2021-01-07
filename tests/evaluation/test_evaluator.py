@@ -23,7 +23,7 @@ class MockRecommender(BaseRecommender):
         pass
 
 
-@pytest.mark.parametrize("U, I", [(10, 5), (10, 30)])
+@pytest.mark.parametrize("U, I", [(10, 5), (10, 30), (3000, 5)])
 def test_metrics(U: int, I: int) -> None:
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
@@ -49,9 +49,15 @@ def test_metrics_with_cutoff(U: int, I: int, C: int) -> None:
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
     eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=C, n_threads=2)
+    eval_finer_chunk = Evaluator(
+        sps.csr_matrix(X_gt), offset=0, cutoff=C, n_threads=2, mb_size=1
+    )
     # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
     my_score = eval.get_score(mock_rec)
+    my_score_finer = eval_finer_chunk.get_score(mock_rec)
+    for key in my_score:
+        assert my_score_finer[key] == pytest.approx(my_score[key])
 
     ndcg = 0.0
     valid_users = 0
@@ -120,10 +126,20 @@ def test_metrics_ColdUser(U: int, I: int, U_test: int) -> None:
     hot_score = hot_evaluator.get_score(rec)
     with pytest.warns(UserWarning):
         cold_evaluator = EvaluatorWithColdUser(
-            X_val_learn.tocsc(), X_val_target, cutoff=I // 2
+            X_val_learn.tocsc(), X_val_target, cutoff=I // 2, mb_size=5
         )  # csc matrix input should raise warning about
         # memory ordering, as csc-csc matrix product will be csc,
         # hence col-major matrix when made dense.
         cold_score = cold_evaluator.get_score(rec)
+
+    shuffle_index = np.arange(X_val_learn.shape[0])
+    rns.shuffle(shuffle_index)
+    cold_evaluator_shuffled = EvaluatorWithColdUser(
+        X_val_learn[shuffle_index], X_val_target[shuffle_index], cutoff=I // 2
+    )
+    cold_score_shuffled = cold_evaluator_shuffled.get_score(rec)
+    for key in cold_score:
+        assert cold_score_shuffled[key] == pytest.approx(cold_score[key])
+
     for key in hot_score:
         assert hot_score[key] == pytest.approx(cold_score[key], abs=1e-8)
