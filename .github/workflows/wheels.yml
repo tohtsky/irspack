@@ -37,7 +37,7 @@ jobs:
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: "cp36-* cp37-* cp38-* cp39-*"
-          CFLAGS: "-march=core-avx-i"
+          CIBW_ENVIRONMENT: "CFLAGS='-march=core-avx-i' CXXFLAGS='-march=core-avx-i'"
           CIBW_TEST_COMMAND: pytest {project}/tests
           CIBW_TEST_REQUIRES: pytest
 
