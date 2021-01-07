@@ -1,4 +1,4 @@
-name: Test & Publish (Ubuntu)
+name: Full Test & Upload coverage
 on: [push]
 jobs:
   run_pytest_upload_coverage:

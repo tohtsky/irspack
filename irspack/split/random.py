@@ -114,7 +114,7 @@ def split_train_test_userwise(
     X_learn, X_predict = rowwise_train_test_split(
         X_all,
         heldout_ratio,
-        random_seed=rns.randint(-(2 ** 32), 2 ** 32 - 1),
+        random_seed=rns.randint(-(2 ** 31), 2 ** 31 - 1),
     )
 
     return UserTrainTestInteractionPair(user_ids, X_learn.tocsr(), X_predict.tocsr())
