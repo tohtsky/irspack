@@ -1,3 +1,14 @@
+"""
+An example for user cold-start scenario.
+CB2CF Requires the following additional dependencies to run.
+
+ - lightfm
+ - jax
+ - jaxlib
+ - dm-haiku
+ - optax
+
+"""
 import json
 import os
 from typing import Any, Dict, List, Tuple, Type
@@ -55,7 +66,7 @@ if __name__ == "__main__":
     train_uids, X_train = df_to_sparse(ratings[ratings.userId.isin(train_uids)])
     test_uids, X_test = df_to_sparse(ratings[ratings.userId.isin(test_uids)])
 
-    ### Preprocess use data
+    ### Preprocess user data
     user_df["zip_first"] = user_df.zipcode.str[0]
     columns = ["occupation", "zip_first"]
     encoder_all = DataFrameEncoder()

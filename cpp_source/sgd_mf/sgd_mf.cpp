@@ -15,7 +15,7 @@ template <typename Real> struct SGDMF {
   using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
 
   using Index = typename DenseMatrix::StorageIndex;
-  using Sample = std::tuple<Index, Index, std::int32_t>;
+  using Sample = std::tuple<Index, Index, int64_t>;
 
   inline SGDMF(const SparseMatrix &X, int dim, int random_seed, Real lr,
                Real lambda, Real std, size_t n_negative)
@@ -51,7 +51,8 @@ template <typename Real> struct SGDMF {
     for (int u = 0; u < X_.rows(); u++) {
       for (typename SparseMatrix::InnerIterator iter(X_, u); iter; ++iter) {
         int j = iter.col();
-        dataset[cursor++] = {u, j, 1};
+        Sample q(u, j, 1);
+        dataset[cursor++] = std::move(q);
       }
       for (size_t m_ = 0; m_ < n_negative; m_++) {
         dataset[cursor++] = {u, dist(rng), 0};
@@ -75,9 +76,9 @@ template <typename Real> struct SGDMF {
   inline Real sgd(const Sample &s) {
     const Index &u = std::get<0>(s);
     const Index &i = std::get<1>(s);
-    const int32_t &y = std::get<2>(s);
-    P_cache = P.row(u).transpose();
-    Q_cache = Q.row(i).transpose();
+    const int64_t &y = std::get<2>(s);
+    P_cache.noalias() = P.row(u).transpose();
+    Q_cache.noalias() = Q.row(i).transpose();
     Real score = (P_cache.transpose() * Q_cache) + bias + P_b(u) + Q_b(i);
     Real sigma_score;
     Real loss;
@@ -92,8 +93,8 @@ template <typename Real> struct SGDMF {
 
     Real grad = (y - sigma_score);
 
-    P.row(u) += lr * (grad * Q_cache - lambda * P_cache).transpose();
-    Q.row(i) += lr * (grad * P_cache - lambda * Q_cache).transpose();
+    P.row(u).noalias() += lr * (grad * Q_cache - lambda * P_cache).transpose();
+    Q.row(i).noalias() += lr * (grad * P_cache - lambda * Q_cache).transpose();
     P_b(u) += lr * (grad - lambda * P_b(u));
     Q_b(i) += lr * (grad - lambda * Q_b(i));
     bias += lr * (grad - lambda * bias);

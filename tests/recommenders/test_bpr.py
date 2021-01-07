@@ -4,10 +4,14 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 
-from irspack.recommenders import BPRFMRecommender
-
 
 def test_bprFM(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
+
+    try:
+        from irspack.recommenders import BPRFMRecommender
+    except:
+        pytest.skip("lightfm not found.")
+        raise
     X = test_interaction_data["X_small"]
     rec = BPRFMRecommender(X, n_components=min(X.shape), max_epoch=30)
     with pytest.raises(RuntimeError):
