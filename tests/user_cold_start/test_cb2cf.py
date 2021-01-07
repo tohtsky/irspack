@@ -5,7 +5,6 @@ import scipy.sparse as sps
 from irspack.definitions import InteractionMatrix, ProfileMatrix
 from irspack.evaluator import Evaluator
 from irspack.split import rowwise_train_test_split
-from irspack.user_cold_start.cb2cf import CB2IALSOptimizer
 
 RNS = np.random.RandomState(0)
 
@@ -18,12 +17,19 @@ X_cf = sps.vstack([X_cf for _ in range(10)])
 
 @pytest.mark.parametrize("X, profile", [(X_cf, profile)])
 def test_cb2cf(X: InteractionMatrix, profile: ProfileMatrix) -> None:
+
     """Fit IALS & let mlp overfit.
 
     Args:
         X (InteractionMatrix): user_item interaction matrix
         profile (ProfileMatrix): profile
     """
+    try:
+        from irspack.user_cold_start.cb2cf import CB2IALSOptimizer
+    except:
+        pytest.skip("Failed to import jax.")
+        raise
+
     X_cf_train_all, X_val = rowwise_train_test_split(
         X_cf, test_ratio=0.5, random_seed=0
     )

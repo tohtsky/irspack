@@ -1,6 +1,6 @@
 # irspack
 
-[![Python](https://img.shields.io/badge/python-3.7%20%7C%203.8-blue)](https://www.python.org)
+[![Python](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)](https://www.python.org)
 [![pypi](https://img.shields.io/pypi/v/irspack.svg)](https://pypi.python.org/pypi/irspack)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tohtsky/irspack)
 [![Read the Docs](https://readthedocs.org/projects/irspack/badge/?version=stable)](https://irspack.readthedocs.io/en/stable/)
@@ -22,7 +22,7 @@ I have decided to implement my own one to
 
 # Installation & Optional Dependencies
 
-There are binaries for Linux & MacOS with python 3.7, 3.8. You can install them via
+There are binaries for Linux & MacOS with python>=3.6. You can install them via
 
 ```sh
 pip install irspack
@@ -33,6 +33,8 @@ The binary has been compiled to use AVX instruction. If you want to use AVX2/AVX
 ```sh
 CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
 ```
+
+In that case, you must have a decent version of C++ compiler (with C++11 support).
 
 ## Optional Dependencies
 

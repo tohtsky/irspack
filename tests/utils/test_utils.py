@@ -1,6 +1,7 @@
 import warnings
 
 import numpy as np
+import pytest
 import scipy.sparse as sps
 
 from irspack.utils import (
@@ -50,7 +51,7 @@ def test_bm25() -> None:
                 * (tf * (k1 + 1))
                 / (tf + k1 * (1 - b + b * X_array[row].sum() / avgdl))
             )
-            assert py_answer == X_weighted[row, col]
+            assert py_answer == pytest.approx(X_weighted[row, col])
 
 
 def test_tf_idf() -> None:
