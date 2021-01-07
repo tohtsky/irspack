@@ -21,8 +21,7 @@ jobs:
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: "cp36-* cp37-* cp38-* cp39-*"
-          CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
-          CFLAGS: "-march=core-avx-4" # should fail
+          CFLAGS: "-march=core-avx-i"
       - uses: actions/upload-artifact@v2
         with:
           path: ./wheelhouse/*.whl
