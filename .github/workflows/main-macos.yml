@@ -27,20 +27,21 @@ jobs:
           pip install pytest pytest-cov
           pip install lightfm jaxlib jax dm-haiku optax
           pytest --cov=./irspack tests/
-      - name: Build wheel & putlish to TestPyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_APITOKEN}}
-        run: |
-          pip install twine
-          export CFLAGS="-march=core-avx-i"
-          python setup.py sdist
-          pip wheel -w ./dist --no-deps .
-          twine upload --repository testpypi --skip-existing --verbose dist/*
-      - name: Publish package to PyPI
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_APITOKEN}}
-        run: |
-          twine upload --skip-existing --verbose dist/*
+#      - name: Build wheel & putlish to TestPyPI
+#        env:
+#          TWINE_USERNAME: __token__
+#          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_APITOKEN}}
+#        run: |
+#          pip install twine
+#          export CFLAGS="-march=core-avx-i"
+#          python setup.py sdist
+#          pip wheel -w ./dist --no-deps .
+#          twine upload --repository testpypi --skip-existing --verbose dist/*
+#      - name: Publish package to PyPI
+#        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+#        env:
+#          TWINE_USERNAME: __token__
+#          TWINE_PASSWORD: ${{ secrets.PYPI_APITOKEN}}
+#        run: |
+#          twine upload --skip-existing --verbose dist/*
+#
