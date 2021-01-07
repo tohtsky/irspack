@@ -15,24 +15,26 @@ class TopPopRecommender(BaseRecommender):
             Input interaction matrix.
     """
 
-    score: Optional[np.ndarray]
+    score_: Optional[np.ndarray]
 
     def __init__(self, X_train: InteractionMatrix):
 
         super().__init__(X_train)
-        self.score = None
+        self.score_ = None
 
     def _learn(self) -> None:
-        self.score = self.X_train_all.sum(axis=0).astype(np.float64)
+        self.score_ = self.X_train_all.sum(axis=0).astype(np.float64)
+
+    @property
+    def score(self) -> np.ndarray:
+        if self.score_ is None:
+            raise RuntimeError("The method called before ``learn``.")
+        return self.score_
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        if self.score is None:
-            raise RuntimeError("'get_score' called before fit.")
         n_users: int = user_indices.shape[0]
         return np.repeat(self.score, n_users, axis=0)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        if self.score is None:
-            raise RuntimeError("'get_score_cold_user' called before fit.")
         n_users: int = X.shape[0]
         return np.repeat(self.score, n_users, axis=0)

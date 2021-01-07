@@ -51,7 +51,7 @@ class BaseRecommender(object, metaclass=ABCMeta):
 
     @abstractmethod
     def _learn(self) -> None:
-        pass
+        raise NotImplementedError("_learn must be implemented.")
 
     def learn_with_optimizer(
         self, evaluator: Optional["evaluator.Evaluator"], trial: Optional[Trial]
@@ -87,9 +87,7 @@ class BaseRecommender(object, metaclass=ABCMeta):
         Returns:
             The item scores. Its shape will be (end - begin, self.n_items)
         """
-        raise NotImplementedError(
-            "get_score_block not implemented!"
-        )  # pragma: no cover
+        raise NotImplementedError("get_score_block not implemented!")
 
     def get_score_remove_seen(self, user_indices: UserIndexArray) -> DenseScoreArray:
         """Compute the item score and mask the item in the training set. Masked items will have the score -inf.

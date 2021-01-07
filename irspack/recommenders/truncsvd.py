@@ -1,5 +1,7 @@
+import warnings
 from typing import Optional
 
+from numpy import random
 from sklearn.decomposition import TruncatedSVD
 
 from ..definitions import (
@@ -18,19 +20,35 @@ class TruncatedSVDRecommender(
     """Use (randomized) SVD to factorize the input matrix into low-rank matrices.
 
     Args:
-        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+        X_train_all:
             Input interaction matrix.
 
-        n_components (int, optional):
+        n_components:
             The rank of approximation. Defaults to 4.
             If this is larger than X_train_all, the value will be truncated into ``X_train_all.shape[1]``
+
+        random_seed:
+            The random seed to be passed on core TruncSVD.
     """
 
-    def __init__(self, X_train_all: InteractionMatrix, n_components: int = 4) -> None:
+    def __init__(
+        self,
+        X_train_all: InteractionMatrix,
+        n_components: int = 4,
+        random_seed: int = 0,
+    ) -> None:
+
+        assert X_train_all.shape[1] > 1
         super().__init__(X_train_all)
-        self.n_components = min(n_components, self.X_train_all.shape[1])
+        if n_components >= self.X_train_all.shape[1]:
+            warnings.warn(
+                "n_components >= than X_train_all.shape[1]. Set it to X_train_all.shape[1] - 1."
+            )
+            n_components = self.X_train_all.shape[1] - 1
+        self.n_components = n_components
         self.decomposer_: Optional[TruncatedSVD] = None
         self.z_: Optional[DenseMatrix] = None
+        self.random_seed = random_seed
 
     @property
     def z(self) -> DenseMatrix:
@@ -45,7 +63,9 @@ class TruncatedSVDRecommender(
         return self.decomposer_
 
     def _learn(self) -> None:
-        self.decomposer_ = TruncatedSVD(n_components=self.n_components)
+        self.decomposer_ = TruncatedSVD(
+            n_components=self.n_components, random_state=self.random_seed
+        )
         self.z_ = self.decomposer_.fit_transform(self.X_train_all)
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
