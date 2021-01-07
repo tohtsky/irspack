@@ -22,6 +22,26 @@ jobs:
         env:
           CIBW_BUILD: "cp36-* cp37-* cp38-* cp39-*"
           CFLAGS: "-march=core-avx-i"
-      - uses: actions/upload-artifact@v2
+#          CIBW_TEST_REQUIRES: pytest
+#          CIBW_TEST_COMMAND: pytest {project}/tests
+#      - uses: actions/upload-artifact@v2
+#        with:
+#          path: ./wheelhouse/*.whl
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@master
         with:
-          path: ./wheelhouse/*.whl
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_APITOKEN }}
+          packages_dir: wheelhouse/
+          repository_url: https://test.pypi.org/legacy/
+          verbose: true
+          skip_existing: true
+      - name: Publish package to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_APITOKEN }}
+          packages_dir: wheelhouse/
+          verbose: true
+          skip_existing: true
