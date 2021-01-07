@@ -9,7 +9,6 @@ from irspack.evaluator import Evaluator
 from irspack.recommenders import (
     AsymmetricCosineKNNRecommender,
     BaseRecommender,
-    BPRFMRecommender,
     CosineKNNRecommender,
     DenseSLIMRecommender,
     IALSRecommender,
@@ -45,9 +44,15 @@ rec_classes: List[Type[BaseRecommender]] = [
     RandomWalkWithRestartRecommender,
     IALSRecommender,
     DenseSLIMRecommender,
-    BPRFMRecommender,
     SLIMRecommender,
 ]
+try:
+    from irspack.recommenders.bpr import BPRFMRecommender
+
+    rec_classes.append(BPRFMRecommender)
+except:
+    pass
+
 try:
     from irspack.recommenders.multvae import MultVAERecommender
 
