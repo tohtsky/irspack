@@ -1,10 +1,6 @@
 import warnings
 
-from .base import (
-    BaseRecommender,
-    BaseRecommenderWithThreadingSupport,
-    BaseSimilarityRecommender,
-)
+from .base import BaseRecommender, BaseSimilarityRecommender
 from .base_earlystop import BaseRecommenderWithEarlyStopping
 from .dense_slim import DenseSLIMRecommender
 from .ials import IALSRecommender
@@ -25,7 +21,6 @@ from .truncsvd import TruncatedSVDRecommender
 __all__ = [
     "BaseRecommender",
     "BaseSimilarityRecommender",
-    "BaseRecommenderWithThreadingSupport",
     "BaseRecommenderWithEarlyStopping",
     "TopPopRecommender",
     "P3alphaRecommender",

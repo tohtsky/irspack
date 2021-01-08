@@ -4,7 +4,7 @@ irspack - Train, Evaluate, and Optimize Recommender Systems with Implicit-Feedba
 **irspack** is a collection of recommender system algorithms for implicit feedback data.
 
 Currently, in my opinion, there is no all-purpose algorithm for the recommendation tasks with implicit-feedback.
-So the key is to try out different algorithms, evaluate its performance against validation dataset, and optimize their performance.
+So the key is to try out different algorithms, evaluate its performance against validation dataset, and optimize their performance by tuning hyperparameters.
 irspack is built to make this procedure easy for you.
 
 Notable features include:
@@ -22,10 +22,10 @@ If you have a standard Python environment on MacOS/Linux, you can install the li
    pip install irspack
 
 The binaries on PyPI have been built to use AVX instruction.
-If you want to use AVX2/AVX512 or your environment does not support AVX, install it from source by e.g., : ::
+If you want to use AVX2/AVX512 or your environment does not support AVX (e.g. Rosetta2 on Apple Silicon),
+install it from source by e.g., : ::
 
    CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
-
 
 
 .. toctree::

@@ -24,11 +24,12 @@ def test_user_level_split() -> None:
         train_predict_pair = dataset[key]
         X_learn = train_predict_pair.X_train
         X_predict = train_predict_pair.X_test
+        assert X_predict is not None
         intersect = X_learn.multiply(X_predict)
         assert intersect.count_nonzero() == 0
         index = RNS.choice(np.arange(train_predict_pair.n_users), size=10)
         for i in index:
             nnz_learn = X_learn[i].nonzero()[1].shape[0]
             nnz_predict = X_predict[i].nonzero()[1].shape[0]
-            assert ratio > (nnz_predict - 1) / (nnz_learn + nnz_predict)
-            assert ratio < (nnz_predict + 1) / (nnz_learn + nnz_predict)
+            assert ratio >= (nnz_predict - 1) / (nnz_learn + nnz_predict)
+            assert ratio <= (nnz_predict + 1) / (nnz_learn + nnz_predict)

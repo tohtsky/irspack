@@ -2,14 +2,14 @@ from typing import Optional
 
 from sklearn.preprocessing import normalize
 
+from irspack.utils import get_n_threads
+
 from ..definitions import InteractionMatrix
 from ._knn import RP3betaComputer
-from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
+from .base import BaseSimilarityRecommender
 
 
-class RP3betaRecommender(
-    BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
-):
+class RP3betaRecommender(BaseSimilarityRecommender):
     """3-Path random walk with the item-popularity penalization:
 
         - `Updatable, Accurate, Diverse, and Scalable Recommendations for Interactive Applications
@@ -46,11 +46,12 @@ class RP3betaRecommender(
         normalize_weight: bool = False,
         n_threads: Optional[int] = None,
     ):
-        super().__init__(X_train_all, n_threads=n_threads)
+        super().__init__(X_train_all)
         self.alpha = alpha
         self.beta = beta
         self.top_k = top_k
         self.normalize_weight = normalize_weight
+        self.n_threads = get_n_threads(n_threads)
 
     def _learn(self) -> None:
         computer = RP3betaComputer(

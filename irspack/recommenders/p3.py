@@ -2,14 +2,14 @@ from typing import Optional
 
 from sklearn.preprocessing import normalize
 
+from irspack.utils import get_n_threads
+
 from ..definitions import InteractionMatrix
 from ._knn import P3alphaComputer
-from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
+from .base import BaseSimilarityRecommender
 
 
-class P3alphaRecommender(
-    BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
-):
+class P3alphaRecommender(BaseSimilarityRecommender):
     """Recommendation with 3-steps random walk, proposed in
 
         - `Random Walks in Recommender Systems: Exact Computation and Simulations
@@ -45,10 +45,11 @@ class P3alphaRecommender(
         n_threads: Optional[int] = None,
     ):
         """"""
-        super().__init__(X_train_all, n_threads=n_threads)
+        super().__init__(X_train_all)
         self.alpha = alpha
         self.top_k = top_k
         self.normalize_weight = normalize_weight
+        self.n_threads = get_n_threads(n_threads)
 
     def _learn(self) -> None:
         computer = P3alphaComputer(

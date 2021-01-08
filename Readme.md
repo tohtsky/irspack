@@ -3,22 +3,23 @@
 [![Python](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)](https://www.python.org)
 [![pypi](https://img.shields.io/pypi/v/irspack.svg)](https://pypi.python.org/pypi/irspack)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tohtsky/irspack)
+[![Build](https://github.com/tohtsky/irspack/workflows/Build/badge.svg?branch=main)](https://github.com/tohtsky/irspack)
 [![Read the Docs](https://readthedocs.org/projects/irspack/badge/?version=stable)](https://irspack.readthedocs.io/en/stable/)
 [![codecov](https://codecov.io/gh/tohtsky/irspack/branch/main/graph/badge.svg?token=kLgOKTQqcV)](https://codecov.io/gh/tohtsky/irspack)
 
-**irspack** is a Python package to train, evaluate, and optimize recommender systems based on implicit feedback.
+**irspack** is a Python package for train, evaluate, and optimize recommender systems based on implicit feedback.
 
-While there are already many other great packages for this purpose, like
+There are already great packages for this purpose like
 
 - [implicit](https://github.com/benfred/implicit)
 - [daisyRec](https://github.com/AmazingDD/daisyRec)
 - [RecSys2019_DeepLearning_Evaluation](https://github.com/MaurizioFD/RecSys2019_DeepLearning_Evaluation) (which has influenced this project the most)
 
-I have decided to implement my own one to
+However, I decided to implement my own one to
 
 - Use [optuna](https://github.com/optuna/optuna) for more efficient parameter search. In particular, if an early stopping scheme is available, optuna can prune unpromising trial based on the intermediate validation score, which drastically reduces overall running time for tuning.
 - Use multi-threaded implementations of the number of algorithms (KNN and IALS) in C++.
-- Deal with user cold-start scenarios using [CB2CF strategy](https://dl.acm.org/doi/10.1145/3298689.3347038), which I found very convenient in practice.
+- Deal with user cold-start scenarios using ["CB2CF" strategy](https://dl.acm.org/doi/10.1145/3298689.3347038), which I found very convenient in practice.
 
 # Installation & Optional Dependencies
 
@@ -38,7 +39,7 @@ In that case, you must have a decent version of C++ compiler (with C++11 support
 
 ## Optional Dependencies
 
-I have also prepared a wrapper class (`BPRFMRecommender`) to train and optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately by e.g.,
+I have also prepared a wrapper class (`BPRFMRecommender`) to train and optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately, e.g. by
 
 ```sh
 pip install lightfm

@@ -44,7 +44,7 @@ class BaseRecommender(object, metaclass=ABCMeta):
         """Learns and returns itself.
 
         Returns:
-            BaseRecommender: The model after fitting process.
+            The model after fitting process.
         """
         self._learn()
         return self
@@ -153,15 +153,6 @@ class BaseRecommender(object, metaclass=ABCMeta):
         score = self.get_score_cold_user(X)
         score[X.nonzero()] = -np.inf
         return score
-
-
-class BaseRecommenderWithThreadingSupport(BaseRecommender):
-    def __init__(
-        self, X_train_all: InteractionMatrix, n_threads: Optional[int], **kwargs: Any
-    ):
-
-        super(BaseRecommenderWithThreadingSupport, self).__init__(X_train_all, **kwargs)
-        self.n_threads = get_n_threads(n_threads)
 
 
 class BaseSimilarityRecommender(BaseRecommender):

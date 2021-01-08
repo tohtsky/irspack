@@ -3,6 +3,8 @@ from typing import IO, Optional
 
 import numpy as np
 
+from irspack.utils import get_n_threads
+
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
@@ -11,11 +13,7 @@ from ..definitions import (
 )
 from ._ials import IALSLearningConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
-from .base import (
-    BaseRecommenderWithItemEmbedding,
-    BaseRecommenderWithThreadingSupport,
-    BaseRecommenderWithUserEmbedding,
-)
+from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 
@@ -64,7 +62,6 @@ class IALSTrainer(TrainerBase):
 
 class IALSRecommender(
     BaseRecommenderWithEarlyStopping,
-    BaseRecommenderWithThreadingSupport,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
@@ -129,7 +126,6 @@ class IALSRecommender(
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
-            n_threads=n_threads,
         )
 
         self.n_components = n_components
@@ -138,6 +134,7 @@ class IALSRecommender(
         self.init_std = init_std
         self.use_cg = use_cg
         self.max_cg_steps = max_cg_steps
+        self.n_threads = get_n_threads(n_threads)
 
         self.trainer: Optional[IALSTrainer] = None
 

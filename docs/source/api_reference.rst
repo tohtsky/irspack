@@ -77,8 +77,8 @@ Optimizers
 
 .. currentmodule:: irspack.split
 
-SplitFunctions
---------------
+Split Functions
+---------------
 .. autosummary::
     :toctree: api_reference
     :nosignatures:
