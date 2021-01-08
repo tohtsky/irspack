@@ -44,7 +44,7 @@ class BaseRecommender(object, metaclass=ABCMeta):
         """Learns and returns itself.
 
         Returns:
-            BaseRecommender: The model after fitting process.
+            The model after fitting process.
         """
         self._learn()
         return self

@@ -31,5 +31,5 @@ def test_user_level_split() -> None:
         for i in index:
             nnz_learn = X_learn[i].nonzero()[1].shape[0]
             nnz_predict = X_predict[i].nonzero()[1].shape[0]
-            assert ratio > (nnz_predict - 1) / (nnz_learn + nnz_predict)
-            assert ratio < (nnz_predict + 1) / (nnz_learn + nnz_predict)
+            assert ratio >= (nnz_predict - 1) / (nnz_learn + nnz_predict)
+            assert ratio <= (nnz_predict + 1) / (nnz_learn + nnz_predict)
