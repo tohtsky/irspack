@@ -1,11 +1,11 @@
+from irspack.utils import get_n_threads
+
 from ..definitions import InteractionMatrix
 from ._rwr import RandomWalkGenerator
-from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
+from .base import BaseSimilarityRecommender
 
 
-class RandomWalkWithRestartRecommender(
-    BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
-):
+class RandomWalkWithRestartRecommender(BaseSimilarityRecommender):
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -15,11 +15,12 @@ class RandomWalkWithRestartRecommender(
         random_seed: int = 42,
         n_threads: int = 4,
     ):
-        super().__init__(X_train_all, n_threads=n_threads)
+        super().__init__(X_train_all)
         self.decay = decay
         self.n_samples = n_samples
         self.cutoff = cutoff
         self.random_seed = random_seed
+        self.n_threads = get_n_threads(n_threads)
 
     def _learn(self) -> None:
         rwg = RandomWalkGenerator(self.X_train_all.tocsr())

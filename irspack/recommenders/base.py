@@ -155,15 +155,6 @@ class BaseRecommender(object, metaclass=ABCMeta):
         return score
 
 
-class BaseRecommenderWithThreadingSupport(BaseRecommender):
-    def __init__(
-        self, X_train_all: InteractionMatrix, n_threads: Optional[int], **kwargs: Any
-    ):
-
-        super(BaseRecommenderWithThreadingSupport, self).__init__(X_train_all, **kwargs)
-        self.n_threads = get_n_threads(n_threads)
-
-
 class BaseSimilarityRecommender(BaseRecommender):
     W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
 

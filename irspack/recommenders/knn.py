@@ -3,14 +3,14 @@ from abc import abstractmethod
 from typing import Optional, Union
 
 from ..definitions import InteractionMatrix
-from ..utils import okapi_BM_25_weight, remove_diagonal, tf_idf_weight
+from ..utils import get_n_threads, okapi_BM_25_weight, remove_diagonal, tf_idf_weight
 from ._knn import (
     AsymmetricSimilarityComputer,
     CosineSimilarityComputer,
     JaccardSimilarityComputer,
     TverskyIndexComputer,
 )
-from .base import BaseRecommenderWithThreadingSupport, BaseSimilarityRecommender
+from .base import BaseSimilarityRecommender
 
 
 class FeatureWeightingScheme(str, enum.Enum):
@@ -19,9 +19,7 @@ class FeatureWeightingScheme(str, enum.Enum):
     BM_25 = "BM_25"
 
 
-class BaseKNNRecommender(
-    BaseSimilarityRecommender, BaseRecommenderWithThreadingSupport
-):
+class BaseKNNRecommender(BaseSimilarityRecommender):
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -32,12 +30,13 @@ class BaseKNNRecommender(
         bm25_k1: float = 1.2,
         bm25_b: float = 0.75,
     ):
-        super().__init__(X_train_all, n_threads=n_threads)
+        super().__init__(X_train_all)
         self.shrinkage = shrinkage
         self.top_k = top_k
         self.feature_weighting = FeatureWeightingScheme(feature_weighting)
         self.bm25_k1 = bm25_k1
         self.bm25_b = bm25_b
+        self.n_threads = get_n_threads(n_threads)
 
     @abstractmethod
     def _create_computer(

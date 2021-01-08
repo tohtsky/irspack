@@ -113,7 +113,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             A tuple that consists of
 
                 1. A dict containing the best paramaters.
-                   This dict can be passed to the recommender as **kwargs.
+                   This dict can be passed to the recommender as ``**kwargs``.
                 2. A ``pandas.DataFrame`` that contains the history of optimization.
 
         """
@@ -206,7 +206,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             A tuple that consists of
 
                 1. A dict containing the best paramaters.
-                   This dict can be passed to the recommender as **kwargs.
+                   This dict can be passed to the recommender as ``**kwargs``.
                 2. A ``pandas.DataFrame`` that contains the history of optimization.
 
         """

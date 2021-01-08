@@ -4,17 +4,15 @@ from typing import IO, Optional
 import numpy as np
 from lightfm import LightFM
 
+from irspack.utils import get_n_threads
+
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
     InteractionMatrix,
     UserIndexArray,
 )
-from .base import (
-    BaseRecommenderWithItemEmbedding,
-    BaseRecommenderWithThreadingSupport,
-    BaseRecommenderWithUserEmbedding,
-)
+from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 
@@ -49,7 +47,6 @@ class BPRFMTrainer(TrainerBase):
 
 class BPRFMRecommender(
     BaseRecommenderWithEarlyStopping,
-    BaseRecommenderWithThreadingSupport,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
@@ -105,7 +102,6 @@ class BPRFMRecommender(
     ):
         super().__init__(
             X_train_all,
-            n_threads=n_threads,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
@@ -117,6 +113,7 @@ class BPRFMRecommender(
             raise ValueError('BPRFM loss must be either "bpr" or "warp".')
         self.loss = loss
         self.trainer: Optional[BPRFMTrainer] = None
+        self.n_threads = get_n_threads(n_threads)
 
     def _create_trainer(self) -> BPRFMTrainer:
         return BPRFMTrainer(
