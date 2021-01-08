@@ -92,20 +92,15 @@ class BaseOptimizer(object, metaclass=ABCMeta):
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return args, kwargs
 
-    def optimize(
+    def optimize_with_study(
         self,
+        study: optuna.Study,
         n_trials: int = 20,
         timeout: Optional[int] = None,
-        random_seed: Optional[int] = None,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
-        self.logger.info(
-            """Start parameter search for %s over the range: %s""",
-            type(self).recommender_class.__name__,
-            self.suggestions,
-        )
-        study = optuna.create_study(
-            sampler=optuna.samplers.TPESampler(seed=random_seed)
-        )
+        """
+        Args:
+        """
         self.current_trial = -1
         self.best_val = float("inf")
         self.best_time = None
@@ -148,6 +143,12 @@ class BaseOptimizer(object, metaclass=ABCMeta):
 
             return -val_score
 
+        self.logger.info(
+            """Start parameter search for %s over the range: %s""",
+            type(self).recommender_class.__name__,
+            self.suggestions,
+        )
+
         study.optimize(objective_func, n_trials=n_trials, timeout=timeout)
         if self.best_params is None:
             raise RuntimeError("best parameter not found.")
@@ -166,6 +167,17 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             is_best[self.best_trial_index] = True
         result_df["is_best"] = is_best
         return best_params, result_df
+
+    def optimize(
+        self,
+        n_trials: int = 20,
+        timeout: Optional[int] = None,
+        random_seed: Optional[int] = None,
+    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
+        study = optuna.create_study(
+            sampler=optuna.samplers.TPESampler(seed=random_seed)
+        )
+        return self.optimize_with_study(study, n_trials, timeout)
 
 
 class BaseOptimizerWithEarlyStopping(BaseOptimizer):
@@ -240,33 +252,3 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
             score_degradation_max=self.score_degradation_max,
             **kwargs,
         )
-
-
-class BaseOptimizerWithThreadingSupport(BaseOptimizer):
-    recommender_class: Type[BaseRecommenderWithThreadingSupport]
-
-    def __init__(
-        self,
-        data: InteractionMatrix,
-        val_evaluator: Evaluator,
-        metric: str = "ndcg",
-        logger: Optional[logging.Logger] = None,
-        suggest_overwrite: List[Suggestion] = list(),
-        fixed_params: Dict[str, Any] = dict(),
-        n_threads: Optional[int] = None,
-        **kwargs: Any,
-    ):
-        super().__init__(
-            data,
-            val_evaluator,
-            metric,
-            logger,
-            suggest_overwrite=suggest_overwrite,
-            fixed_params=fixed_params,
-        )
-        self.n_threads = n_threads
-
-    def get_model_arguments(
-        self, *args: Any, **kwargs: Any
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super().get_model_arguments(*args, n_threads=self.n_threads, **kwargs)
