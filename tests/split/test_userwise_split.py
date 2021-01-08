@@ -24,6 +24,7 @@ def test_user_level_split() -> None:
         train_predict_pair = dataset[key]
         X_learn = train_predict_pair.X_train
         X_predict = train_predict_pair.X_test
+        assert X_predict is not None
         intersect = X_learn.multiply(X_predict)
         assert intersect.count_nonzero() == 0
         index = RNS.choice(np.arange(train_predict_pair.n_users), size=10)
