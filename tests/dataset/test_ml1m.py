@@ -1,7 +1,9 @@
 import os
+import sys
 from zipfile import ZipFile
 
 import numpy as np
+import pytest
 
 from irspack.dataset.movielens import (
     MovieLens1MDataManager,
@@ -13,6 +15,8 @@ ZIPFILE_NAME = os.path.join(os.path.expanduser("~"), "ml.test.zip")
 
 
 def test_ml100k() -> None:
+    if sys.platform == "win32":
+        pytest.skip("Skip on Windows.")
     GENRES = ["fantasy", "action", "thriller"]
     try:
         with ZipFile(ZIPFILE_NAME, "w") as zf:
@@ -74,6 +78,9 @@ def test_ml100k() -> None:
 
 
 def test_ml1m() -> None:
+    if sys.platform == "win32":
+        pytest.skip("Skip on Windows.")
+
     try:
         with ZipFile(ZIPFILE_NAME, "w") as zf:
             with zf.open("ml-1m/ratings.dat", "w") as ofs:
@@ -124,6 +131,8 @@ def test_ml1m() -> None:
 
 
 def test_ml20m() -> None:
+    if sys.platform == "win32":
+        pytest.skip("Skip on Windows.")
     try:
         with ZipFile(ZIPFILE_NAME, "w") as zf:
             with zf.open("ml-20m/ratings.csv", "w") as ofs:
