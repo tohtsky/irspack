@@ -23,13 +23,13 @@ However, I decided to implement my own one to
 
 # Installation & Optional Dependencies
 
-There are binaries for Linux & MacOS with python>=3.6. You can install them via
+There are binaries for Linux, MacOS, and Windows with python>=3.6. You can install them via
 
 ```sh
 pip install irspack
 ```
 
-The binary has been compiled to use AVX instruction. If you want to use AVX2/AVX512 or your environment does not support AVX, install it from source like
+The binaries have been compiled to use AVX instruction. If you want to use AVX2/AVX512 or your environment does not support AVX, install it from source like
 
 ```sh
 CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
