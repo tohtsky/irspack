@@ -6,6 +6,7 @@
 #include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -14,8 +15,12 @@ using namespace ials11;
 using std::vector;
 
 PYBIND11_MODULE(_ials, m) {
-  py::print("info: irspack's _ials core built to use\n\t",
-            Eigen::SimdInstructionSetsInUse());
+  std::stringstream doc_stream;
+  doc_stream << "irspack's core module for \"IALSRecommender\"." << std::endl
+             << "Built to use" << std::endl
+             << "\t" << Eigen::SimdInstructionSetsInUse();
+
+  m.doc() = doc_stream.str();
   py::class_<IALSLearningConfig>(m, "IALSLearningConfig")
       .def(py::init<size_t, Real, Real, Real, int, size_t, bool, size_t>())
       .def(py::pickle(
