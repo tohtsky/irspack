@@ -125,7 +125,7 @@ class Evaluator:
     def _get_scores_as_list(
         self, model: "base_recommender.BaseRecommender", cutoffs: List[int]
     ) -> List[Dict[str, float]]:
-        if self.offset + self.n_users >= model.n_users:
+        if self.offset + self.n_users > model.n_users:
             raise ValueError("evaluator offset + n_users exceeds the model's n_users.")
         if self.n_items != model.n_items:
             raise ValueError("The model and evaluator assume different n_items.")

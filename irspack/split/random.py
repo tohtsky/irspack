@@ -33,7 +33,7 @@ class UserTrainTestInteractionPair:
 
     X_train: sps.csr_matrix
     """The train part of users' interactions."""
-    X_test: Optional[InteractionMatrix]
+    X_test: sps.csr_matrix
     """The test part of users' interactions."""
     n_users: int
     """The number of users"""
@@ -55,6 +55,7 @@ class UserTrainTestInteractionPair:
         if X_test is not None:
             if X_train.shape != X_test.shape:
                 raise ValueError("X_train and X_test have different shapes.")
+            X_test = sps.csr_matrix(X_test)
         else:
             X_test = sps.csr_matrix(X_train.shape, dtype=X_train.dtype)
         self.user_ids = [x for x in user_ids]
@@ -62,7 +63,7 @@ class UserTrainTestInteractionPair:
         self.X_test = X_test
         self.n_users = self.X_train.shape[0]
         self.n_items = self.X_train.shape[1]
-        self.X_all = sps.csr_matrix(self.X_train)
+        self.X_all = sps.csr_matrix(self.X_train + self.X_test)
 
     def concat(
         self, other: "UserTrainTestInteractionPair"
