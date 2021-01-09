@@ -22,6 +22,9 @@ namespace irspack {
 
 using CountVector = Eigen::Matrix<std::int64_t, Eigen::Dynamic, 1>;
 struct Metrics {
+  // This isn't necessary, but MSVC complains Metric is not default
+  // constructible.
+  inline Metrics() : Metrics(0) {}
   inline Metrics(size_t n_item) : n_item(n_item), item_cnt(n_item) {
     item_cnt.array() = 0;
   }
