@@ -55,6 +55,9 @@ class Evaluator:
         mb_size (int, optional): The rows of chunked user score. Defaults to 1024.
     """
 
+    n_users: int
+    n_items: int
+
     def __init__(
         self,
         ground_truth: InteractionMatrix,
@@ -80,6 +83,7 @@ class Evaluator:
         self.core = EvaluatorCore(ground_truth, recommendable_items_arg)
         self.offset = offset
         self.n_users = ground_truth.shape[0]
+        self.n_items = ground_truth.shape[1]
         self.target_metric = TargetMetric(target_metric)
         self.cutoff = cutoff
         self.n_threads = get_n_threads(n_threads)
@@ -121,7 +125,11 @@ class Evaluator:
     def _get_scores_as_list(
         self, model: "base_recommender.BaseRecommender", cutoffs: List[int]
     ) -> List[Dict[str, float]]:
-        n_items = model.n_items
+        if self.offset + self.n_users >= model.n_users:
+            raise ValueError("evaluator offset + n_users exceeds the model's n_users.")
+        if self.n_items != model.n_items:
+            raise ValueError("The model and evaluator assume different n_items.")
+        n_items = self.n_items
         metrics: List[Metrics] = []
         for c in cutoffs:
             metrics.append(Metrics(n_items))
