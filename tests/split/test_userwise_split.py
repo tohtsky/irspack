@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import scipy.sparse as sps
 
 from irspack.dataset.movielens import MovieLens100KDataManager
 from irspack.split import split_dataframe_partial_user_holdout
@@ -26,12 +27,21 @@ def test_user_level_split() -> None:
     )
     with pytest.raises(ValueError):
         train_invalid.concat(train)
+    with pytest.raises(ValueError):
+        invalid_arg = UserTrainTestInteractionPair(
+            train.user_ids, train.X_train, train.X_train[1:]
+        )
+
     val = dataset["val"]
     test = dataset["test"]
     assert train.X_test.count_nonzero() == 0
     train_val = train.concat(val)
     assert train_val.X_test[: train.n_users].count_nonzero() == 0
     assert (train_val.X_test[train.n_users :] - val.X_test).count_nonzero() == 0
+
+    assert (
+        train_val.X_train - sps.vstack([train.X_all, val.X_train])
+    ).count_nonzero() == 0
 
     for user_data, ratio in [(val, 0.3), (test, 0.5)]:
         X_learn = user_data.X_train

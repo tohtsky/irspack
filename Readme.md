@@ -7,7 +7,9 @@
 [![Read the Docs](https://readthedocs.org/projects/irspack/badge/?version=stable)](https://irspack.readthedocs.io/en/stable/)
 [![codecov](https://codecov.io/gh/tohtsky/irspack/branch/main/graph/badge.svg?token=kLgOKTQqcV)](https://codecov.io/gh/tohtsky/irspack)
 
-**irspack** is a Python package for train, evaluate, and optimize recommender systems based on implicit feedback.
+[**Docs**](https://irspack.readthedocs.io/en/latest/)
+
+**irspack** is a Python package to train, evaluate, and optimize recommender systems based on implicit feedback.
 
 There are already great packages for this purpose like
 
