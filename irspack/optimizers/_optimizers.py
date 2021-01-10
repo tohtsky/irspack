@@ -152,7 +152,7 @@ _add_docstring(DenseSLIMOptimizer)
 class RP3betaOptimizer(BaseOptimizer):
     default_tune_range = [
         LogUniformSuggestion("alpha", 1e-5, 10),
-        IntegerSuggestion("top_k", 2, 4000),
+        IntegerSuggestion("top_k", 2, 1000),
         LogUniformSuggestion("beta", 1e-5, 5e-1),
         CategoricalSuggestion("normalize_weight", [True, False]),
     ]

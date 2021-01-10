@@ -1,4 +1,5 @@
 import uuid
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
@@ -89,9 +90,11 @@ def test_holdout_particular_item_interaction() -> None:
     assert test.X_test is not None
     assert test.X_test.sum(axis=1).A1.min() >= 1
 
-    def X_to_df(X: sps.csr_matrix, uids: np.ndarray) -> pd.DataFrame:
-        row, col = X.nonzero()
-        return pd.DataFrame(dict(user_id=uids[row], item_id=item_id_reprod[col]))
+    def X_to_df(X: sps.csr_matrix, uids: List[Any]) -> pd.DataFrame:
+        rows, cols = X.nonzero()
+        return pd.DataFrame(
+            dict(user_id=[uids[row] for row in rows], item_id=item_id_reprod[cols])
+        )
 
     assert np.all(X_to_df(val.X_test, val.user_ids).item_id.isin(validatable_item_ids))
     assert np.all(
@@ -163,8 +166,10 @@ def test_holdout_future() -> None:
     np.testing.assert_array_equal(train_users.user_ids, users_past_only)
 
     def X_to_df(X: sps.csr_matrix, uids: np.ndarray) -> pd.DataFrame:
-        row, col = X.nonzero()
-        return pd.DataFrame(dict(user_id=uids[row], item_id=unique_item_ids[col]))
+        rows, cols = X.nonzero()
+        return pd.DataFrame(
+            dict(user_id=[uids[row] for row in rows], item_id=unique_item_ids[cols])
+        )
 
     for userset in [val_users, test_users]:
         # check all of the train_interactions are in the future

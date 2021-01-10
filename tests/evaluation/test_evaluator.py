@@ -143,3 +143,19 @@ def test_metrics_ColdUser(U: int, I: int, U_test: int) -> None:
 
     for key in hot_score:
         assert hot_score[key] == pytest.approx(cold_score[key], abs=1e-8)
+
+
+@pytest.mark.parametrize("U, I, C", [(10, 5, 5), (10, 30, 29)])
+def test_recommender_check(U: int, I: int, C: int) -> None:
+    rns = np.random.RandomState(42)
+    scores = rns.randn(U, I)
+    X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
+    eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=C, n_threads=2)
+    mock_rec_too_few_users = MockRecommender(sps.csr_matrix((U - 1, I)), scores[1:])
+    with pytest.raises(ValueError):
+        eval.get_score(mock_rec_too_few_users)
+    mock_rec_too_few_items = MockRecommender(sps.csr_matrix((U, I - 1)), scores[:, 1:])
+    with pytest.raises(ValueError):
+        eval.get_score(mock_rec_too_few_items)
+    moc_rec_valid = MockRecommender(sps.csr_matrix((U, I)), scores)
+    eval.get_score(moc_rec_valid)
