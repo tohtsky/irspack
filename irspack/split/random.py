@@ -19,7 +19,9 @@ class UserTrainTestInteractionPair:
         X_train:
             The train part of interactions.
         X_test:
-            The test part of interactions (if any). Defaults to None.
+            The test part of interactions (if any).
+            If ``None``, an empty matrix with the shape of ``X_train``
+            will be created. Defaults to None.
 
     Raises:
         ValueError:
@@ -29,12 +31,14 @@ class UserTrainTestInteractionPair:
 
     """
 
-    X_train: InteractionMatrix
+    X_train: sps.csr_matrix
     """The train part of users' interactions."""
-    X_test: Optional[InteractionMatrix]
+    X_test: sps.csr_matrix
     """The test part of users' interactions."""
     n_users: int
     """The number of users"""
+    n_items: int
+    """The number of items"""
     X_all: sps.csr_matrix
     """If ``X_test`` is not ``None``, equal to ``X_train + X_test``.Otherwise equals X_train."""
 
@@ -51,14 +55,35 @@ class UserTrainTestInteractionPair:
         if X_test is not None:
             if X_train.shape != X_test.shape:
                 raise ValueError("X_train and X_test have different shapes.")
-        self.user_ids = user_ids
-        self.X_train = X_train
+            X_test = sps.csr_matrix(X_test)
+        else:
+            X_test = sps.csr_matrix(X_train.shape, dtype=X_train.dtype)
+        self.user_ids = [x for x in user_ids]
+        self.X_train = sps.csr_matrix(X_train)
         self.X_test = X_test
         self.n_users = self.X_train.shape[0]
-        if self.X_test is None:
-            self.X_all = sps.csr_matrix(self.X_train)
-        else:
-            self.X_all = sps.csr_matrix((self.X_train + self.X_test))
+        self.n_items = self.X_train.shape[1]
+        self.X_all = sps.csr_matrix(self.X_train + self.X_test)
+
+    def concat(
+        self, other: "UserTrainTestInteractionPair"
+    ) -> "UserTrainTestInteractionPair":
+        """Concatenate the users data.
+        user_id will be ``self.user_ids + self.item_ids``.
+
+        Returns:
+            [type]: [description]
+
+        ValueError:
+            when ``self`` and ``other`` have unequal ``n_items``.
+        """
+        if self.n_items != other.n_items:
+            raise ValueError("inconsistent n_items.")
+        return UserTrainTestInteractionPair(
+            self.user_ids + other.user_ids,
+            sps.vstack([self.X_train, other.X_train], format="csr"),
+            sps.vstack([self.X_test, other.X_test], format="csr"),
+        )
 
 
 def split_train_test_userwise(

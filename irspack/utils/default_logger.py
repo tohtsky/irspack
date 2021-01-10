@@ -27,4 +27,8 @@ def get_default_logger() -> logging.Logger:
     return _logger
 
 
-__all__ = ["get_default_logger"]
+def disable_default_handler() -> None:
+    _logger.removeHandler(_handler)
+
+
+__all__ = ["get_default_logger", "disable_default_handler"]

@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - develop
   release:
     types:
       - created
@@ -70,7 +69,7 @@ jobs:
           verbose: true
           skip_existing: true
       - name: Publish package to PyPI
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        if: github.event_name == 'release'
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
