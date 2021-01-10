@@ -5,6 +5,7 @@
 #include <bits/stdint-intn.h>
 #include <cstddef>
 #include <future>
+#include <iostream>
 #include <random>
 #include <stdexcept>
 #include <thread>
@@ -193,30 +194,28 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
   check_arg(l2_coeff >= 0, "l2_coeff must be > 0.");
   check_arg(l1_coeff >= 0, "l1_coeff must be > 0.");
 
-  CSRMatrix<Real> X_csr(X);
+  // CSRMatrix<Real> X_csr(X);
   CSCMatrix<Real> X_csc(X);
   X_csc.makeCompressed();
-  const int block_size = 32;
+  const int block_size = 4;
   using TripletType = Eigen::Triplet<Real>;
   using CSCIter = typename CSCMatrix<Real>::InnerIterator;
   std::vector<std::future<std::vector<TripletType>>> workers;
   std::atomic<int64_t> cursor(0);
   for (size_t th = 0; th < n_threads; th++) {
     workers.emplace_back(std::async(std::launch::async, [th, &cursor,
-                                                         block_size, &X_csr,
-                                                         &X_csc, l2_coeff,
-                                                         l1_coeff, n_iter] {
+                                                         block_size, &X_csc,
+                                                         l2_coeff, l1_coeff,
+                                                         n_iter] {
       const int64_t F = X_csc.cols();
-      RowMajorMatrix<Real> remnants(X_csr.rows(), block_size);
-      RowMajorMatrix<Real> coeffs(X_csr.cols(), block_size);
-      DenseVector<Real> quadratic(block_size);
+      RowMajorMatrix<Real> remnants(X_csc.rows(), block_size);
+      RowMajorMatrix<Real> coeffs(X_csc.cols(), block_size);
       DenseVector<Real> linear(block_size);
-      DenseVector<Real> coeff_temp(block_size);
 
       std::vector<TripletType> local_resuts;
       while (true) {
         int64_t current_cursor = cursor.fetch_add(block_size);
-        if (current_cursor >= X_csc.cols()) {
+        if (current_cursor >= F) {
           break;
         }
         int64_t block_begin = current_cursor;
@@ -224,52 +223,66 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
         int64_t block_size = block_end - block_begin;
         remnants.array() = 0;
         coeffs.array() = 0;
-        for (int64_t cursor = block_begin; cursor < block_end; cursor++) {
-          const int64_t internal_col_position = cursor - block_begin;
-          for (CSCIter iter(X_csc, cursor); iter; ++iter) {
-            remnants(iter.row(), internal_col_position) = iter.value();
+
+        for (int64_t f_cursor = block_begin; f_cursor < block_end; f_cursor++) {
+          const int64_t internal_col_position = f_cursor - block_begin;
+          for (CSCIter iter(X_csc, f_cursor); iter; ++iter) {
+            remnants(iter.row(), internal_col_position) = -iter.value();
           }
         }
-        for (size_t iteration = 0; iteration < n_iter; iteration++) {
+
+        for (size_t cd_iteration = 0; cd_iteration < n_iter; cd_iteration++) {
           for (int64_t feature_index = 0; feature_index < F; feature_index++) {
-            quadratic.array() = l2_coeff;
+            /*
+            DenseVector<Real> rmse =
+                (0.5 * remnants.array().square().colwise().sum() +
+                 l2_coeff * coeffs.array().square().colwise().sum());
+            std::cout << "rmse=" << rmse << std::endl;
+            */
             linear.array() = static_cast<Real>(0.0);
             Real x2_sum = static_cast<Real>(0.0);
-            for (CSCIter nnz_iter(X_csc, feature_index); nnz_iter; + nnz_iter) {
+            for (CSCIter nnz_iter(X_csc, feature_index); nnz_iter; ++nnz_iter) {
               Real x = nnz_iter.value();
+
               const int64_t row = nnz_iter.row();
               x2_sum += x * x;
               /*
-              z_new = (remnant_u + w^old _f X_uf - w^new _f X_uf ) ^2
-              z_new = CONST
+              loss = \sum_u (remnant_u - w^old _f X_uf + w^new _f X_uf ) ^2
+              z_new =
+              CONST
               + \sum_u X_{uf} ^2 w^new_f ^2
-              - 2 * w^new_f \sum_u X_{uf} ( remnant_u + X_{uf} w^{old}_f)
-              (remnant_u + w^old _f X_uf - w^new _f X_uf ) ^2
+              + 2 * w^new_f \sum_u X_{uf} ( remnant_u - X_{uf} w^{old}_f )
+
+              LINEAR_COEFF =
+                \sum_u X_{uf} ( remnant_u ) -
+                - \sum _u ( X_{uf} ^2) w^{old}_f
+
               */
-              linear.noalias() += x * remnants.row(row).transpose();
+              remnants.row(row) -= x * coeffs.row(feature_index);
+              linear.noalias() += x * remnants.row(row);
             }
-            linear.noalias() += x2_sum * coeffs.row(feature_index).transpose();
+
             Real quadratic = x2_sum + l2_coeff;
             for (int64_t inner_cursor_position = 0;
                  inner_cursor_position < block_size; inner_cursor_position++) {
               int64_t original_cursor_position =
                   inner_cursor_position + block_begin;
               if (original_cursor_position == feature_index) {
-                coeff_temp(inner_cursor_position) = 0.0;
+                coeffs(feature_index, inner_cursor_position) = 0.0;
                 continue;
               }
-              coeff_temp(inner_cursor_position) =
-                  linear(inner_cursor_position) / quadratic;
+              coeffs(feature_index, inner_cursor_position) =
+                  -linear(inner_cursor_position) / quadratic;
             }
-            for (CSCIter nnz_iter(X_csc, feature_index); nnz_iter; + nnz_iter) {
+
+            for (CSCIter nnz_iter(X_csc, feature_index); nnz_iter; ++nnz_iter) {
               Real x = nnz_iter.value();
               const int64_t row = nnz_iter.row();
-              remnants.row(row).noalias() +=
-                  x * (coeffs.row(feature_index) - coeff_temp).transpose();
-              coeffs.row(feature_index).noalias() = coeff_temp.transpose();
+              remnants.row(row).noalias() += x * coeffs.row(feature_index);
             }
           }
         }
+
         for (int64_t f = 0; f < F; f++) {
           for (int64_t inner_cursor_position = 0;
                inner_cursor_position < block_size; inner_cursor_position++) {
