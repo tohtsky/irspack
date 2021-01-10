@@ -1,12 +1,16 @@
 #pragma once
 #include <Eigen/Core>
 #include <Eigen/Sparse>
+#include <atomic>
+#include <bits/stdint-intn.h>
+#include <cstddef>
 #include <future>
 #include <random>
 #include <stdexcept>
 #include <thread>
 #include <tuple>
 #include <unordered_map>
+#include <vector>
 
 #include "argcheck.hpp"
 
@@ -17,7 +21,18 @@ template <typename Real>
 using CSRMatrix = Eigen::SparseMatrix<Real, Eigen::RowMajor>;
 
 template <typename Real>
+using RowMajorMatrix =
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
+template <typename Real>
+using ColMajorMatrix =
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+
+template <typename Real>
 using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
+
+template <typename Real>
+using DenseColVector = Eigen::Matrix<Real, 1, Eigen::Dynamic, Eigen::RowMajor>;
 
 template <typename Real>
 using CSCMatrix = Eigen::SparseMatrix<Real, Eigen::ColMajor>;
@@ -167,6 +182,119 @@ CSRMatrix<Real> remove_diagonal(const CSRMatrix<Real> &X) {
       }
     }
   }
+  return result;
+}
+
+template <typename Real>
+inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
+                            size_t n_iter, Real l2_coeff, Real l1_coeff) {
+  check_arg(n_threads > 0, "n_threads must be > 0.");
+  check_arg(n_iter > 0, "n_iter must be > 0.");
+  check_arg(l2_coeff >= 0, "l2_coeff must be > 0.");
+  check_arg(l1_coeff >= 0, "l1_coeff must be > 0.");
+
+  CSRMatrix<Real> X_csr(X);
+  CSCMatrix<Real> X_csc(X);
+  X_csc.makeCompressed();
+  const int block_size = 32;
+  using TripletType = Eigen::Triplet<Real>;
+  using CSCIter = typename CSCMatrix<Real>::InnerIterator;
+  std::vector<std::future<std::vector<TripletType>>> workers;
+  std::atomic<int64_t> cursor(0);
+  for (size_t th = 0; th < n_threads; th++) {
+    workers.emplace_back(std::async(std::launch::async, [th, &cursor,
+                                                         block_size, &X_csr,
+                                                         &X_csc, l2_coeff,
+                                                         l1_coeff, n_iter] {
+      const int64_t F = X_csc.cols();
+      RowMajorMatrix<Real> remnants(X_csr.rows(), block_size);
+      RowMajorMatrix<Real> coeffs(X_csr.cols(), block_size);
+      DenseVector<Real> quadratic(block_size);
+      DenseVector<Real> linear(block_size);
+      DenseVector<Real> coeff_temp(block_size);
+
+      std::vector<TripletType> local_resuts;
+      while (true) {
+        int64_t current_cursor = cursor.fetch_add(block_size);
+        if (current_cursor >= X_csc.cols()) {
+          break;
+        }
+        int64_t block_begin = current_cursor;
+        int64_t block_end = std::min(block_begin + block_size, F);
+        int64_t block_size = block_end - block_begin;
+        remnants.array() = 0;
+        coeffs.array() = 0;
+        for (int64_t cursor = block_begin; cursor < block_end; cursor++) {
+          const int64_t internal_col_position = cursor - block_begin;
+          for (CSCIter iter(X_csc, cursor); iter; ++iter) {
+            remnants(iter.row(), internal_col_position) = iter.value();
+          }
+        }
+        for (size_t iteration = 0; iteration < n_iter; iteration++) {
+          for (int64_t feature_index = 0; feature_index < F; feature_index++) {
+            quadratic.array() = l2_coeff;
+            linear.array() = static_cast<Real>(0.0);
+            Real x2_sum = static_cast<Real>(0.0);
+            for (CSCIter nnz_iter(X_csc, feature_index); nnz_iter; + nnz_iter) {
+              Real x = nnz_iter.value();
+              const int64_t row = nnz_iter.row();
+              x2_sum += x * x;
+              /*
+              z_new = (remnant_u + w^old _f X_uf - w^new _f X_uf ) ^2
+              z_new = CONST
+              + \sum_u X_{uf} ^2 w^new_f ^2
+              - 2 * w^new_f \sum_u X_{uf} ( remnant_u + X_{uf} w^{old}_f)
+              (remnant_u + w^old _f X_uf - w^new _f X_uf ) ^2
+              */
+              linear.noalias() += x * remnants.row(row).transpose();
+            }
+            linear.noalias() += x2_sum * coeffs.row(feature_index).transpose();
+            Real quadratic = x2_sum + l2_coeff;
+            for (int64_t inner_cursor_position = 0;
+                 inner_cursor_position < block_size; inner_cursor_position++) {
+              int64_t original_cursor_position =
+                  inner_cursor_position + block_begin;
+              if (original_cursor_position == feature_index) {
+                coeff_temp(inner_cursor_position) = 0.0;
+                continue;
+              }
+              coeff_temp(inner_cursor_position) =
+                  linear(inner_cursor_position) / quadratic;
+            }
+            for (CSCIter nnz_iter(X_csc, feature_index); nnz_iter; + nnz_iter) {
+              Real x = nnz_iter.value();
+              const int64_t row = nnz_iter.row();
+              remnants.row(row).noalias() +=
+                  x * (coeffs.row(feature_index) - coeff_temp).transpose();
+              coeffs.row(feature_index).noalias() = coeff_temp.transpose();
+            }
+          }
+        }
+        for (int64_t f = 0; f < F; f++) {
+          for (int64_t inner_cursor_position = 0;
+               inner_cursor_position < block_size; inner_cursor_position++) {
+            int64_t original_location = inner_cursor_position + block_begin;
+            Real c = coeffs(f, inner_cursor_position);
+            if (c != 0.0) {
+              local_resuts.emplace_back(f, original_location, c);
+            }
+          }
+        }
+      }
+      return local_resuts;
+    }));
+  }
+  std::vector<TripletType> nnzs;
+  for (auto &fres : workers) {
+    auto result = fres.get();
+    for (const auto &w : result) {
+      nnzs.emplace_back(w);
+    }
+  }
+
+  CSCMatrix<Real> result(X.cols(), X.cols());
+  result.setFromTriplets(nnzs.begin(), nnzs.end());
+  result.makeCompressed();
   return result;
 }
 
