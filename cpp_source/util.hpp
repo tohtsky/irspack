@@ -243,8 +243,7 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
               Real x = nnz_iter.value();
 
               const int64_t row = nnz_iter.row();
-              x2_sum += 1;
-              x *x;
+              x2_sum += x * x;
               /*
               loss = \sum_u (remnant_u - w^old _f X_uf + w^new _f X_uf ) ^2
               z_new =
@@ -262,39 +261,37 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
             }
 
             Real quadratic = x2_sum + l2_coeff;
-            linear_plus.array() = linear.array() + l1_coeff;
-            linear_minus.array() = linear.array() - l1_coeff;
+            linear_plus.array() = (linear.array() + l1_coeff) / quadratic;
+            linear_minus.array() = (linear.array() - l1_coeff) / quadratic;
+            // linear_plus /= quadratic;
+
             for (int64_t inner_cursor_position = 0;
                  inner_cursor_position < block_size; inner_cursor_position++) {
+              Real *ptr_location = coeffs.data() + feature_index * block_size;
               int64_t original_cursor_position =
                   inner_cursor_position + block_begin;
               if (original_cursor_position == feature_index) {
-                coeffs(feature_index, inner_cursor_position) = 0.0;
+                *(ptr_location++) = 0.0;
                 continue;
               }
               if (positive_only) {
                 Real lplus = linear_plus(inner_cursor_position);
                 if (lplus < 0) {
-                  coeffs(feature_index, inner_cursor_position) =
-                      -lplus / quadratic;
+                  *(ptr_location++) = -lplus;
                 } else {
-                  coeffs(feature_index, inner_cursor_position) =
-                      static_cast<Real>(0.0);
+                  *(ptr_location++) = static_cast<Real>(0.0);
                 }
 
               } else {
                 Real lplus = linear_plus(inner_cursor_position);
                 Real lminus = linear_minus(inner_cursor_position);
                 if (lplus < 0) {
-                  coeffs(feature_index, inner_cursor_position) =
-                      -lplus / quadratic;
+                  *(ptr_location++) = -lplus;
                 } else {
                   if (lminus > 0) {
-                    coeffs(feature_index, inner_cursor_position) =
-                        -lminus / quadratic;
+                    *(ptr_location++) = -lminus;
                   } else {
-                    coeffs(feature_index, inner_cursor_position) =
-                        static_cast<Real>(0.0);
+                    *(ptr_location++) = static_cast<Real>(0.0);
                   }
                 }
               } // allow nagative block
