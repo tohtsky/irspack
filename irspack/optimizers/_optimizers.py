@@ -185,8 +185,8 @@ _add_docstring(RandomWalkWithRestartOptimizer)
 
 class SLIMOptimizer(BaseOptimizer):
     default_tune_range = [
-        UniformSuggestion("alpha", 0, 1),
-        LogUniformSuggestion("l1_ratio", 1e-6, 1),
+        LogUniformSuggestion("alpha", 1e-5, 1),
+        UniformSuggestion("l1_ratio", 0, 1),
     ]
     recommender_class = SLIMRecommender
 

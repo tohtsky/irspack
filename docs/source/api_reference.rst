@@ -35,6 +35,7 @@ Recommenders
     AsymmetricCosineKNNRecommender
     JaccardKNNRecommender
     TverskyIndexKNNRecommender
+    SLIMRecommender
 
 A LightFM wrapper for BPR matrix factorization (requires a separate installation of `lightFM <https://github.com/lyst/lightfm>`_).
 
@@ -73,6 +74,7 @@ Optimizers
     AsymmetricCosineKNNOptimizer
     JaccardKNNOptimizer
     TverskyIndexKNNOptimizer
+    SLIMOptimizer
     MultVAEOptimizer
 
 .. currentmodule:: irspack.split

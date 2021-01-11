@@ -88,7 +88,7 @@ if __name__ == "__main__":
                 dim_z=200, enc_hidden_dims=600, kl_anneal_goal=0.2
             ),  # nothing to tune, use the parameters used in the paper.
         ),
-        # (SLIMOptimizer, 40),
+        # (SLIMOptimizer, 40, dict()), # Note: this is a heavy one.
     ]
     for optimizer_class, n_trials, config in test_configs:
         recommender_name = optimizer_class.recommender_class.__name__
@@ -98,9 +98,7 @@ if __name__ == "__main__":
             metric="ndcg",
             fixed_params=config,
         )
-        (best_param, validation_result_df) = optimizer.optimize(
-            n_trials=n_trials, timeout=14400
-        )
+        (best_param, validation_result_df) = optimizer.optimize(n_trials=n_trials)
         validation_result_df["recommender_name"] = recommender_name
         validation_results.append(validation_result_df)
         pd.concat(validation_results).to_csv(f"validation_scores.csv")

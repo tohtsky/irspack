@@ -1,50 +1,81 @@
+from typing import Optional
+
 from scipy import sparse as sps
 from sklearn.linear_model import ElasticNet
 
-from ..definitions import InteractionMatrix
-from .base import BaseSimilarityRecommender
-
-
-def slim_weight(X: InteractionMatrix, alpha: float, l1_ratio: float) -> sps.csr_matrix:
-    model = ElasticNet(
-        fit_intercept=False,
-        positive=True,
-        copy_X=False,
-        precompute=True,
-        selection="random",
-        max_iter=100,
-        tol=1e-4,
-        alpha=alpha,
-        l1_ratio=l1_ratio,
-    )
-    coeff_all = []
-    A: sps.csc_matrix = X.tocsc()
-    for i in range(X.shape[1]):
-        if i % 1000 == 0:
-            print(f"Slim Iteration: {i}")
-        start_pos = int(A.indptr[i])
-        end_pos = int(A.indptr[i + 1])
-        current_item_data_backup = A.data[start_pos:end_pos].copy()
-        target = A[:, i].toarray().ravel()
-        A.data[start_pos:end_pos] = 0.0
-        model.fit(A, target)
-        coeff_all.append(model.sparse_coef_)
-        A.data[start_pos:end_pos] = current_item_data_backup
-    return sps.vstack(coeff_all, format="csr")
+from irspack.definitions import InteractionMatrix
+from irspack.recommenders.base import BaseSimilarityRecommender
+from irspack.utils import get_n_threads
+from irspack.utils._util_cpp import (
+    slim_weight_allow_negative,
+    slim_weight_positive_only,
+)
 
 
 class SLIMRecommender(BaseSimilarityRecommender):
+    """`SLIM <https://dl.acm.org/doi/10.1109/ICDM.2011.134>`_ with ElasticNet-type loss function:
+
+    .. math ::
+
+        \mathrm{loss} = \\frac{1}{2} ||X - XB|| ^2 _F + \\frac{\\alpha (1 - l_1)  U}{2} ||B|| ^2 _FF + \\alpha l_1  U |B|
+
+    The implementation relies on a simple (parallelized) cyclic-coordinate descent method.
+
+    Currently, this does not support:
+
+        - shuffling of item indices
+        - elaborate convergence check
+
+    Args:
+        X_train_all:
+            Input interaction matrix.
+        alpha:
+            Determines the strength of L1/L2 regularization (see above). Defaults to 0.05.
+        l1_ratio:
+            Determines the strength of L1 regularization relative to alpha. Defaults to 0.01.
+        positive_only:
+            Whether we constrain the weight matrix to be non-negative. Defaults to True.
+        n_iter:
+            The number of coordinate-descent iterations. Defaults to 10.
+        n_threads:
+            Specifies the number of threads to use for the computation.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+    """
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
         alpha: float = 0.05,
         l1_ratio: float = 0.01,
+        positive_only: bool = True,
+        n_iter: int = 10,
+        n_threads: Optional[int] = None,
     ):
-        super(SLIMRecommender, self).__init__(X_train_all)
+        super().__init__(X_train_all)
         self.alpha = alpha
         self.l1_ratio = l1_ratio
+        self.positive_only = positive_only
+        self.n_threads = get_n_threads(n_threads)
+        self.n_iter = n_iter
 
     def _learn(self) -> None:
-        self.W_ = slim_weight(
-            self.X_train_all, alpha=self.alpha, l1_ratio=self.l1_ratio
-        )
+        l2_coeff = self.n_users * self.alpha * (1 - self.l1_ratio)
+        l1_coeff = self.n_users * self.alpha * self.l1_ratio
+
+        if self.positive_only:
+            self.W_ = slim_weight_positive_only(
+                self.X_train_all,
+                n_threads=self.n_threads,
+                n_iter=self.n_iter,
+                l2_coeff=l2_coeff,
+                l1_coeff=l1_coeff,
+            )
+        else:
+            self.W_ = slim_weight_allow_negative(
+                self.X_train_all,
+                n_threads=self.n_threads,
+                n_iter=self.n_iter,
+                l2_coeff=l2_coeff,
+                l1_coeff=l1_coeff,
+            )
