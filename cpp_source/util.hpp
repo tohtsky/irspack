@@ -186,31 +186,35 @@ CSRMatrix<Real> remove_diagonal(const CSRMatrix<Real> &X) {
   return result;
 }
 
-template <typename Real>
+template <typename Real, bool positive_only = false,
+          int block_size = Eigen::internal::packet_traits<Real>::size>
 inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                             size_t n_iter, Real l2_coeff, Real l1_coeff) {
   check_arg(n_threads > 0, "n_threads must be > 0.");
   check_arg(n_iter > 0, "n_iter must be > 0.");
   check_arg(l2_coeff >= 0, "l2_coeff must be > 0.");
   check_arg(l1_coeff >= 0, "l1_coeff must be > 0.");
+  using MatrixType =
+      Eigen::Matrix<Real, Eigen::Dynamic, block_size, Eigen::RowMajor>;
+  using VectorType = Eigen::Matrix<Real, block_size, 1>;
 
   // CSRMatrix<Real> X_csr(X);
   CSCMatrix<Real> X_csc(X);
   X_csc.makeCompressed();
-  const int block_size = 4;
   using TripletType = Eigen::Triplet<Real>;
   using CSCIter = typename CSCMatrix<Real>::InnerIterator;
   std::vector<std::future<std::vector<TripletType>>> workers;
   std::atomic<int64_t> cursor(0);
   for (size_t th = 0; th < n_threads; th++) {
-    workers.emplace_back(std::async(std::launch::async, [th, &cursor,
-                                                         block_size, &X_csc,
+    workers.emplace_back(std::async(std::launch::async, [th, &cursor, &X_csc,
                                                          l2_coeff, l1_coeff,
                                                          n_iter] {
       const int64_t F = X_csc.cols();
-      RowMajorMatrix<Real> remnants(X_csc.rows(), block_size);
-      RowMajorMatrix<Real> coeffs(X_csc.cols(), block_size);
-      DenseVector<Real> linear(block_size);
+      MatrixType remnants(X_csc.rows(), block_size);
+      MatrixType coeffs(X_csc.cols(), block_size);
+      VectorType linear(block_size);
+      VectorType linear_plus(block_size);
+      VectorType linear_minus(block_size);
 
       std::vector<TripletType> local_resuts;
       while (true) {
@@ -220,7 +224,7 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
         }
         int64_t block_begin = current_cursor;
         int64_t block_end = std::min(block_begin + block_size, F);
-        int64_t block_size = block_end - block_begin;
+        int64_t valid_block_size = block_end - block_begin;
         remnants.array() = 0;
         coeffs.array() = 0;
 
@@ -233,19 +237,14 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
 
         for (size_t cd_iteration = 0; cd_iteration < n_iter; cd_iteration++) {
           for (int64_t feature_index = 0; feature_index < F; feature_index++) {
-            /*
-            DenseVector<Real> rmse =
-                (0.5 * remnants.array().square().colwise().sum() +
-                 l2_coeff * coeffs.array().square().colwise().sum());
-            std::cout << "rmse=" << rmse << std::endl;
-            */
             linear.array() = static_cast<Real>(0.0);
             Real x2_sum = static_cast<Real>(0.0);
             for (CSCIter nnz_iter(X_csc, feature_index); nnz_iter; ++nnz_iter) {
               Real x = nnz_iter.value();
 
               const int64_t row = nnz_iter.row();
-              x2_sum += x * x;
+              x2_sum += 1;
+              x *x;
               /*
               loss = \sum_u (remnant_u - w^old _f X_uf + w^new _f X_uf ) ^2
               z_new =
@@ -258,11 +257,13 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                 - \sum _u ( X_{uf} ^2) w^{old}_f
 
               */
-              remnants.row(row) -= x * coeffs.row(feature_index);
+              remnants.row(row).noalias() -= x * coeffs.row(feature_index);
               linear.noalias() += x * remnants.row(row);
             }
 
             Real quadratic = x2_sum + l2_coeff;
+            linear_plus.array() = linear.array() + l1_coeff;
+            linear_minus.array() = linear.array() - l1_coeff;
             for (int64_t inner_cursor_position = 0;
                  inner_cursor_position < block_size; inner_cursor_position++) {
               int64_t original_cursor_position =
@@ -271,8 +272,32 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                 coeffs(feature_index, inner_cursor_position) = 0.0;
                 continue;
               }
-              coeffs(feature_index, inner_cursor_position) =
-                  -linear(inner_cursor_position) / quadratic;
+              if (positive_only) {
+                Real lplus = linear_plus(inner_cursor_position);
+                if (lplus < 0) {
+                  coeffs(feature_index, inner_cursor_position) =
+                      -lplus / quadratic;
+                } else {
+                  coeffs(feature_index, inner_cursor_position) =
+                      static_cast<Real>(0.0);
+                }
+
+              } else {
+                Real lplus = linear_plus(inner_cursor_position);
+                Real lminus = linear_minus(inner_cursor_position);
+                if (lplus < 0) {
+                  coeffs(feature_index, inner_cursor_position) =
+                      -lplus / quadratic;
+                } else {
+                  if (lminus > 0) {
+                    coeffs(feature_index, inner_cursor_position) =
+                        -lminus / quadratic;
+                  } else {
+                    coeffs(feature_index, inner_cursor_position) =
+                        static_cast<Real>(0.0);
+                  }
+                }
+              } // allow nagative block
             }
 
             for (CSCIter nnz_iter(X_csc, feature_index); nnz_iter; ++nnz_iter) {
@@ -285,7 +310,8 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
 
         for (int64_t f = 0; f < F; f++) {
           for (int64_t inner_cursor_position = 0;
-               inner_cursor_position < block_size; inner_cursor_position++) {
+               inner_cursor_position < valid_block_size;
+               inner_cursor_position++) {
             int64_t original_location = inner_cursor_position + block_begin;
             Real c = coeffs(f, inner_cursor_position);
             if (c != 0.0) {

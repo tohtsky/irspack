@@ -12,7 +12,8 @@ __all__  = [
 "rowwise_train_test_split_d",
 "rowwise_train_test_split_f",
 "rowwise_train_test_split_i",
-"slim_weight",
+"slim_weight_allow_negative",
+"slim_weight_positive_only",
 "sparse_mm_threaded",
 "tf_idf_weight"
 ]
@@ -26,7 +27,9 @@ def rowwise_train_test_split_f(arg0: scipy.sparse.csr_matrix[float32], arg1: flo
     pass
 def rowwise_train_test_split_i(arg0: scipy.sparse.csr_matrix[float32], arg1: float, arg2: int) -> Tuple[scipy.sparse.csr_matrix[float32], scipy.sparse.csr_matrix[float32]]:
     pass
-def slim_weight(X: scipy.sparse.csr_matrix[float64], n_threads: int, n_iter: int, l2_coeff: float, l1_coeff: float) -> scipy.sparse.csc_matrix[float64]:
+def slim_weight_allow_negative(X: scipy.sparse.csr_matrix[float32], n_threads: int, n_iter: int, l2_coeff: float, l1_coeff: float) -> scipy.sparse.csc_matrix[float32]:
+    pass
+def slim_weight_positive_only(X: scipy.sparse.csr_matrix[float32], n_threads: int, n_iter: int, l2_coeff: float, l1_coeff: float) -> scipy.sparse.csc_matrix[float32]:
     pass
 def sparse_mm_threaded(arg0: scipy.sparse.csr_matrix[float64], arg1: scipy.sparse.csc_matrix[float64], arg2: int) -> scipy.sparse.csr_matrix[float64]:
     pass
