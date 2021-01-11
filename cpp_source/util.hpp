@@ -211,7 +211,7 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                                                          n_iter] {
       const int64_t F = X_csc.cols();
       MatrixType remnants(X_csc.rows(), block_size);
-      MatrixType coeffs(X_csc.cols(), block_size);
+      MatrixType coeffs(F, block_size);
       VectorType linear(block_size);
       VectorType linear_plus(block_size);
       VectorType linear_minus(block_size);
@@ -261,13 +261,18 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
             }
 
             Real quadratic = x2_sum + l2_coeff;
-            linear_plus.array() = (linear.array() + l1_coeff) / quadratic;
-            linear_minus.array() = (linear.array() - l1_coeff) / quadratic;
+            linear_plus.array() = (-linear.array() - l1_coeff) / quadratic;
+            linear_minus.array() = (-linear.array() + l1_coeff) / quadratic;
             // linear_plus /= quadratic;
+
+            Real *ptr_location = coeffs.data() + feature_index * block_size;
+            Real *lp_ptr = linear_plus.data();
+            Real *lm_ptr = linear_minus.data();
 
             for (int64_t inner_cursor_position = 0;
                  inner_cursor_position < block_size; inner_cursor_position++) {
-              Real *ptr_location = coeffs.data() + feature_index * block_size;
+              Real lplus = *(lp_ptr++);
+              Real lminus = *(lm_ptr++);
               int64_t original_cursor_position =
                   inner_cursor_position + block_begin;
               if (original_cursor_position == feature_index) {
@@ -275,21 +280,18 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                 continue;
               }
               if (positive_only) {
-                Real lplus = linear_plus(inner_cursor_position);
-                if (lplus < 0) {
-                  *(ptr_location++) = -lplus;
+                if (lplus > 0) {
+                  *(ptr_location++) = lplus;
                 } else {
                   *(ptr_location++) = static_cast<Real>(0.0);
                 }
 
               } else {
-                Real lplus = linear_plus(inner_cursor_position);
-                Real lminus = linear_minus(inner_cursor_position);
-                if (lplus < 0) {
-                  *(ptr_location++) = -lplus;
+                if (lplus > 0) {
+                  *(ptr_location++) = lplus;
                 } else {
-                  if (lminus > 0) {
-                    *(ptr_location++) = -lminus;
+                  if (lminus < 0) {
+                    *(ptr_location++) = lminus;
                   } else {
                     *(ptr_location++) = static_cast<Real>(0.0);
                   }

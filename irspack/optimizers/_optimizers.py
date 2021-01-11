@@ -187,7 +187,6 @@ class SLIMOptimizer(BaseOptimizer):
     default_tune_range = [
         LogUniformSuggestion("alpha", 1e-5, 1),
         UniformSuggestion("l1_ratio", 0, 1),
-        CategoricalSuggestion("positive_only", [True, False]),
     ]
     recommender_class = SLIMRecommender
 

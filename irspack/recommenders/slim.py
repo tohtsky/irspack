@@ -18,9 +18,9 @@ class SLIMRecommender(BaseSimilarityRecommender):
         X_train_all: InteractionMatrix,
         alpha: float = 0.05,
         l1_ratio: float = 0.01,
-        positive_only: bool = False,
+        positive_only: bool = True,
         n_threads: Optional[int] = None,
-        n_iter: int = 10,
+        n_iter: int = 5,
     ):
         super().__init__(X_train_all)
         self.alpha = alpha
