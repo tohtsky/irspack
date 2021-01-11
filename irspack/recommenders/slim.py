@@ -15,11 +15,11 @@ from irspack.utils._util_cpp import (
 class SLIMRecommender(BaseSimilarityRecommender):
     """`SLIM <https://dl.acm.org/doi/10.1109/ICDM.2011.134>`_ with ElasticNet-type loss function:
 
-    ..math::
+    .. math ::
 
-        loss = \\frac{1}{2} ||X - XB|| ^2 _F + \\frac{\\alpha (1 - l_1)  U}{2} ||B|| ^2 _FF + \\alpha l_1  U |B|
+        \mathrm{loss} = \\frac{1}{2} ||X - XB|| ^2 _F + \\frac{\\alpha (1 - l_1)  U}{2} ||B|| ^2 _FF + \\alpha l_1  U |B|
 
-    The implementation relies on a simple cyclic-coordinate descent method.
+    The implementation relies on a simple (parallelized) cyclic-coordinate descent method.
 
     Currently, this does not support:
 
