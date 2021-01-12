@@ -1,8 +1,5 @@
 from typing import Optional
 
-from scipy import sparse as sps
-from sklearn.linear_model import ElasticNet
-
 from irspack.definitions import InteractionMatrix
 from irspack.recommenders.base import BaseSimilarityRecommender
 from irspack.utils import get_n_threads
@@ -37,6 +34,8 @@ class SLIMRecommender(BaseSimilarityRecommender):
             Whether we constrain the weight matrix to be non-negative. Defaults to True.
         n_iter:
             The number of coordinate-descent iterations. Defaults to 10.
+        tol:
+            Tolerance parameter for cd iteration. Defaults to 1e-5.
         n_threads:
             Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
@@ -50,6 +49,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
         l1_ratio: float = 0.01,
         positive_only: bool = True,
         n_iter: int = 10,
+        tol: float = 1e-5,
         n_threads: Optional[int] = None,
     ):
         super().__init__(X_train_all)
@@ -58,6 +58,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
         self.positive_only = positive_only
         self.n_threads = get_n_threads(n_threads)
         self.n_iter = n_iter
+        self.tol = tol
 
     def _learn(self) -> None:
         l2_coeff = self.n_users * self.alpha * (1 - self.l1_ratio)
@@ -70,6 +71,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
                 n_iter=self.n_iter,
                 l2_coeff=l2_coeff,
                 l1_coeff=l1_coeff,
+                tol=self.tol,
             )
         else:
             self.W_ = slim_weight_allow_negative(
@@ -78,4 +80,5 @@ class SLIMRecommender(BaseSimilarityRecommender):
                 n_iter=self.n_iter,
                 l2_coeff=l2_coeff,
                 l1_coeff=l1_coeff,
+                tol=self.tol,
             )
