@@ -2,7 +2,6 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <atomic>
-#include <bits/stdint-intn.h>
 #include <cstddef>
 #include <cstdint>
 #include <future>
