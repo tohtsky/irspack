@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(rs_evaluation VERSION 0.1.0)
+set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_CXX_FLAGS "-std=c++11 -march=native -fPIC -O3")
 set(PYBIND11_PYTHON_VERSION 3.7)
 
 find_package(Threads REQUIRED)

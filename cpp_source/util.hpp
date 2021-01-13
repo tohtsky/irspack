@@ -198,7 +198,7 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
   check_arg(l1_coeff >= 0, "l1_coeff must be > 0.");
   const Real tol_all = tol * block_size;
   using MatrixType =
-      Eigen::Matrix<Real, Eigen::Dynamic, block_size, Eigen::RowMajor>;
+      Eigen::Matrix<Real, block_size, Eigen::Dynamic, Eigen::ColMajor>;
   using VectorType = Eigen::Matrix<Real, block_size, 1>;
 
   // CSRMatrix<Real> X_csr(X);
@@ -218,8 +218,9 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
       for (int64_t i = 0; i < F; i++) {
         indices[i] = i;
       }
-      MatrixType remnants(X_csc.rows(), block_size);
-      MatrixType coeffs(F, block_size);
+      MatrixType remnants(block_size, X_csc.rows());
+      MatrixType coeffs(block_size, F);
+      VectorType coeff_temp(block_size);
       VectorType diff(block_size);
       VectorType linear(block_size);
       VectorType linear_plus(block_size);
@@ -228,7 +229,6 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
       std::vector<TripletType> local_resuts;
       while (true) {
         int64_t current_cursor = cursor.fetch_add(block_size);
-        std::cout << current_cursor << std::endl;
         if (current_cursor >= F) {
           break;
         }
@@ -236,13 +236,13 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
         int64_t block_begin = current_cursor;
         int64_t block_end = std::min(block_begin + block_size, F);
         int64_t valid_block_size = block_end - block_begin;
-        remnants.array() = 0;
-        coeffs.array() = 0;
+        remnants.setZero();
+        coeffs.setZero();
 
         for (int64_t f_cursor = block_begin; f_cursor < block_end; f_cursor++) {
           const int64_t internal_col_position = f_cursor - block_begin;
           for (CSCIter iter(X_csc, f_cursor); iter; ++iter) {
-            remnants(iter.row(), internal_col_position) = -iter.value();
+            remnants(internal_col_position, iter.row()) = -iter.value();
           }
         }
 
@@ -251,10 +251,10 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
           Real delta = 0;
           for (int64_t feature_index = 0; feature_index < F; feature_index++) {
             int64_t shuffled_feature_index = indices[feature_index];
-            diff.noalias() = coeffs.row(shuffled_feature_index);
-
-            linear.array() = static_cast<Real>(0.0);
-            Real x2_sum = static_cast<Real>(0.0);
+            coeff_temp = coeffs.col(shuffled_feature_index);
+            diff = coeff_temp;
+            linear.setZero();
+            Real x2_sum = 0.0;
             for (CSCIter nnz_iter(X_csc, shuffled_feature_index); nnz_iter;
                  ++nnz_iter) {
               Real x = nnz_iter.value();
@@ -273,10 +273,11 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                 - \sum _u ( X_{uf} ^2) w^{old}_f
 
               */
-              remnants.row(row).noalias() -=
-                  x * coeffs.row(shuffled_feature_index);
-              linear.noalias() += x * remnants.row(row);
+
+              // remnants.col(row).noalias() -= x * coeff_temp;
+              linear.noalias() += x * remnants.col(row);
             }
+            linear.noalias() -= x2_sum * coeff_temp;
 
             Real quadratic = x2_sum + l2_coeff;
             linear_plus.array() = (-linear.array() - l1_coeff) / quadratic;
@@ -319,19 +320,19 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                 }
               } // allow nagative block
             }
+            coeff_temp.noalias() =
+                coeffs.col(shuffled_feature_index) - coeff_temp;
 
-            for (CSCIter nnz_iter(X_csc, shuffled_feature_index); nnz_iter;
-                 ++nnz_iter) {
-              Real x = nnz_iter.value();
-              const int64_t row = nnz_iter.row();
-              remnants.row(row).noalias() +=
-                  x * coeffs.row(shuffled_feature_index);
+            if (!coeff_temp.isZero()) {
+              for (CSCIter nnz_iter(X_csc, shuffled_feature_index); nnz_iter;
+                   ++nnz_iter) {
+                const int64_t row = nnz_iter.row();
+                remnants.col(row).noalias() += nnz_iter.valueRef() * coeff_temp;
+              }
+              delta += coeff_temp.squaredNorm();
             }
-            diff.noalias() -= coeffs.row(shuffled_feature_index);
-            delta += diff.squaredNorm();
           }
           if (delta < tol_all) {
-            std::cout << "break at " << cd_iteration << std::endl;
             break;
           }
         }
@@ -341,7 +342,7 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                inner_cursor_position < valid_block_size;
                inner_cursor_position++) {
             int64_t original_location = inner_cursor_position + block_begin;
-            Real c = coeffs(f, inner_cursor_position);
+            Real c = coeffs(inner_cursor_position, f);
             if (c != 0.0) {
               local_resuts.emplace_back(f, original_location, c);
             }

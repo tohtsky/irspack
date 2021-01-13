@@ -12,12 +12,23 @@ def test_slim_positive(test_interaction_data: Dict[str, sps.csr_matrix]) -> None
     l1_ratio = 0.5
     X = test_interaction_data["X_small"]
     rec = SLIMRecommender(
-        X, alpha=alpha, l1_ratio=l1_ratio, positive_only=True, n_iter=10, n_threads=8
+        X,
+        alpha=alpha,
+        l1_ratio=l1_ratio,
+        positive_only=True,
+        n_iter=100,
+        n_threads=8,
+        tol=0,
     )
     rec.learn()
 
     enet = ElasticNet(
-        alpha=alpha, l1_ratio=l1_ratio, fit_intercept=False, positive=True, max_iter=10
+        alpha=alpha,
+        l1_ratio=l1_ratio,
+        fit_intercept=False,
+        positive=True,
+        max_iter=100,
+        tol=1e-8,
     )
     for iind in range(rec.W.shape[1]):
         m = rec.W[:, iind].toarray().ravel()
@@ -29,15 +40,24 @@ def test_slim_positive(test_interaction_data: Dict[str, sps.csr_matrix]) -> None
 
 
 def test_slim_allow_negative(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
+    ITER = 100
     alpha = 0.1
     l1_ratio = 0.5
     X = test_interaction_data["X_small"]
     rec = SLIMRecommender(
-        X, alpha=alpha, l1_ratio=l1_ratio, positive_only=False, n_iter=10, n_threads=8
+        X,
+        alpha=alpha,
+        l1_ratio=l1_ratio,
+        positive_only=False,
+        n_iter=ITER,
+        n_threads=8,
+        tol=0,
     )
     rec.learn()
 
-    enet = ElasticNet(alpha=alpha, l1_ratio=l1_ratio, fit_intercept=False, max_iter=10)
+    enet = ElasticNet(
+        alpha=alpha, l1_ratio=l1_ratio, fit_intercept=False, max_iter=ITER, tol=1e-8
+    )
     for iind in range(rec.W.shape[1]):
         m = rec.W[:, iind].toarray().ravel()
         Xcp = X.toarray()

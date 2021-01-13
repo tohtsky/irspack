@@ -48,8 +48,8 @@ class SLIMRecommender(BaseSimilarityRecommender):
         alpha: float = 0.05,
         l1_ratio: float = 0.01,
         positive_only: bool = True,
-        n_iter: int = 10,
-        tol: float = 1e-5,
+        n_iter: int = 100,
+        tol: float = 1e-6,
         n_threads: Optional[int] = None,
     ):
         super().__init__(X_train_all)
