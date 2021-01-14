@@ -1,12 +1,15 @@
 m: int
 n: int
+from numpy import float32
+
+"""irspack's core module for "IALSRecommender".
+Built to use
+	SSE, SSE2"""
+import irspack.recommenders._ials
+from typing import *
 from typing import Iterable as iterable
 from typing import Iterator as iterator
-from typing import *
-
-from numpy import float32, float64
-
-import irspack.recommenders._ials
+from numpy import float64
 
 _Shape = Tuple[int, ...]
 import numpy

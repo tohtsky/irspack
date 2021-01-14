@@ -1,12 +1,12 @@
 m: int
 n: int
-from typing import Iterable as iterable
-from typing import Iterator as iterator
-from typing import *
-
-from numpy import float32, float64
+from numpy import float32
 
 import irspack._evaluator
+from typing import *
+from typing import Iterable as iterable
+from typing import Iterator as iterator
+from numpy import float64
 
 _Shape = Tuple[int, ...]
 import flags
