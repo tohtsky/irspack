@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 import numpy as np
 
 from irspack._evaluator import EvaluatorCore, Metrics
-from irspack.definitions import DenseScoreArray, InteractionMatrix
+from irspack.definitions import InteractionMatrix
 from irspack.utils import get_n_threads
 
 if TYPE_CHECKING:
@@ -34,25 +34,33 @@ class Evaluator:
     """Evaluates recommenders' performance against validation set.
 
     Args:
-        ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]): The held-out ground-truth.
-        offset (int): Where the validation target user block begins.
+        ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The held-out ground-truth.
+        offset (int):
+            Where the validation target user block begins.
             Often the validation set is defined for a subset of users.
             When offset is not 0, we assume that the users with validation
             ground truth corresponds to X_train[offset:] where X_train
             is the matrix feeded into the recommender class.
-        cutoff (int, optional): Controls the number of recommendation.
+        cutoff (int, optional):
+            Controls the number of recommendation.
             Defaults to 10.
-        target_metric (str, optional): Optimization target metric.
+        target_metric (str, optional):
+            Optimization target metric.
             Defaults to "ndcg".
-        recommendable_items (Optional[List[int]], optional): Global recommendable items. Defaults to None.
+        recommendable_items (Optional[List[int]], optional):
+            Global recommendable items. Defaults to None.
             If this parameter is not None, evaluator will be concentrating on
             the recommender's score output for these recommendable_items,
             and compute the ranking performance within this subset.
         per_user_recommendable_items (Optional[List[List[int]]], optional):
             Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
-        n_threads (int, optional): Number of threads to sort the score and compute the
-            evaluation metrics. Defaults to 1.
-        mb_size (int, optional): The rows of chunked user score. Defaults to 1024.
+        n_threads (int, optional):
+            Specifies the Number of threads to sort scores and compute the evaluation metrics.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+        mb_size (int, optional):
+            The rows of chunked user score. Defaults to 1024.
     """
 
     n_users: int
@@ -90,7 +98,7 @@ class Evaluator:
         self.mb_size = mb_size
 
     def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
-        """Compute the score with the cutoff being `self.cutoff`.
+        """Compute the score with the cutoff being ``self.cutoff``.
 
         Args:
             model : The evaluated recommender.
@@ -168,19 +176,25 @@ class EvaluatorWithColdUser(Evaluator):
             When offset is not 0, we assume that the users with validation
             ground truth corresponds to X_train[offset:] where X_train
             is the matrix feeded into the recommender class.
-        cutoff (int, optional): Controls the number of recommendation.
+        cutoff (int, optional):
+            Controls the number of recommendation.
             Defaults to 10.
-        target_metric (str, optional): Optimization target metric.
+        target_metric (str, optional):
+            Optimization target metric.
             Defaults to "ndcg".
-        recommendable_items (Optional[List[int]], optional): Global recommendable items. Defaults to None.
+        recommendable_items (Optional[List[int]], optional):
+            Global recommendable items. Defaults to None.
             If this parameter is not None, evaluator will be concentrating on
             the recommender's score output for these recommendable_items,
             and compute the ranking performance within this subset.
         per_user_recommendable_items (Optional[List[List[int]]], optional):
             Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
-        n_threads (int, optional): Number of threads to sort the score and compute the
-            evaluation metrics. Defaults to 1.
-        mb_size (int, optional): The rows of chunked user score. Defaults to 1024.
+        n_threads (int, optional):
+            Specifies the Number of threads to sort scores and compute the evaluation metrics.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+        mb_size (int, optional):
+            The rows of chunked user score. Defaults to 1024.
     """
 
     def __init__(

@@ -18,11 +18,6 @@ class SLIMRecommender(BaseSimilarityRecommender):
 
     The implementation relies on a simple (parallelized) cyclic-coordinate descent method.
 
-    Currently, this does not support:
-
-        - shuffling of item indices
-        - elaborate convergence check
-
     Args:
         X_train_all:
             Input interaction matrix.
@@ -35,7 +30,9 @@ class SLIMRecommender(BaseSimilarityRecommender):
         n_iter:
             The number of coordinate-descent iterations. Defaults to 10.
         tol:
-            Tolerance parameter for cd iteration. Defaults to 1e-5.
+            Tolerance parameter for cd iteration, i.e., if the maximal parameter change
+            of the coordinate-descent single iteration is smaller than this value,
+            the iteration will terminate. Defaults to 1e-4.
         n_threads:
             Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
@@ -49,7 +46,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
         l1_ratio: float = 0.01,
         positive_only: bool = True,
         n_iter: int = 100,
-        tol: float = 1e-6,
+        tol: float = 1e-4,
         n_threads: Optional[int] = None,
     ):
         super().__init__(X_train_all)
