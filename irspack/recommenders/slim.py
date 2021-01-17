@@ -28,7 +28,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
         positive_only:
             Whether we constrain the weight matrix to be non-negative. Defaults to True.
         n_iter:
-            The number of coordinate-descent iterations. Defaults to 10.
+            The number of coordinate-descent iterations. Defaults to 100.
         tol:
             Tolerance parameter for cd iteration, i.e., if the maximal parameter change
             of the coordinate-descent single iteration is smaller than this value,
