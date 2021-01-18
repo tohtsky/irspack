@@ -118,12 +118,10 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
                 if evaluator is None:
                     continue
 
-                valid_score = evaluator.get_score(self)
+                target_score = evaluator.get_target_score(self)
 
-                progress_bar.set_description(
-                    f"valid_score={valid_score[evaluator.target_metric.value]}"
-                )
-                relevant_score = valid_score[evaluator.target_metric.value]
+                progress_bar.set_description(f"valid_score={target_score}")
+                relevant_score = target_score
                 if relevant_score > best_score:
                     best_score = relevant_score
                     self.save_state()

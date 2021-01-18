@@ -28,7 +28,6 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             The train data.
         val_evaluator (Evaluator):
             The validation evaluator which measures the performance of the recommenders.
-        metric (str, optional): Target metric. Defaults to "ndcg".
         logger (Optional[logging.Logger], optional):
             The logger used during the optimization steps. Defaults to None.
             If ``None``, the default logger of irspack will be used.
@@ -50,7 +49,6 @@ class BaseOptimizer(object, metaclass=ABCMeta):
         self,
         data: InteractionMatrix,
         val_evaluator: Evaluator,
-        metric: str = "ndcg",
         logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
         fixed_params: Dict[str, Any] = dict(),
@@ -62,7 +60,6 @@ class BaseOptimizer(object, metaclass=ABCMeta):
         self.logger = logger
         self._data = data
         self.val_evaluator = val_evaluator
-        self.metric = metric
 
         self.current_trial: int = 0
         self.best_trial_index: Optional[int] = None
@@ -148,13 +145,16 @@ class BaseOptimizer(object, metaclass=ABCMeta):
                 score,
                 time_spent,
             )
-            val_score = score[self.metric]
+            val_score = score[self.val_evaluator.target_metric.value]
             if (-val_score) < self.best_val:
                 self.best_val = -val_score
                 self.best_time = time_spent
                 self.best_params = parameters
                 self.learnt_config_best = dict(**recommender.learnt_config)
-                self.logger.info("Found best %s using this config.", self.metric)
+                self.logger.info(
+                    "Found best %s using this config.",
+                    self.val_evaluator.target_metric.value,
+                )
                 self.best_trial_index = self.current_trial
 
             return -val_score
@@ -230,7 +230,6 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
             The train data.
         val_evaluator (Evaluator):
             The validation evaluator which measures the performance of the recommenders.
-        metric (str, optional): Target metric. Defaults to "ndcg".
         logger (Optional[logging.Logger], optional):
             The logger used during the optimization steps. Defaults to None.
             If ``None``, the default logger of irspack will be used.
@@ -256,7 +255,6 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         self,
         data: InteractionMatrix,
         val_evaluator: Evaluator,
-        metric: str = "ndcg",
         logger: Optional[logging.Logger] = None,
         suggest_overwrite: List[Suggestion] = list(),
         fixed_params: Dict[str, Any] = dict(),
@@ -269,7 +267,6 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         super().__init__(
             data,
             val_evaluator,
-            metric,
             logger=logger,
             suggest_overwrite=suggest_overwrite,
             fixed_params=fixed_params,

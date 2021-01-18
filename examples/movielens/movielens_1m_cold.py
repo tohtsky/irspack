@@ -76,11 +76,7 @@ if __name__ == "__main__":
     ]
     for optimizer_class, n_trials in test_configs:
         recommender_name = optimizer_class.recommender_class.__name__
-        optimizer: BaseOptimizer = optimizer_class(
-            data_train.X_all,
-            valid_evaluator,
-            metric="ndcg",
-        )
+        optimizer: BaseOptimizer = optimizer_class(data_train.X_all, valid_evaluator)
         (best_param, validation_result_df) = optimizer.optimize(
             timeout=14400, n_trials=n_trials
         )

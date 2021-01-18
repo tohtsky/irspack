@@ -5,8 +5,6 @@ import numpy as np
 from optuna.trial import Trial
 from scipy import sparse as sps
 
-from irspack.utils import get_n_threads
-
 if TYPE_CHECKING:
     from .. import evaluator
 
@@ -16,6 +14,13 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
+
+
+def _sparse_to_array(U: Any) -> np.ndarray:
+    if sps.issparse(U):
+        return U.toarray()
+    else:
+        return U
 
 
 class CallBeforeFitError(Exception):
@@ -117,9 +122,7 @@ class BaseRecommender(object, metaclass=ABCMeta):
         Returns:
             The masked item scores. Its shape will be (end - begin, self.n_items)
         """
-        scores = self.get_score_block(begin, end)
-        if sps.issparse(scores):
-            scores = scores.toarray()
+        scores = _sparse_to_array(self.get_score_block(begin, end))
         m = self.X_train_all[begin:end]
         scores[m.nonzero()] = -np.inf
         if scores.dtype != np.float64:
@@ -159,7 +162,7 @@ class BaseSimilarityRecommender(BaseRecommender):
     W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(BaseSimilarityRecommender, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.W_ = None
 
     @property
@@ -177,22 +180,41 @@ class BaseSimilarityRecommender(BaseRecommender):
         return self.W_
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        if sps.issparse(self.W):
-            return self.X_train_all[user_indices].dot(self.W).toarray()
-        else:
-            return self.X_train_all[user_indices].dot(self.W)
+        return _sparse_to_array(self.X_train_all[user_indices].dot(self.W))
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        if sps.issparse(self.W):
-            return X.dot(self.W).toarray()
-        else:
-            return X.dot(self.W)
+        return _sparse_to_array(X.dot(self.W))
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
-        if sps.issparse(self.W):
-            return self.X_train_all[begin:end].dot(self.W).toarray()
-        else:
-            return self.X_train_all[begin:end].dot(self.W)
+        return _sparse_to_array(self.X_train_all[begin:end].dot(self.W))
+
+
+class BaseUserSimilarityRecommender(BaseRecommender):
+    U_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.U_ = None
+
+    @property
+    def U(self) -> Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]:
+        """Computed similarity weight matrix.
+
+        Raises:
+            RuntimeError: Raises When there is not W_ attributes (e.g., method call before the fit).
+
+        Returns:
+            The similarity matrix. Score will be computed by e.g. self.X.dot(self.W)
+        """
+        if self.U_ is None:
+            raise RuntimeError("W fetched before fit.")
+        return self.U_
+
+    def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
+        return _sparse_to_array(self.U[user_indices].dot(self.X_train_all).toarray())
+
+    def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
+        return _sparse_to_array(self.U[begin:end].dot(self.X_train_all))
 
 
 class BaseRecommenderWithUserEmbedding(BaseRecommender):

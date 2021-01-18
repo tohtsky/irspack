@@ -17,6 +17,8 @@ class TargetMetric(Enum):
     NDCG = "ndcg"
     RECALL = "recall"
     HIT = "hit"
+    MAP = "map"
+    PRECISION = "precision"
 
 
 METRIC_NAMES = [
@@ -24,6 +26,7 @@ METRIC_NAMES = [
     "recall",
     "ndcg",
     "map",
+    "precision",
     "gini_index",
     "entropy",
     "appeared_item",
@@ -96,6 +99,17 @@ class Evaluator:
         self.cutoff = cutoff
         self.n_threads = get_n_threads(n_threads)
         self.mb_size = mb_size
+
+    def get_target_score(self, model: "base_recommender.BaseRecommender") -> float:
+        """Compute the optimization target score (self.target_metric) with the cutoff being ``self.cutoff``.
+
+        Args:
+            model: The evaluated model.
+
+        Returns:
+            The metric value.
+        """
+        return self.get_score(model)[self.target_metric.value]
 
     def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
         """Compute the score with the cutoff being ``self.cutoff``.

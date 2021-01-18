@@ -95,7 +95,6 @@ if __name__ == "__main__":
         optimizer: BaseOptimizer = optimizer_class(
             data_train.X_all,
             valid_evaluator,
-            metric="ndcg",
             fixed_params=config,
         )
         (best_param, validation_result_df) = optimizer.optimize(n_trials=n_trials)
