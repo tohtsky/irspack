@@ -46,11 +46,12 @@ class Evaluator:
             ground truth corresponds to X_train[offset:] where X_train
             is the matrix feeded into the recommender class.
         cutoff (int, optional):
-            Controls the number of recommendation.
+            Controls the default number of recommendation.
+            When the evaluator is used for parameter tuning, this cutoff value will be used.
             Defaults to 10.
         target_metric (str, optional):
-            Optimization target metric.
-            Defaults to "ndcg".
+            Specifies the target metric when this evaluator is used for
+            parameter tuning. Defaults to "ndcg".
         recommendable_items (Optional[List[int]], optional):
             Global recommendable items. Defaults to None.
             If this parameter is not None, evaluator will be concentrating on
