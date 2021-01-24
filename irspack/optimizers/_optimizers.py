@@ -43,8 +43,6 @@ _BaseOptimizerArgsString = """Args:
         The train data.
     val_evaluator (Evaluator):
         The validation evaluator which measures the performance of the recommenders.
-    metric (str, optional) :
-        Target metric. Defaults to "ndcg".
     logger (Optional[logging.Logger], optional) :
         The logger used during the optimization steps. Defaults to None.
         If ``None``, the default logger of irspack will be used.
@@ -63,7 +61,6 @@ _BaseOptimizerWithEarlyStoppingArgsString = """Args:
         The train data.
     val_evaluator (Evaluator):
         The validation evaluator which measures the performance of the recommenders.
-    metric (str, optional): Target metric. Defaults to "ndcg".
     logger (Optional[logging.Logger], optional):
         The logger used during the optimization steps. Defaults to None.
         If ``None``, the default logger of irspack will be used.
