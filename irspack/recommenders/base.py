@@ -194,6 +194,7 @@ class BaseUserSimilarityRecommender(BaseRecommender):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self._X_csc: sps.csc_matrix = self.X_train_all.tocsc()
         self.U_ = None
 
     @property
@@ -211,10 +212,10 @@ class BaseUserSimilarityRecommender(BaseRecommender):
         return self.U_
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        return _sparse_to_array(self.U[user_indices].dot(self.X_train_all).toarray())
+        return _sparse_to_array(self.U[user_indices].dot(self._X_csc).toarray())
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
-        return _sparse_to_array(self.U[begin:end].dot(self.X_train_all))
+        return _sparse_to_array(self.U[begin:end].dot(self._X_csc))
 
 
 class BaseRecommenderWithUserEmbedding(BaseRecommender):
