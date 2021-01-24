@@ -13,10 +13,10 @@ from .knn import (
 from .nmf import NMFRecommender
 from .p3 import P3alphaRecommender
 from .rp3 import RP3betaRecommender
-from .rwr import RandomWalkWithRestartRecommender
 from .slim import SLIMRecommender
 from .toppop import TopPopRecommender
 from .truncsvd import TruncatedSVDRecommender
+from .user_knn import AsymmetricCosineUserKNNRecommender, CosineUserKNNRecommender
 
 __all__ = [
     "BaseRecommender",
@@ -27,7 +27,6 @@ __all__ = [
     "RP3betaRecommender",
     "DenseSLIMRecommender",
     "NMFRecommender",
-    "RandomWalkWithRestartRecommender",
     "SLIMRecommender",
     "TruncatedSVDRecommender",
     "IALSRecommender",
@@ -35,6 +34,8 @@ __all__ = [
     "JaccardKNNRecommender",
     "TverskyIndexKNNRecommender",
     "AsymmetricCosineKNNRecommender",
+    "CosineUserKNNRecommender",
+    "AsymmetricCosineUserKNNRecommender",
 ]
 
 try:

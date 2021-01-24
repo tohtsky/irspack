@@ -11,13 +11,14 @@ from ..parameter_tuning import (
 )
 from ..recommenders import (
     AsymmetricCosineKNNRecommender,
+    AsymmetricCosineUserKNNRecommender,
     CosineKNNRecommender,
+    CosineUserKNNRecommender,
     DenseSLIMRecommender,
     IALSRecommender,
     JaccardKNNRecommender,
     NMFRecommender,
     P3alphaRecommender,
-    RandomWalkWithRestartRecommender,
     RP3betaRecommender,
     SLIMRecommender,
     TopPopRecommender,
@@ -42,8 +43,6 @@ _BaseOptimizerArgsString = """Args:
         The train data.
     val_evaluator (Evaluator):
         The validation evaluator which measures the performance of the recommenders.
-    metric (str, optional) :
-        Target metric. Defaults to "ndcg".
     logger (Optional[logging.Logger], optional) :
         The logger used during the optimization steps. Defaults to None.
         If ``None``, the default logger of irspack will be used.
@@ -62,7 +61,6 @@ _BaseOptimizerWithEarlyStoppingArgsString = """Args:
         The train data.
     val_evaluator (Evaluator):
         The validation evaluator which measures the performance of the recommenders.
-    metric (str, optional): Target metric. Defaults to "ndcg".
     logger (Optional[logging.Logger], optional):
         The logger used during the optimization steps. Defaults to None.
         If ``None``, the default logger of irspack will be used.
@@ -131,7 +129,6 @@ _add_docstring(IALSOptimizer, _BaseOptimizerWithEarlyStoppingArgsString)
 
 class P3alphaOptimizer(BaseOptimizer):
     default_tune_range = [
-        LogUniformSuggestion("alpha", low=1e-10, high=2),
         IntegerSuggestion("top_k", low=10, high=1000),
         CategoricalSuggestion("normalize_weight", [True, False]),
     ]
@@ -151,7 +148,6 @@ _add_docstring(DenseSLIMOptimizer)
 
 class RP3betaOptimizer(BaseOptimizer):
     default_tune_range = [
-        LogUniformSuggestion("alpha", 1e-5, 10),
         IntegerSuggestion("top_k", 2, 1000),
         LogUniformSuggestion("beta", 1e-5, 5e-1),
         CategoricalSuggestion("normalize_weight", [True, False]),
@@ -168,19 +164,6 @@ class TruncatedSVDOptimizer(BaseOptimizer):
 
 
 _add_docstring(TruncatedSVDOptimizer)
-
-
-class RandomWalkWithRestartOptimizer(BaseOptimizer):
-    default_tune_range = [
-        UniformSuggestion("decay", 1e-2, 9.9e-1),
-        IntegerSuggestion("n_samples", 100, 2000, step=100),
-        IntegerSuggestion("cutoff", 100, 2000, step=100),
-    ]
-
-    recommender_class = RandomWalkWithRestartRecommender
-
-
-_add_docstring(RandomWalkWithRestartOptimizer)
 
 
 class SLIMOptimizer(BaseOptimizer):
@@ -218,6 +201,17 @@ class CosineKNNOptimizer(BaseOptimizer):
 _add_docstring(CosineKNNOptimizer)
 
 
+class AsymmetricCosineKNNOptimizer(BaseOptimizer):
+    default_tune_range = default_tune_range_knn_with_weighting + [
+        UniformSuggestion("alpha", 0, 1)
+    ]
+
+    recommender_class = AsymmetricCosineKNNRecommender
+
+
+_add_docstring(AsymmetricCosineKNNOptimizer)
+
+
 class JaccardKNNOptimizer(BaseOptimizer):
 
     default_tune_range = default_tune_range_knn.copy()
@@ -239,15 +233,27 @@ class TverskyIndexKNNOptimizer(BaseOptimizer):
 _add_docstring(TverskyIndexKNNOptimizer)
 
 
-class AsymmetricCosineKNNOptimizer(BaseOptimizer):
+class CosineUserKNNOptimizer(BaseOptimizer):
+    default_tune_range = default_tune_range_knn_with_weighting.copy() + [
+        CategoricalSuggestion("normalize", [False, True])
+    ]
+
+    recommender_class = CosineUserKNNRecommender
+
+
+_add_docstring(CosineUserKNNOptimizer)
+
+
+class AsymmetricCosineUserKNNOptimizer(BaseOptimizer):
     default_tune_range = default_tune_range_knn_with_weighting + [
         UniformSuggestion("alpha", 0, 1)
     ]
 
-    recommender_class = AsymmetricCosineKNNRecommender
+    recommender_class = AsymmetricCosineUserKNNRecommender
 
 
-_add_docstring(AsymmetricCosineKNNOptimizer)
+_add_docstring(AsymmetricCosineUserKNNOptimizer)
+
 
 try:
     from ..recommenders.bpr import BPRFMRecommender

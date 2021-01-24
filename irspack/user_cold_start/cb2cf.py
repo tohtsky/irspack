@@ -159,7 +159,6 @@ class CB2CFUserOptimizerBase(object):
         searcher = self.cf_optimizer_class(
             self.X_cf_train_all,
             self.hot_evaluator,
-            metric="ndcg",
             logger=logger,
             suggest_overwrite=suggest_overwrite,
             fixed_params=fixed_params,

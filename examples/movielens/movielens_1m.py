@@ -14,7 +14,6 @@ from irspack.optimizers import (  # BPRFMOptimizer, #requires lightFM; MultVAEOp
     DenseSLIMOptimizer,
     IALSOptimizer,
     P3alphaOptimizer,
-    RandomWalkWithRestartOptimizer,
     RP3betaOptimizer,
     TopPopOptimizer,
     TverskyIndexKNNOptimizer,
@@ -69,7 +68,6 @@ if __name__ == "__main__":
         (CosineKNNOptimizer, 40),
         (AsymmetricCosineKNNOptimizer, 40),
         (TverskyIndexKNNOptimizer, 40),
-        (RandomWalkWithRestartOptimizer, 20),
         (DenseSLIMOptimizer, 20),
         (P3alphaOptimizer, 40),
         (RP3betaOptimizer, 40),
@@ -80,11 +78,7 @@ if __name__ == "__main__":
     ]
     for optimizer_class, n_trials in test_configs:
         name = optimizer_class.__name__
-        optimizer: BaseOptimizer = optimizer_class(
-            X_train_all,
-            valid_evaluator,
-            metric="ndcg",
-        )
+        optimizer: BaseOptimizer = optimizer_class(X_train_all, valid_evaluator)
         (best_param, validation_results) = optimizer.optimize(
             timeout=14400, n_trials=n_trials
         )

@@ -27,7 +27,6 @@ Recommenders
     BaseRecommender
     TopPopRecommender
     IALSRecommender
-    DenseSLIMRecommender
     P3alphaRecommender
     RP3betaRecommender
     TruncatedSVDRecommender
@@ -35,7 +34,10 @@ Recommenders
     AsymmetricCosineKNNRecommender
     JaccardKNNRecommender
     TverskyIndexKNNRecommender
+    CosineUserKNNRecommender
+    AsymmetricCosineUserKNNRecommender
     SLIMRecommender
+    DenseSLIMRecommender
 
 A LightFM wrapper for BPR matrix factorization (requires a separate installation of `lightFM <https://github.com/lyst/lightfm>`_).
 
@@ -66,7 +68,6 @@ Optimizers
     BaseOptimizer
     TopPopOptimizer
     IALSOptimizer
-    DenseSLIMOptimizer
     P3alphaOptimizer
     RP3betaOptimizer
     TruncatedSVDOptimizer
@@ -74,7 +75,10 @@ Optimizers
     AsymmetricCosineKNNOptimizer
     JaccardKNNOptimizer
     TverskyIndexKNNOptimizer
+    CosineUserKNNOptimizer
+    AsymmetricCosineUserKNNOptimizer
     SLIMOptimizer
+    DenseSLIMOptimizer
     MultVAEOptimizer
 
 .. currentmodule:: irspack.split

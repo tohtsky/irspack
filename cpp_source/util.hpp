@@ -195,7 +195,6 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
   check_arg(n_iter > 0, "n_iter must be > 0.");
   check_arg(l2_coeff >= 0, "l2_coeff must be > 0.");
   check_arg(l1_coeff >= 0, "l1_coeff must be > 0.");
-  const Real tol_all = tol * block_size;
   using MatrixType =
       Eigen::Matrix<Real, block_size, Eigen::Dynamic, Eigen::ColMajor>;
   using VectorType = Eigen::Matrix<Real, block_size, 1>;
@@ -210,7 +209,7 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
   for (size_t th = 0; th < n_threads; th++) {
     workers.emplace_back(std::async(std::launch::async, [&cursor, &X_csc,
                                                          l2_coeff, l1_coeff,
-                                                         n_iter, tol_all] {
+                                                         n_iter, tol] {
       const int64_t F = X_csc.cols();
       std::mt19937 gen(0);
       std::vector<int64_t> indices(F);
@@ -328,10 +327,10 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                 const int64_t row = nnz_iter.row();
                 remnants.col(row).noalias() += nnz_iter.valueRef() * coeff_temp;
               }
-              delta += coeff_temp.squaredNorm();
+              delta = std::max(delta, coeff_temp.cwiseAbs().array().maxCoeff());
             }
           }
-          if (delta < tol_all) {
+          if (delta < tol) {
             break;
           }
         }
