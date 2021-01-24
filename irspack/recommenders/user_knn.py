@@ -134,7 +134,7 @@ class AsymmetricCosineUserKNNRecommender(BaseUserKNNRecommender):
 
     .. math::
 
-        \mathrm{U}_{i,j} = \frac{\sum_{u} X_{ui} X_{uj}}{||X_{*i}||^{2\alpha}_2 ||X_{*j}||^{2(1-\alpha)}_2 + \mathrm{shrinkage}}
+        \mathrm{U}_{u,v} = \frac{\sum_{i} X_{ui} X_{vi}}{||X_{u*}||^{2\alpha}_2 ||X_{v*}||^{2(1-\alpha)}_2 + \mathrm{shrinkage}}
 
     Args:
         X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
