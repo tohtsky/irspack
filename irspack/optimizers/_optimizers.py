@@ -11,7 +11,9 @@ from ..parameter_tuning import (
 )
 from ..recommenders import (
     AsymmetricCosineKNNRecommender,
+    AsymmetricCosineUserKNNRecommender,
     CosineKNNRecommender,
+    CosineUserKNNRecommender,
     DenseSLIMRecommender,
     IALSRecommender,
     JaccardKNNRecommender,
@@ -204,6 +206,17 @@ class CosineKNNOptimizer(BaseOptimizer):
 _add_docstring(CosineKNNOptimizer)
 
 
+class AsymmetricCosineKNNOptimizer(BaseOptimizer):
+    default_tune_range = default_tune_range_knn_with_weighting + [
+        UniformSuggestion("alpha", 0, 1)
+    ]
+
+    recommender_class = AsymmetricCosineKNNRecommender
+
+
+_add_docstring(AsymmetricCosineKNNOptimizer)
+
+
 class JaccardKNNOptimizer(BaseOptimizer):
 
     default_tune_range = default_tune_range_knn.copy()
@@ -225,15 +238,27 @@ class TverskyIndexKNNOptimizer(BaseOptimizer):
 _add_docstring(TverskyIndexKNNOptimizer)
 
 
-class AsymmetricCosineKNNOptimizer(BaseOptimizer):
+class CosineUserKNNOptimizer(BaseOptimizer):
+    default_tune_range = default_tune_range_knn_with_weighting.copy() + [
+        CategoricalSuggestion("normalize", [False, True])
+    ]
+
+    recommender_class = CosineUserKNNRecommender
+
+
+_add_docstring(CosineUserKNNOptimizer)
+
+
+class AsymmetricCosineUserKNNOptimizer(BaseOptimizer):
     default_tune_range = default_tune_range_knn_with_weighting + [
         UniformSuggestion("alpha", 0, 1)
     ]
 
-    recommender_class = AsymmetricCosineKNNRecommender
+    recommender_class = AsymmetricCosineUserKNNRecommender
 
 
-_add_docstring(AsymmetricCosineKNNOptimizer)
+_add_docstring(AsymmetricCosineUserKNNOptimizer)
+
 
 try:
     from ..recommenders.bpr import BPRFMRecommender

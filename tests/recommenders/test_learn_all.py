@@ -8,8 +8,10 @@ import scipy.sparse as sps
 from irspack.evaluator import Evaluator
 from irspack.recommenders import (
     AsymmetricCosineKNNRecommender,
+    AsymmetricCosineUserKNNRecommender,
     BaseRecommender,
     CosineKNNRecommender,
+    CosineUserKNNRecommender,
     DenseSLIMRecommender,
     IALSRecommender,
     JaccardKNNRecommender,
@@ -36,6 +38,8 @@ rec_classes: List[Type[BaseRecommender]] = [
     AsymmetricCosineKNNRecommender,
     TverskyIndexKNNRecommender,
     JaccardKNNRecommender,
+    CosineUserKNNRecommender,
+    AsymmetricCosineUserKNNRecommender,
     P3alphaRecommender,
     RP3betaRecommender,
     TruncatedSVDRecommender,
