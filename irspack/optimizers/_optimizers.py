@@ -17,7 +17,6 @@ from ..recommenders import (
     JaccardKNNRecommender,
     NMFRecommender,
     P3alphaRecommender,
-    RandomWalkWithRestartRecommender,
     RP3betaRecommender,
     SLIMRecommender,
     TopPopRecommender,
@@ -168,19 +167,6 @@ class TruncatedSVDOptimizer(BaseOptimizer):
 
 
 _add_docstring(TruncatedSVDOptimizer)
-
-
-class RandomWalkWithRestartOptimizer(BaseOptimizer):
-    default_tune_range = [
-        UniformSuggestion("decay", 1e-2, 9.9e-1),
-        IntegerSuggestion("n_samples", 100, 2000, step=100),
-        IntegerSuggestion("cutoff", 100, 2000, step=100),
-    ]
-
-    recommender_class = RandomWalkWithRestartRecommender
-
-
-_add_docstring(RandomWalkWithRestartOptimizer)
 
 
 class SLIMOptimizer(BaseOptimizer):
