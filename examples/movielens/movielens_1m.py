@@ -20,9 +20,6 @@ from irspack.optimizers import (  # BPRFMOptimizer, #requires lightFM; MultVAEOp
 )
 from irspack.split import split_dataframe_partial_user_holdout
 
-os.environ["OMP_NUM_THREADS"] = "8"
-os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "8"
-
 if __name__ == "__main__":
 
     BASE_CUTOFF = 20

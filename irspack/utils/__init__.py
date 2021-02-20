@@ -65,8 +65,10 @@ def get_n_threads(n_threads: Optional[int]) -> int:
         return n_threads
     else:
         try:
-            n_threads = int(os.environ.get("IRSPACK_NUM_THREADS_DEFAULT", "1"))
-            return n_threads
+            n_threads_cand = os.environ.get(
+                "IRSPACK_NUM_THREADS_DEFAULT", os.cpu_count()
+            )
+            return int(n_threads_cand or 1)
         except:
             raise ValueError(
                 'failed to interpret "IRSPACK_NUM_THREADS_DEFAULT" as an integer.'

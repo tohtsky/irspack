@@ -21,15 +21,14 @@ X_array = X.toarray()
 def test_sparse_mm_threaded() -> None:
     X_mm = sparse_mm_threaded(X, X.T, 3).toarray()
     X_sps = X.dot(X.T).toarray()
-    X_diff = X_mm - X_sps
-    assert np.all(X_diff == 0)
+    np.testing.assert_allclose(X_mm, X_sps)
 
 
 def test_split() -> None:
     warnings.simplefilter("always")
 
     X_1, X_2 = rowwise_train_test_split(X, test_ratio=0.5, random_seed=1)
-    assert np.all((X - X_1 - X_2).toarray() == 0)
+    np.testing.assert_allclose(X.toarray(), (X_1 + X_2).toarray())
 
     # should have no overwrap
     assert np.all(X_1.multiply(X_2).toarray() == 0)
@@ -59,4 +58,4 @@ def test_tf_idf() -> None:
         X.toarray() * np.log(X.shape[0] / (1 + np.bincount(X.nonzero()[1])))[None, :]
     )
     X_tf_idf = tf_idf_weight(X).toarray()
-    assert np.all((X_manual - X_tf_idf) == 0.0)
+    np.testing.assert_allclose(X_manual, X_tf_idf)

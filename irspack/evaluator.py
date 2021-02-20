@@ -62,7 +62,7 @@ class Evaluator:
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+            and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
         mb_size (int, optional):
             The rows of chunked user score. Defaults to 1024.
     """
@@ -207,7 +207,7 @@ class EvaluatorWithColdUser(Evaluator):
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+            and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
         mb_size (int, optional):
             The rows of chunked user score. Defaults to 1024.
     """
