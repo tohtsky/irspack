@@ -98,7 +98,7 @@ class CosineUserKNNRecommender(BaseUserKNNRecommender):
             The b parameter for BM25. Ignored if ``feature_weighting`` is not "BM_25". Defaults to 0.75.
         n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+            and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
     """
 
     def __init__(
@@ -159,7 +159,7 @@ class AsymmetricCosineUserKNNRecommender(BaseUserKNNRecommender):
             The b parameter for BM25. Ignored if ``feature_weighting`` is not "BM_25". Defaults to 0.75.
         n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if there is no such an environment variable, it will be set to 1. Defaults to None.
+            and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
     """
 
     def __init__(
