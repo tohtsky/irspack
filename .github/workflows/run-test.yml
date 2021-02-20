@@ -22,7 +22,7 @@ jobs:
       - name: Run pytest
         run: |
           pip install pytest pytest-cov
-          pip install lightfm jaxlib==0.1.57 jax dm-haiku optax
+          pip install lightfm jaxlib jax dm-haiku optax
           pytest --cov=./irspack tests/
       - name: Generate coverage (ubuntu)
         run: |

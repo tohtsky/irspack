@@ -10,7 +10,6 @@ CB2CF Requires the following additional dependencies to run.
 
 """
 import json
-import os
 from typing import Any, Dict, List, Tuple, Type
 
 import numpy as np
@@ -35,10 +34,6 @@ from irspack.utils.encoders import (
     CategoricalValueEncoder,
     DataFrameEncoder,
 )
-
-os.environ["OMP_NUM_THREADS"] = "8"
-os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = "8"
-
 
 if __name__ == "__main__":
     BASE_CUTOFF = 20

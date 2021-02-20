@@ -1,5 +1,4 @@
 import json
-import os
 from typing import Any, Dict, List, Tuple, Type
 
 import pandas as pd
@@ -20,15 +19,6 @@ from irspack.optimizers import (
     TopPopOptimizer,
 )
 from irspack.split import split_dataframe_partial_user_holdout
-
-N_CPUS = os.cpu_count()
-if N_CPUS is None:
-    N_CPUS = 1
-os.environ["OMP_NUM_THREADS"] = str(N_CPUS)
-
-# This will set the number of thread to be N_CPUS where it is possible.
-# You can also controll the number of threads for each recommender.
-os.environ["IRSPACK_NUM_THREADS_DEFAULT"] = str(N_CPUS)
 
 if __name__ == "__main__":
 
@@ -88,7 +78,7 @@ if __name__ == "__main__":
                 dim_z=200, enc_hidden_dims=600, kl_anneal_goal=0.2
             ),  # nothing to tune, use the parameters used in the paper.
         ),
-        # (SLIMOptimizer, 40, dict()), # Note: this is a heavy one.
+        (SLIMOptimizer, 40, dict()),  # Note: this is a heavy one.
     ]
     for optimizer_class, n_trials, config in test_configs:
         recommender_name = optimizer_class.recommender_class.__name__
