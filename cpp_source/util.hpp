@@ -39,36 +39,32 @@ template <typename Real>
 using CSCMatrix = Eigen::SparseMatrix<Real, Eigen::ColMajor>;
 
 template <typename Real>
-inline CSRMatrix<Real> parallel_sparse_product(const CSRMatrix<Real> &left,
-                                               const CSCMatrix<Real> &right,
-                                               const size_t n_threads) {
-  CSRMatrix<Real> result(left.rows(), right.cols());
+inline RowMajorMatrix<Real>
+parallel_sparse_product(const CSRMatrix<Real> &left,
+                        const CSCMatrix<Real> &right, const size_t n_threads) {
+  constexpr int64_t chunk_size = 16;
+  RowMajorMatrix<Real> result(left.rows(), right.cols());
+  result.array() = 0;
   check_arg(n_threads > 0, "n_thraed must be > 0");
-  const int n_row = left.rows();
-  const int rows_per_block = n_row / n_threads;
-  const int remnant = n_row % n_threads;
-  int start = 0;
-  std::vector<std::future<CSRMatrix<Real>>> workers;
+  const int64_t n_row = left.rows();
+  std::atomic<int64_t> cursor(0);
+  std::vector<std::thread> workers;
   for (int i = 0; i < static_cast<int>(n_threads); i++) {
-    int block_size = rows_per_block;
-    if (i < remnant) {
-      ++block_size;
-    }
-    workers.emplace_back(std::async(std::launch::async, [&left, &right, start,
-                                                         block_size]() {
-      CSRMatrix<Real> local_result = left.middleRows(start, block_size) * right;
-      return local_result;
-    }));
-    start += block_size;
+    workers.emplace_back([&left, &right, &cursor, n_row, &result]() {
+      while (true) {
+        auto current_position = cursor.fetch_add(chunk_size);
+        if (current_position >= n_row) {
+          break;
+        }
+        auto block_size =
+            std::min(current_position + chunk_size, n_row) - current_position;
+        result.middleRows(current_position, block_size) =
+            left.middleRows(current_position, block_size) * right;
+      }
+    });
   }
-  start = 0;
-  for (int i = 0; i < static_cast<int>(n_threads); i++) {
-    int block_size = rows_per_block;
-    if (i < remnant) {
-      ++block_size;
-    }
-    result.middleRows(start, block_size) = workers[i].get();
-    start += block_size;
+  for (auto &worker : workers) {
+    worker.join();
   }
   return result;
 }

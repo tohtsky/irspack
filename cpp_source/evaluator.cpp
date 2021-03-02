@@ -127,18 +127,15 @@ struct EvaluatorCore {
     check_arg(n_users > offset, "got offset >= n_users");
     check_arg(cutoff > 0, "cutoff must be strictly greather than 0.");
     check_arg(cutoff <= n_items, "cutoff must not exeeed the number of items.");
+    std::atomic<int64_t> current_index(0);
 
-    std::vector<std::vector<int>> uinds(n_threads);
-    for (int u = 0; u < scores.rows(); u++) {
-      uinds[u % n_threads].push_back(u);
-    }
     std::vector<std::future<Metrics>> workers;
     for (size_t th = 0; th < n_threads; th++) {
-      workers.emplace_back(
-          std::async(std::launch::async, [th, this, &scores, &uinds, cutoff,
-                                          offset, recall_with_cutoff]() {
-            return this->get_metrics_local(scores, uinds[th], cutoff, offset,
-                                           recall_with_cutoff);
+      workers.emplace_back(std::async(
+          std::launch::async, [th, this, &current_index, &scores, cutoff,
+                               offset, recall_with_cutoff]() {
+            return this->get_metrics_local(scores, current_index, cutoff,
+                                           offset, recall_with_cutoff);
           }));
     }
     for (auto &metric : workers) {
@@ -151,7 +148,7 @@ struct EvaluatorCore {
 
 private:
   inline Metrics get_metrics_local(const Eigen::Ref<DenseMatrix> &scores,
-                                   const std::vector<int> &user_set,
+                                   std::atomic<int64_t> &current_index,
                                    size_t cutoff, size_t offset,
                                    bool recall_with_cutoff = false) const {
     using StorageIndex = typename SparseMatrix::StorageIndex;
@@ -172,7 +169,11 @@ private:
     }
 
     size_t n_recommendable_items = std::min(cutoff, n_items);
-    for (int u : user_set) {
+    while (true) {
+      auto u = current_index.fetch_add(1);
+      if (u >= scores.rows()) {
+        break;
+      }
       int u_orig = u + offset;
       metrics_local.total_user += 1;
       int begin_ptr = u * n_items;
