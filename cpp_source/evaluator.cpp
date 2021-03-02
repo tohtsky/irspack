@@ -1,7 +1,6 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <algorithm>
-#include <bits/stdint-intn.h>
 #include <future>
 #include <iostream>
 #include <iterator>
