@@ -19,7 +19,7 @@ X_array = X.toarray()
 
 
 def test_sparse_mm_threaded() -> None:
-    X_mm = sparse_mm_threaded(X, X.T, 3).toarray()
+    X_mm = sparse_mm_threaded(X, X.T, 3)
     X_sps = X.dot(X.T).toarray()
     np.testing.assert_allclose(X_mm, X_sps)
 

@@ -24,6 +24,9 @@ black irspack/recommenders/_knn.pyi
 
 pybind11-stubgen -o stubs --no-setup-py irspack.utils._util_cpp
 rm irspack/utils/_util_cpp.pyi
-echo 'from numpy import float32' >> irspack/utils/_util_cpp.pyi
+echo 'm: int
+n: int
+from numpy import float32
+' >> irspack/utils/_util_cpp.pyi
 cat stubs/irspack/utils/_util_cpp-stubs/__init__.pyi >> irspack/utils/_util_cpp.pyi
 black irspack/utils/_util_cpp.pyi
