@@ -250,7 +250,6 @@ struct IALSTrainer {
   }
 
   DenseMatrix user_scores(size_t userblock_begin, size_t userblock_end) {
-    constexpr int64_t chunk_size = 16;
     if (userblock_end < userblock_begin) {
       throw std::invalid_argument("begin > end");
     }
@@ -264,6 +263,7 @@ struct IALSTrainer {
     for (size_t ind = 0; ind < config_.n_threads; ind++) {
       workers.emplace_back([this, userblock_begin, &cursor, result_size,
                             &result]() {
+        const int64_t chunk_size = 16;
         while (true) {
           auto block_begin = cursor.fetch_add(chunk_size);
           if (block_begin >= result_size) {
