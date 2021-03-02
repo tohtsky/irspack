@@ -5,6 +5,7 @@
 #include <Eigen/IterativeLinearSolvers>
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <future>
 #include <iostream>
 #include <random>
@@ -249,30 +250,32 @@ struct IALSTrainer {
   }
 
   DenseMatrix user_scores(size_t userblock_begin, size_t userblock_end) {
+    constexpr int64_t chunk_size = 16;
     if (userblock_end < userblock_begin) {
       throw std::invalid_argument("begin > end");
     }
-    const size_t result_size = userblock_end - userblock_begin;
+    std::int64_t result_size = userblock_end - userblock_begin;
     if (userblock_end > n_users) {
       throw std::invalid_argument("end > n_users");
     }
     DenseMatrix result(result_size, n_items);
-    size_t chunked_blocksize = result_size / config_.n_threads;
-    size_t remnant = result_size % config_.n_threads;
     std::vector<std::thread> workers;
-    size_t block_begin = userblock_begin;
+    std::atomic<int64_t> cursor(0);
     for (size_t ind = 0; ind < config_.n_threads; ind++) {
-      size_t block_size = chunked_blocksize;
-      if (ind < remnant) {
-        block_size++;
-      }
-      workers.emplace_back([this, block_begin, userblock_begin, block_size,
+      workers.emplace_back([this, userblock_begin, &cursor, result_size,
                             &result]() {
-        result.middleRows(block_begin - userblock_begin, block_size).noalias() =
-            this->user.middleRows(block_begin, block_size) *
-            this->item.transpose();
+        while (true) {
+          auto block_begin = cursor.fetch_add(chunk_size);
+          if (block_begin >= result_size) {
+            break;
+          }
+          auto block_size =
+              std::min(block_begin + chunk_size, result_size) - block_begin;
+          result.middleRows(block_begin, block_size).noalias() =
+              this->user.middleRows(block_begin + userblock_begin, block_size) *
+              this->item.transpose();
+        }
       });
-      block_begin += block_size;
     }
     for (auto &worker : workers) {
       worker.join();

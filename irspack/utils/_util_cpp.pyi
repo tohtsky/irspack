@@ -1,4 +1,7 @@
+m: int
+n: int
 from numpy import float32
+
 import irspack.utils._util_cpp
 from typing import *
 from typing import Iterable as iterable
@@ -6,6 +9,7 @@ from typing import Iterator as iterator
 from numpy import float64
 
 _Shape = Tuple[int, ...]
+import numpy
 import scipy.sparse
 
 __all__ = [
@@ -69,7 +73,7 @@ def sparse_mm_threaded(
     arg0: scipy.sparse.csr_matrix[float64],
     arg1: scipy.sparse.csc_matrix[float64],
     arg2: int,
-) -> scipy.sparse.csr_matrix[float64]:
+) -> numpy.ndarray[float64, _Shape[m, n]]:
     pass
 
 def tf_idf_weight(

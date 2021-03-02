@@ -39,4 +39,4 @@ class UserCBCosineKNNRecommender(BaseUserColdStartRecommender):
             profile = sps.csr_matrix(profile)
         similarity = self.sim_computer.compute_similarity(profile, self.top_k)
         score = sparse_mm_threaded(similarity, self.X_interaction_csc, self.n_threads)
-        return score.astype(np.float64).toarray()
+        return score.astype(np.float64)
