@@ -42,7 +42,6 @@ template <typename Real>
 inline RowMajorMatrix<Real>
 parallel_sparse_product(const CSRMatrix<Real> &left,
                         const CSCMatrix<Real> &right, const size_t n_threads) {
-  constexpr int64_t chunk_size = 16;
   RowMajorMatrix<Real> result(left.rows(), right.cols());
   result.array() = 0;
   check_arg(n_threads > 0, "n_thraed must be > 0");
@@ -51,6 +50,7 @@ parallel_sparse_product(const CSRMatrix<Real> &left,
   std::vector<std::thread> workers;
   for (int i = 0; i < static_cast<int>(n_threads); i++) {
     workers.emplace_back([&left, &right, &cursor, n_row, &result]() {
+      const int64_t chunk_size = 16;
       while (true) {
         auto current_position = cursor.fetch_add(chunk_size);
         if (current_position >= n_row) {
@@ -58,7 +58,7 @@ parallel_sparse_product(const CSRMatrix<Real> &left,
         }
         auto block_size =
             std::min(current_position + chunk_size, n_row) - current_position;
-        result.middleRows(current_position, block_size) =
+        result.middleRows(current_position, block_size) +=
             left.middleRows(current_position, block_size) * right;
       }
     });

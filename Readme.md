@@ -20,28 +20,29 @@ There are already great packages for this purpose like
 However, I decided to implement my own one to
 
 - Use [optuna](https://github.com/optuna/optuna) for more efficient parameter search. In particular, if an early stopping scheme is available, optuna can prune unpromising trial based on the intermediate validation score, which drastically reduces overall running time for tuning.
-- Use multi-threaded implementations of the number of algorithms (KNN and IALS) in C++.
+- Use multi-threaded implementations wherever possible. Currently, several important algorithms (KNN, iALS, SLIM) and performance evaluators are parallelized using C++ thread.
 - Deal with user cold-start scenarios using ["CB2CF" strategy](https://dl.acm.org/doi/10.1145/3298689.3347038), which I found very convenient in practice.
 
 # Installation & Optional Dependencies
 
-There are binaries for Linux, MacOS, and Windows with python>=3.6. You can install them via
+There are binaries for Linux, MacOS, and Windows with python>=3.6 with x86 architectures.
+You can install them via
 
 ```sh
 pip install irspack
 ```
 
-The binaries have been compiled to use AVX instruction. If you want to use AVX2/AVX512 or your environment does not support AVX, install it from source like
+The binaries have been compiled to use AVX instruction. If you want to use AVX2/AVX512 or your environment does not support AVX (like Rosetta 2 on Apple M1), install it from source like
 
 ```sh
 CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
 ```
 
-In that case, you must have a decent version of C++ compiler (with C++11 support).
+In that case, you must have a decent version of C++ compiler (with C++11 support). If it doesn't work, feel free to make an issue!
 
 ## Optional Dependencies
 
-I have also prepared a wrapper class (`BPRFMRecommender`) to train and optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately, e.g. by
+I have also prepared a wrapper class (`BPRFMRecommender`) to train/optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately, e.g. by
 
 ```sh
 pip install lightfm
