@@ -58,7 +58,7 @@ parallel_sparse_product(const CSRMatrix<Real> &left,
         }
         auto block_size =
             std::min(current_position + chunk_size, n_row) - current_position;
-        result.middleRows(current_position, block_size) =
+        result.middleRows(current_position, block_size) +=
             left.middleRows(current_position, block_size) * right;
       }
     });
