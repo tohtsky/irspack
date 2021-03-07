@@ -1,6 +1,7 @@
 #pragma once
 #include <Eigen/Core>
 #include <Eigen/Sparse>
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -186,7 +187,7 @@ template <typename Real, bool positive_only = false,
           int block_size = Eigen::internal::packet_traits<Real>::size>
 inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
                             size_t n_iter, Real l2_coeff, Real l1_coeff,
-                            Real tol) {
+                            Real tol, int64_t top_k) {
   check_arg(n_threads > 0, "n_threads must be > 0.");
   check_arg(n_iter > 0, "n_iter must be > 0.");
   check_arg(l2_coeff >= 0, "l2_coeff must be > 0.");
@@ -195,17 +196,17 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
       Eigen::Matrix<Real, block_size, Eigen::Dynamic, Eigen::ColMajor>;
   using VectorType = Eigen::Matrix<Real, block_size, 1>;
 
-  // CSRMatrix<Real> X_csr(X);
   CSCMatrix<Real> X_csc(X);
   X_csc.makeCompressed();
   using TripletType = Eigen::Triplet<Real>;
   using CSCIter = typename CSCMatrix<Real>::InnerIterator;
+  using RealAndIndex = std::pair<Real, int64_t>;
   std::vector<std::future<std::vector<TripletType>>> workers;
   std::atomic<int64_t> cursor(0);
   for (size_t th = 0; th < n_threads; th++) {
     workers.emplace_back(std::async(std::launch::async, [&cursor, &X_csc,
                                                          l2_coeff, l1_coeff,
-                                                         n_iter, tol] {
+                                                         n_iter, tol, top_k] {
       const int64_t F = X_csc.cols();
       std::mt19937 gen(0);
       std::vector<int64_t> indices(F);
@@ -220,7 +221,12 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
       VectorType linear_plus(block_size);
       VectorType linear_minus(block_size);
 
-      std::vector<TripletType> local_resuts;
+      std::vector<RealAndIndex> argsort_buffer;
+      if (top_k >= 0) {
+        argsort_buffer.resize(F);
+      }
+
+      std::vector<TripletType> local_results;
       while (true) {
         int64_t current_cursor = cursor.fetch_add(block_size);
         if (current_cursor >= F) {
@@ -252,24 +258,8 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
             for (CSCIter nnz_iter(X_csc, shuffled_feature_index); nnz_iter;
                  ++nnz_iter) {
               Real x = nnz_iter.value();
-
-              const int64_t row = nnz_iter.row();
               x2_sum += x * x;
-              /*
-              loss = \sum_u (remnant_u - w^old _f X_uf + w^new _f X_uf ) ^2
-              z_new =
-              CONST
-              + \sum_u X_{uf} ^2 w^new_f ^2
-              + 2 * w^new_f \sum_u X_{uf} ( remnant_u - X_{uf} w^{old}_f )
-
-              LINEAR_COEFF =
-                \sum_u X_{uf} ( remnant_u ) -
-                - \sum _u ( X_{uf} ^2) w^{old}_f
-
-              */
-
-              // remnants.col(row).noalias() -= x * coeff_temp;
-              linear.noalias() += x * remnants.col(row);
+              linear.noalias() += x * remnants.col(nnz_iter.row());
             }
             linear.noalias() -= x2_sum * coeff_temp;
 
@@ -278,7 +268,6 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
             if (!positive_only) {
               linear_minus.array() = (-linear.array() + l1_coeff) / quadratic;
             }
-            // linear_plus /= quadratic;
 
             Real *ptr_location =
                 coeffs.data() + shuffled_feature_index * block_size;
@@ -331,19 +320,51 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
           }
         }
 
-        for (int64_t f = 0; f < F; f++) {
+        if (top_k < 0) {
+          for (int64_t f = 0; f < F; f++) {
+            for (int64_t inner_cursor_position = 0;
+                 inner_cursor_position < valid_block_size;
+                 inner_cursor_position++) {
+              int64_t original_location = inner_cursor_position + block_begin;
+              Real c = coeffs(inner_cursor_position, f);
+              if (c != 0.0) {
+                local_results.emplace_back(f, original_location, c);
+              }
+            }
+          }
+        } else {
           for (int64_t inner_cursor_position = 0;
                inner_cursor_position < valid_block_size;
                inner_cursor_position++) {
             int64_t original_location = inner_cursor_position + block_begin;
-            Real c = coeffs(inner_cursor_position, f);
-            if (c != 0.0) {
-              local_resuts.emplace_back(f, original_location, c);
+            auto iter = argsort_buffer.begin();
+            int64_t nnz = 0;
+            for (int64_t f = 0; f < F; f++) {
+              Real c = coeffs(inner_cursor_position, f);
+              if (c != 0.0) {
+                iter->first = c;
+                iter->second = f;
+                iter++;
+                nnz++;
+              }
+            }
+            int64_t n_taken_coeffs = nnz;
+            if (nnz > top_k) {
+              std::sort(argsort_buffer.begin(), argsort_buffer.end(),
+                        [](RealAndIndex &val1, RealAndIndex &val2) {
+                          return val1.first > val2.first;
+                        });
+              n_taken_coeffs = top_k;
+            }
+            for (int64_t i = 0; i < n_taken_coeffs; i++) {
+              local_results.emplace_back(argsort_buffer[i].second,
+                                         original_location,
+                                         argsort_buffer[i].first);
             }
           }
         }
       }
-      return local_resuts;
+      return local_results;
     }));
   }
   std::vector<TripletType> nnzs;
