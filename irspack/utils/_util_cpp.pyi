@@ -56,6 +56,7 @@ def slim_weight_allow_negative(
     l2_coeff: float,
     l1_coeff: float,
     tol: float,
+    top_k: int = -1,
 ) -> scipy.sparse.csc_matrix[float32]:
     pass
 
@@ -66,6 +67,7 @@ def slim_weight_positive_only(
     l2_coeff: float,
     l1_coeff: float,
     tol: float,
+    top_k: int = -1,
 ) -> scipy.sparse.csc_matrix[float32]:
     pass
 

@@ -26,9 +26,11 @@ PYBIND11_MODULE(_util_cpp, m) {
 
   m.def("slim_weight_allow_negative", &sparse_util::SLIM<float, false>,
         py::arg("X"), py::arg("n_threads"), py::arg("n_iter"),
-        py::arg("l2_coeff"), py::arg("l1_coeff"), py::arg("tol"));
+        py::arg("l2_coeff"), py::arg("l1_coeff"), py::arg("tol"),
+        py::arg("top_k") = -1);
 
   m.def("slim_weight_positive_only", &sparse_util::SLIM<float, true>,
         py::arg("X"), py::arg("n_threads"), py::arg("n_iter"),
-        py::arg("l2_coeff"), py::arg("l1_coeff"), py::arg("tol"));
+        py::arg("l2_coeff"), py::arg("l1_coeff"), py::arg("tol"),
+        py::arg("top_k") = -1);
 }
