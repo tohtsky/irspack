@@ -33,6 +33,8 @@ class SLIMRecommender(BaseSimilarityRecommender):
             Tolerance parameter for cd iteration, i.e., if the maximal parameter change
             of the coordinate-descent single iteration is smaller than this value,
             the iteration will terminate. Defaults to 1e-4.
+        top_k:
+            Specifies the maximal number of allowed non-zero coefficients per item. Defaults to None.
         n_threads:
             Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
@@ -47,6 +49,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
         positive_only: bool = True,
         n_iter: int = 100,
         tol: float = 1e-4,
+        top_k: Optional[int] = None,
         n_threads: Optional[int] = None,
     ):
         super().__init__(X_train_all)
@@ -56,6 +59,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
         self.n_threads = get_n_threads(n_threads)
         self.n_iter = n_iter
         self.tol = tol
+        self.top_k = top_k
 
     def _learn(self) -> None:
         l2_coeff = self.n_users * self.alpha * (1 - self.l1_ratio)
@@ -69,6 +73,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
                 l2_coeff=l2_coeff,
                 l1_coeff=l1_coeff,
                 tol=self.tol,
+                top_k=-1 if self.top_k is None else self.top_k,
             )
         else:
             self.W_ = slim_weight_allow_negative(
@@ -78,4 +83,5 @@ class SLIMRecommender(BaseSimilarityRecommender):
                 l2_coeff=l2_coeff,
                 l1_coeff=l1_coeff,
                 tol=self.tol,
+                top_k=-1 if self.top_k is None else self.top_k,
             )

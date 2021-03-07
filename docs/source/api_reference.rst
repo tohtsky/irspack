@@ -93,3 +93,4 @@ Split Functions
     rowwise_train_test_split
     split_dataframe_partial_user_holdout
     holdout_specific_interactions
+    split_last_n_interaction_df
