@@ -8,9 +8,8 @@ from ..definitions import InteractionMatrix
 from ._util_cpp import (
     okapi_BM_25_weight,
     remove_diagonal,
-    rowwise_train_test_split_d,
-    rowwise_train_test_split_f,
-    rowwise_train_test_split_i,
+    rowwise_train_test_split_by_fixed_n,
+    rowwise_train_test_split_by_ratio,
     sparse_mm_threaded,
     tf_idf_weight,
 )
@@ -19,6 +18,8 @@ from ._util_cpp import (
 def rowwise_train_test_split(
     X: InteractionMatrix,
     test_ratio: float = 0.5,
+    n_test: Optional[int] = None,
+    ceil_n_test: bool = False,
     random_seed: Optional[int] = None,
 ) -> Tuple[InteractionMatrix, InteractionMatrix]:
     """Splits the non-zero elements of a sparse matrix into two (train & test interactions).
@@ -42,22 +43,20 @@ def rowwise_train_test_split(
     """
     if random_seed is None:
         random_seed = random.randint(-(2 ** 32), 2 ** 32 - 1)
-    if X.dtype == np.float32:
-        return rowwise_train_test_split_f(X, test_ratio, random_seed)
-    elif X.dtype == np.float64:
-        return rowwise_train_test_split_d(X, test_ratio, random_seed)
-    elif X.dtype == np.int64:
-        return rowwise_train_test_split_i(X, test_ratio, random_seed)
+    original_dtype = X.dtype
+    X_double = X.astype(np.float64)
+    if n_test is None:
+        X_train_double, X_test_double = rowwise_train_test_split_by_ratio(
+            X_double, random_seed, test_ratio, ceil_n_test
+        )
     else:
-        original_dtype = X.dtype
-        X_double = X.astype(np.float64)
-        X_train_double, X_test_double = rowwise_train_test_split_d(
-            X_double, test_ratio, random_seed
+        X_train_double, X_test_double = rowwise_train_test_split_by_fixed_n(
+            X_double, random_seed, n_test
         )
-        return (
-            X_train_double.astype(original_dtype),
-            X_test_double.astype(original_dtype),
-        )
+    return (
+        X_train_double.astype(original_dtype),
+        X_test_double.astype(original_dtype),
+    )
 
 
 def get_n_threads(n_threads: Optional[int]) -> int:

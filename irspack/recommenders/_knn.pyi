@@ -1,3 +1,7 @@
+m: int
+n: int
+from numpy import float32
+
 import irspack.recommenders._knn
 from typing import *
 from typing import Iterable as iterable

@@ -70,48 +70,91 @@ parallel_sparse_product(const CSRMatrix<Real> &left,
   return result;
 }
 
-template <typename Real, typename Integer = int64_t>
-std::pair<CSRMatrix<Real>, CSRMatrix<Real>>
-train_test_split_rowwise(const CSRMatrix<Real> &X, const double test_ratio,
-                         std::int64_t random_seed) {
-  using Triplet = Eigen::Triplet<Integer>;
-  std::mt19937 random_state(random_seed);
-  check_arg(((test_ratio <= 1.0 && (test_ratio >= 0.0))),
-            "test_ratio must be within [0.0, 1.0]");
-  std::vector<Integer> col_buffer;
-  std::vector<Real> data_buffer;
-  std::vector<uint64_t> index_;
-  std::vector<Triplet> train_data, test_data;
-  for (int row = 0; row < X.outerSize(); ++row) {
-    col_buffer.clear(); // does not change capacity
-    data_buffer.clear();
-    index_.clear();
-    Integer cnt = 0;
-    for (typename CSRMatrix<Real>::InnerIterator it(X, row); it; ++it) {
-      index_.push_back(cnt);
-      col_buffer.push_back(it.col());
-      data_buffer.push_back(it.value());
-      cnt += 1;
+template <typename Real, class Derived, typename Integer = int64_t>
+struct SplitFunction {
+  template <typename... Args>
+  static std::pair<CSRMatrix<Real>, CSRMatrix<Real>>
+  split_imple(const CSRMatrix<Real> &X, std::int64_t random_seed,
+              Args... args) {
+    Derived::check_args(args...);
+    using Triplet = Eigen::Triplet<Integer>;
+    std::mt19937 random_state(random_seed);
+    std::vector<Integer> col_buffer;
+    std::vector<Real> data_buffer;
+    std::vector<uint64_t> index_;
+    std::vector<Triplet> train_data, test_data;
+    for (int row = 0; row < X.outerSize(); ++row) {
+      col_buffer.clear(); // does not change capacity
+      data_buffer.clear();
+      index_.clear();
+      Integer cnt = 0;
+      for (typename CSRMatrix<Real>::InnerIterator it(X, row); it; ++it) {
+        index_.push_back(cnt);
+        col_buffer.push_back(it.col());
+        data_buffer.push_back(it.value());
+        cnt += 1;
+      }
+      std::shuffle(index_.begin(), index_.end(), random_state);
+      size_t n_test = Derived::get_n_test(cnt, args...);
+      for (size_t i = 0; i < n_test; i++) {
+        test_data.emplace_back(row, col_buffer[index_[i]],
+                               data_buffer[index_[i]]);
+      }
+      for (size_t i = n_test; i < col_buffer.size(); i++) {
+        train_data.emplace_back(row, col_buffer[index_[i]],
+                                data_buffer[index_[i]]);
+      }
     }
-    std::shuffle(index_.begin(), index_.end(), random_state);
-    size_t n_test = static_cast<Integer>(std::floor(cnt * test_ratio));
-    for (size_t i = 0; i < n_test; i++) {
-      test_data.emplace_back(row, col_buffer[index_[i]],
-                             data_buffer[index_[i]]);
-    }
-    for (size_t i = n_test; i < col_buffer.size(); i++) {
-      train_data.emplace_back(row, col_buffer[index_[i]],
-                              data_buffer[index_[i]]);
-    }
+    CSRMatrix<Real> X_train(X.rows(), X.cols()), X_test(X.rows(), X.cols());
+    auto dupfunction = [](const Integer &a, const Integer &b) { return a + b; };
+    X_train.setFromTriplets(train_data.begin(), train_data.end(), dupfunction);
+    X_test.setFromTriplets(test_data.begin(), test_data.end(), dupfunction);
+    X_train.makeCompressed();
+    X_test.makeCompressed();
+    return {X_train, X_test};
   }
-  CSRMatrix<Real> X_train(X.rows(), X.cols()), X_test(X.rows(), X.cols());
-  auto dupfunction = [](const Integer &a, const Integer &b) { return a + b; };
-  X_train.setFromTriplets(train_data.begin(), train_data.end(), dupfunction);
-  X_test.setFromTriplets(test_data.begin(), test_data.end(), dupfunction);
-  X_train.makeCompressed();
-  X_test.makeCompressed();
-  return {X_train, X_test};
-}
+};
+
+template <typename Real, typename Integer = int64_t>
+struct SplitByRatioFunction
+    : SplitFunction<Real, SplitByRatioFunction<Real, Integer>, Integer> {
+  using Base =
+      SplitFunction<Real, SplitByRatioFunction<Real, Integer>, Integer>;
+  static void check_args(double test_ratio, bool n_test_ceil) {
+    check_arg(((test_ratio <= 1.0 && (test_ratio >= 0.0))),
+              "test_ratio must be within [0.0, 1.0]");
+  }
+
+  static size_t get_n_test(size_t nnz_row, double test_ratio,
+                           bool n_test_ceil) {
+    if (n_test_ceil) {
+      return std::ceil(nnz_row * test_ratio);
+    } else {
+      return std::floor(nnz_row * test_ratio);
+    }
+  };
+
+  static std::pair<CSRMatrix<Real>, CSRMatrix<Real>>
+  split(const CSRMatrix<Real> &X, std::int64_t random_seed, Real heldout_ratio,
+        bool n_test_ceil) {
+    return Base::split_imple(X, random_seed, heldout_ratio, n_test_ceil);
+  }
+};
+
+template <typename Real, typename Integer = int64_t>
+struct SplitFixedN : SplitFunction<Real, SplitFixedN<Real, Integer>, Integer> {
+  using Base = SplitFunction<Real, SplitFixedN<Real, Integer>, Integer>;
+  static void check_args(size_t n_held_out) {}
+
+  static size_t get_n_test(size_t nnz_row, size_t n_held_out) {
+    return std::min(nnz_row, n_held_out);
+  };
+
+  static std::pair<CSRMatrix<Real>, CSRMatrix<Real>>
+  split(const CSRMatrix<Real> &X, std::int64_t random_seed, size_t n_held_out) {
+    return Base::split_imple(X, random_seed, n_held_out);
+  }
+};
 
 template <typename Real>
 CSRMatrix<Real> okapi_BM_25_weight(const CSRMatrix<Real> &X, Real k1, Real b) {
