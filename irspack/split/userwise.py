@@ -253,7 +253,7 @@ def split_dataframe_partial_user_holdout(
         item_column:
             The column name for movie_id.
         time_column:
-            This column name (if any) specifying the time of the interaction.
+            The column name (if any) specifying the time of the interaction.
             If this is set, the split will be based on time, and some of the most recent interactions will be held out for each user.
             Defaults to None.
         rating_column:
