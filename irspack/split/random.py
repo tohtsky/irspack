@@ -71,10 +71,25 @@ class UserTrainTestInteractionPair:
                 raise ValueError("X_train.shape[1] != len(item_ids)")
         self.item_ids = item_ids
 
-    def df_train(self) -> pd.DataFrame:
+    def _X_to_df(self, X: sps.csr_matrix, user_ids: List[Any]) -> pd.DataFrame:
         if self.item_ids is None:
-            raise RuntimeError("item id not found")
-        self.X_train.sort_indices()
+            raise RuntimeError("Setting item_ids is required to use this method.")
+        X.sort_indices()
+        row, col = X.nonzero()
+        data = X.data
+        return pd.DataFrame(
+            dict(
+                user_id=[user_ids[r] for r in row],
+                item_id=[self.item_ids[c] for c in col],
+                rating=data,
+            )
+        )
+
+    def df_train(self) -> pd.DataFrame:
+        return self._X_to_df(self.X_train, self.user_ids)
+
+    def df_test(self) -> pd.DataFrame:
+        return self._X_to_df(self.X_test, self.user_ids)
 
     def concat(
         self, other: "UserTrainTestInteractionPair"
@@ -101,7 +116,7 @@ def split_train_test_userwise_random(
     df_: pd.DataFrame,
     user_colname: str,
     item_colname: str,
-    item_id_to_iid: Dict[Any, int],
+    item_ids: List[Any],
     heldout_ratio: float,
     n_heldout: Optional[int],
     rns: np.random.RandomState,
@@ -133,9 +148,9 @@ def split_train_test_userwise_random(
         Resulting train-test split dataset.
     """
 
-    df_ = df_[df_[item_colname].isin(item_id_to_iid.keys())]
+    df_ = df_[df_[item_colname].isin(item_ids)]
 
-    item_indices = df_[item_colname].map(item_id_to_iid)
+    item_indices = pd.Categorical(df_[item_colname], categories=item_ids).codes
 
     user_ids, user_indices = np.unique(df_[user_colname], return_inverse=True)
     if rating_column is not None:
@@ -145,7 +160,7 @@ def split_train_test_userwise_random(
 
     X_all = sps.csr_matrix(
         (data, (user_indices, item_indices)),
-        shape=(len(user_ids), len(item_id_to_iid)),
+        shape=(len(user_ids), len(item_ids)),
     )
     X_learn, X_predict = rowwise_train_test_split(
         X_all,
@@ -154,7 +169,9 @@ def split_train_test_userwise_random(
         random_seed=rns.randint(-(2 ** 31), 2 ** 31 - 1),
     )
 
-    return UserTrainTestInteractionPair(user_ids, X_learn.tocsr(), X_predict.tocsr())
+    return UserTrainTestInteractionPair(
+        user_ids, X_learn.tocsr(), X_predict.tocsr(), item_ids
+    )
 
 
 def split_train_test_userwise_time(
@@ -162,14 +179,14 @@ def split_train_test_userwise_time(
     user_colname: str,
     item_colname: str,
     time_colname: str,
-    item_id_to_iid: Dict[Any, int],
+    item_ids: List[Any],
     heldout_ratio: float,
     n_heldout: Optional[int],
     rating_column: Optional[str] = None,
 ) -> UserTrainTestInteractionPair:
-    df_ = df_[df_[item_colname].isin(item_id_to_iid.keys())]
+    df_ = df_[df_[item_colname].isin(item_ids)]
     unique_user_ids, user_index = np.unique(df_[user_colname], return_inverse=True)
-    item_index = np.asarray([item_id_to_iid[iid] for iid in df_[item_colname]])
+    item_index = pd.Categorical(df_[item_colname], categories=item_ids).codes
     df_aux = pd.DataFrame(
         dict(
             user_index=user_index,
@@ -182,7 +199,7 @@ def split_train_test_userwise_time(
     else:
         df_aux["rating"] = 1.0
 
-    shape_ = (len(unique_user_ids), len(item_id_to_iid))
+    shape_ = (len(unique_user_ids), len(item_ids))
 
     df_train, df_test = split_last_n_interaction_df(
         df_aux,
@@ -205,7 +222,7 @@ def split_train_test_userwise_time(
         ),
         shape=shape_,
     )
-    return UserTrainTestInteractionPair(unique_user_ids, X_train, X_test)
+    return UserTrainTestInteractionPair(unique_user_ids, X_train, X_test, item_ids)
 
 
 def split_dataframe_partial_user_holdout(
@@ -332,7 +349,7 @@ def split_dataframe_partial_user_holdout(
 
     train_user_interactions = sps.csr_matrix(
         (train_user_data, (train_user_row, train_user_col)),
-        shape=(len(train_uids), len(item_id_to_iid)),
+        shape=(len(train_uids), len(item_all)),
     )
 
     valid_data: Dict[str, UserTrainTestInteractionPair] = dict(
@@ -348,7 +365,7 @@ def split_dataframe_partial_user_holdout(
                 df_,
                 user_column,
                 item_column,
-                item_id_to_iid,
+                item_all,
                 heldout_ratio,
                 n_heldout,
                 rns,
@@ -360,7 +377,7 @@ def split_dataframe_partial_user_holdout(
                 user_column,
                 item_column,
                 time_column,
-                item_id_to_iid,
+                item_all,
                 heldout_ratio,
                 n_heldout,
                 rating_column=rating_column,
