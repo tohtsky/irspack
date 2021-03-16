@@ -3,6 +3,8 @@ import random
 from typing import Optional, Tuple
 
 import numpy as np
+import pandas as pd
+import scipy.sparse as sps
 
 from ..definitions import InteractionMatrix
 from ._util_cpp import (
@@ -72,6 +74,27 @@ def get_n_threads(n_threads: Optional[int]) -> int:
             raise ValueError(
                 'failed to interpret "IRSPACK_NUM_THREADS_DEFAULT" as an integer.'
             )
+
+
+def df_to_sparse(
+    df: pd.DataFrame,
+    user_colname: str,
+    item_colname: str,
+    rating_colname: Optional[str] = None,
+) -> Tuple[sps.csr_matrix, np.ndarray, np.ndarray]:
+    row, unique_user_ids = pd.factorize(df[user_colname], sort=True)
+    col, unique_item_ids = pd.factorize(df[item_colname], sort=True)
+    if rating_colname is None:
+        data = np.ones(df.shape[0])
+    else:
+        data = np.asfarray(df[rating_colname].values)
+    return (
+        sps.csr_matrix(
+            (data, (row, col)), shape=(len(unique_user_ids), len(unique_item_ids))
+        ),
+        unique_user_ids,
+        unique_item_ids,
+    )
 
 
 __all__ = [

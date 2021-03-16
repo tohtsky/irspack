@@ -6,8 +6,6 @@ import pandas as pd
 from scipy import sparse as sps
 from sklearn.model_selection import train_test_split
 
-from irspack.definitions import InteractionMatrix
-
 from .random import UserTrainTestInteractionPair
 
 
@@ -106,7 +104,7 @@ def holdout_specific_interactions(
     def df_to_dataset(
         df: pd.DataFrame, train: bool = False
     ) -> UserTrainTestInteractionPair:
-        uid_unique, uindex = np.unique(df[user_column], return_inverse=True)
+        uindex, uid_unique = df[user_column].factorize(sort=True)
         iindex = df[item_index_colname].values
         if train:
             X = sps.csr_matrix(
