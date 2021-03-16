@@ -6,7 +6,7 @@ import pandas as pd
 from scipy import sparse as sps
 from sklearn.model_selection import train_test_split
 
-from .random import UserTrainTestInteractionPair
+from .userwise import UserTrainTestInteractionPair
 
 
 def holdout_specific_interactions(

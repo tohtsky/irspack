@@ -1,7 +1,7 @@
 from ..utils import rowwise_train_test_split
-from .random import UserTrainTestInteractionPair, split_dataframe_partial_user_holdout
 from .specified import holdout_specific_interactions
 from .time import split_last_n_interaction_df
+from .userwise import UserTrainTestInteractionPair, split_dataframe_partial_user_holdout
 
 __all__ = [
     "UserTrainTestInteractionPair",

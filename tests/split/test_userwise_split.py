@@ -5,8 +5,10 @@ import pytest
 import scipy.sparse as sps
 
 from irspack.dataset.movielens import MovieLens100KDataManager
-from irspack.split import split_dataframe_partial_user_holdout
-from irspack.split.random import UserTrainTestInteractionPair
+from irspack.split import (
+    UserTrainTestInteractionPair,
+    split_dataframe_partial_user_holdout,
+)
 
 RNS = np.random.RandomState(0)
 
