@@ -1,23 +1,51 @@
+from typing import Optional
+
 import numpy as np
 import pytest
 import scipy.sparse as sps
 
 from irspack.dataset.movielens import MovieLens100KDataManager
-from irspack.split import split_dataframe_partial_user_holdout
-from irspack.split.random import UserTrainTestInteractionPair
+from irspack.split import (
+    UserTrainTestInteractionPair,
+    split_dataframe_partial_user_holdout,
+)
 
 RNS = np.random.RandomState(0)
 
 df = MovieLens100KDataManager(force_download=True).read_interaction()
 
+test_configs = [
+    (None, None, 0.1, 0.15),
+    (None, 3, 0.2, 0.25),
+    (4, None, 0.3, 0.35),
+    (5, 6, 0.0, 1.0),
+]
+test_configs_with_time = [
+    config + (tsc,) for tsc in ["timestamp", None] for config in test_configs
+]
 
-def test_user_level_split() -> None:
+
+@pytest.mark.parametrize(
+    "n_val_user, n_test_user, val_user_ratio, test_user_ratio, time_colname",
+    test_configs_with_time,
+)
+def test_user_level_split(
+    n_val_user: Optional[int],
+    n_test_user: Optional[int],
+    val_user_ratio: float,
+    test_user_ratio: float,
+    time_colname: Optional[str],
+) -> None:
+    n_users_all = len(set(df.userId))
     dataset, mid_list = split_dataframe_partial_user_holdout(
         df,
         user_column="userId",
         item_column="movieId",
-        n_test_user=30,
-        n_val_user=30,
+        time_column=time_colname,
+        val_user_ratio=val_user_ratio,
+        test_user_ratio=test_user_ratio,
+        n_val_user=n_val_user,
+        n_test_user=n_test_user,
         heldout_ratio_val=0.3,
         heldout_ratio_test=0.5,
     )
@@ -33,8 +61,43 @@ def test_user_level_split() -> None:
             train.user_ids, train.X_train, train.X_train[1:]
         )
 
+    with pytest.raises(ValueError):
+        _ = UserTrainTestInteractionPair(
+            train.user_ids, train.X_train, train.X_train, mid_list[:-1]
+        )
+
+    def get_n_right_answer(ratio: float, n: Optional[int]) -> int:
+        if n is not None:
+            return n
+        else:
+            return int(n_users_all * ratio)
+
     val = dataset["val"]
+    assert val.n_users == get_n_right_answer(val_user_ratio, n_val_user)
     test = dataset["test"]
+    assert test.n_users == get_n_right_answer(test_user_ratio, n_test_user)
+
+    if time_colname is not None:
+        for d in [val, test]:
+            _df_train = d.df_train().merge(
+                df[["userId", "movieId", "timestamp"]].rename(
+                    columns={"userId": "user_id", "movieId": "item_id"}
+                )
+            )
+            _df_test = d.df_test().merge(
+                df[["userId", "movieId", "timestamp"]].rename(
+                    columns={"userId": "user_id", "movieId": "item_id"}
+                )
+            )
+            _train_max_time = _df_train.groupby("user_id").timestamp.max()
+            _test_min_time = _df_test.groupby("user_id").timestamp.min()
+            common_index = np.intersect1d(_train_max_time.index, _test_min_time.index)
+            assert common_index.shape[0] > 0
+            assert np.all(
+                _train_max_time.reindex(common_index)
+                <= _test_min_time.reindex(common_index)
+            )
+
     assert train.X_test.count_nonzero() == 0
     train_val = train.concat(val)
     assert train_val.X_test[: train.n_users].count_nonzero() == 0
