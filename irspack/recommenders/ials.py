@@ -30,7 +30,7 @@ class IALSTrainer(TrainerBase):
         random_seed: int,
         n_threads: int,
     ):
-        X_train_all_f32 = X.astype(np.int32)
+        X_train_all_f32 = X.astype(np.float32)
         config = (
             IALSLearningConfigBuilder()
             .set_K(n_components)
