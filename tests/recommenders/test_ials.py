@@ -115,57 +115,6 @@ def test_ials_overfit_nonzero_alpha(
     np.testing.assert_allclose(ivec_chol, ivec_cg, atol=1e-3, rtol=1e-4)
 
 
-def ials_scipy(
-    X: sps.csr_matrix, nf: int, reg: float, alpha: float, epsilon: float
-) -> Tuple[np.ndarray, np.ndarray]:
-    nu = X.shape[0]
-    ni = X.shape[1]
-    u_v = np.random.randn(nf * nu + nf * ni) * 0.1
-
-    def sval(u_v: np.ndarray) -> float:
-        u = u_v[: nf * nu].reshape((nu, nf))
-        v = u_v[nf * nu :].reshape((ni, nf))
-        uv = u.dot(v.T)
-        loss = 0
-        for u in range(nu):
-            for i in range(ni):
-                x = X[u, i]
-                if x == 0:
-                    loss += (uv[u, i]) ** 2
-                else:
-                    loss += (1 - uv[u, i]) ** 2 * (1 + alpha * np.log(1 + x / epsilon))
-        loss += reg * (u_v ** 2).sum()
-        return loss / 2
-
-    def sgrad(u_v: np.ndarray) -> np.ndarray:
-        u = u_v[: nf * nu].reshape((nu, nf))
-        v = u_v[nf * nu :].reshape((ni, nf))
-        voffset = nf * nu
-        uv = u.dot(v.T)
-        result = np.zeros_like(u_v)
-        for uind in range(nu):
-            for iind in range(ni):
-                x = X[uind, iind]
-                if x == 0:
-                    sc = uv[uind, iind]
-                else:
-                    sc = (1 + alpha * np.log(1 + x / epsilon)) * (uv[uind, iind] - 1)
-                ugrad = v[iind] * sc
-                vgrad = u[uind] * sc
-
-                result[uind * nf : (uind + 1) * nf] += ugrad
-                result[voffset + iind * nf : voffset + (iind + 1) * nf] = vgrad
-        result += u_v * reg
-        return result
-
-    res = minimize(sval, u_v, jac=sgrad, method="BFGS", options={"gtol": 1e-9})
-
-    u = res.x[: nf * nu].reshape((nu, nf))
-    v = res.x[nf * nu :].reshape((ni, nf))
-
-    return u, v
-
-
 def ials_grad(
     X: sps.csr_matrix,
     u: np.ndarray,
