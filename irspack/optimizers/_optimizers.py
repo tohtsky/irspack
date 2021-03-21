@@ -117,8 +117,8 @@ _add_docstring(TopPopOptimizer)
 
 class IALSOptimizer(BaseOptimizerWithEarlyStopping):
     default_tune_range = [
-        IntegerSuggestion("n_components", 4, 200),
-        LogUniformSuggestion("alpha", 1, 50),
+        IntegerSuggestion("n_components", 4, 300),
+        LogUniformSuggestion("alpha", 1, 100),
         LogUniformSuggestion("reg", 1e-10, 1e-2),
     ]
     recommender_class = IALSRecommender

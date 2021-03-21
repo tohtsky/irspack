@@ -28,6 +28,7 @@ class CallBeforeFitError(Exception):
 
 
 class BaseRecommender(object, metaclass=ABCMeta):
+    X_train_all: sps.csr_matrix
     """The base class for all (hot) recommenders.
 
     Args:
