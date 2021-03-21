@@ -3,7 +3,6 @@
 #include "IALSLearningConfig.hpp"
 #include "definitions.hpp"
 #include <Eigen/Cholesky>
-#include <Eigen/IterativeLinearSolvers>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -36,7 +35,7 @@ struct Solver {
 
   inline void prepare_p(const DenseMatrix &other_factor,
                         const IALSLearningConfig &config) {
-    const int64_t mb_size = 1020;
+    const int64_t mb_size = 16;
     P = DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
 
     std::atomic<int64_t> cursor{static_cast<size_t>(0)};
@@ -108,16 +107,10 @@ struct Solver {
 
           x = target_factor.row(cursor_local)
                   .transpose(); // use the previous value
-          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-            b.noalias() += (it.value() * (1 + config.alpha)) *
-                           other_factor.row(it.col()).transpose();
-          }
 
-          r = b - P * x;
           size_t nnz = 0;
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-            Real vdotx = other_factor.row(it.col()) * x;
-            r.noalias() -= (it.value() * config.alpha * vdotx) *
+            b.noalias() += (1 + config.alpha * it.value()) *
                            other_factor.row(it.col()).transpose();
             nnz++;
           }
@@ -125,6 +118,13 @@ struct Solver {
             target_factor.row(cursor_local).array() = 0;
             continue;
           }
+          r = b - P * x;
+          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+            Real vdotx = other_factor.row(it.col()) * x;
+            r.noalias() -= (it.value() * config.alpha * vdotx) *
+                           other_factor.row(it.col()).transpose();
+          }
+
           p = r;
 
           size_t cg_max_iter =
@@ -166,32 +166,29 @@ struct Solver {
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config]() {
-        DenseMatrix P_local(P.rows(), P.cols());
-        DenseVector B(P.rows());
-        DenseVector vcache(P.rows()), r(P.rows());
-        while (true) {
-          int cursor_local = cursor.fetch_add(1);
-          if (cursor_local >= target_factor.rows()) {
-            break;
-          }
-          P_local.noalias() = P;
-          B.array() = static_cast<Real>(0);
-          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-            int64_t other_index = it.col();
-            Real alphaX = (config.alpha * it.value());
-            vcache = other_factor.row(other_index).transpose();
-            P_local.noalias() += alphaX * vcache * vcache.transpose();
-            B.noalias() += (it.value() * (1 + config.alpha)) *
-                           other_factor.row(other_index).transpose();
-          }
-          Eigen::ConjugateGradient<DenseMatrix> cg;
-          cg.compute(P);
-          target_factor.row(cursor_local) =
-              cg.solveWithGuess(B, target_factor.row(cursor_local).transpose());
-        }
-      });
+      workers.emplace_back(
+          [this, &target_factor, &cursor, &X, &other_factor, &config]() {
+            DenseMatrix P_local(P.rows(), P.cols());
+            DenseVector B(P.rows());
+            DenseVector vcache(P.rows()), r(P.rows());
+            while (true) {
+              int cursor_local = cursor.fetch_add(1);
+              if (cursor_local >= target_factor.rows()) {
+                break;
+              }
+              P_local.noalias() = P;
+              B.array() = static_cast<Real>(0);
+              for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+                int64_t other_index = it.col();
+                Real alphaX = (config.alpha * it.value());
+                vcache = other_factor.row(other_index).transpose();
+                P_local.noalias() += alphaX * vcache * vcache.transpose();
+                B.noalias() += (1 + alphaX) * vcache;
+              }
+              Eigen::LLT<Eigen::Ref<DenseMatrix>> llt(P_local);
+              target_factor.row(cursor_local) = llt.solve(B);
+            }
+          });
     }
     for (auto &w : workers) {
       w.join();
