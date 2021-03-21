@@ -6,6 +6,7 @@ from scipy import sparse as sps
 from sklearn.model_selection import train_test_split
 
 from irspack.definitions import InteractionMatrix
+from irspack.split.time import split_last_n_interaction_df
 from irspack.utils import rowwise_train_test_split
 
 
@@ -47,6 +48,7 @@ class UserTrainTestInteractionPair:
         user_ids: List[Any],
         X_train: InteractionMatrix,
         X_test: Optional[InteractionMatrix],
+        item_ids: Optional[List[Any]] = None,
     ):
 
         if len(user_ids) != X_train.shape[0]:
@@ -64,6 +66,30 @@ class UserTrainTestInteractionPair:
         self.n_users = self.X_train.shape[0]
         self.n_items = self.X_train.shape[1]
         self.X_all = sps.csr_matrix(self.X_train + self.X_test)
+        if item_ids is not None:
+            if len(item_ids) != self.X_test.shape[1]:
+                raise ValueError("X_train.shape[1] != len(item_ids)")
+        self.item_ids = item_ids
+
+    def _X_to_df(self, X: sps.csr_matrix, user_ids: List[Any]) -> pd.DataFrame:
+        if self.item_ids is None:
+            raise RuntimeError("Setting item_ids is required to use this method.")
+        X.sort_indices()
+        row, col = X.nonzero()
+        data = X.data
+        return pd.DataFrame(
+            dict(
+                user_id=[user_ids[r] for r in row],
+                item_id=[self.item_ids[c] for c in col],
+                rating=data,
+            )
+        )
+
+    def df_train(self) -> pd.DataFrame:
+        return self._X_to_df(self.X_train, self.user_ids)
+
+    def df_test(self) -> pd.DataFrame:
+        return self._X_to_df(self.X_test, self.user_ids)
 
     def concat(
         self, other: "UserTrainTestInteractionPair"
@@ -86,12 +112,13 @@ class UserTrainTestInteractionPair:
         )
 
 
-def split_train_test_userwise(
+def split_train_test_userwise_random(
     df_: pd.DataFrame,
     user_colname: str,
     item_colname: str,
-    item_id_to_iid: Optional[Dict[Any, int]],
+    item_ids: List[Any],
     heldout_ratio: float,
+    n_heldout: Optional[int],
     rns: np.random.RandomState,
     rating_column: Optional[str] = None,
 ) -> UserTrainTestInteractionPair:
@@ -99,32 +126,31 @@ def split_train_test_userwise(
 
     Parameters
     ----------
-    df_ : pd.DataFrame
+    df_:
         user x item interaction matrix.
-    user_colname : str
+    user_colname:
         The column name for the users.
-    item_colname : str
+    item_colname:
         The column name for the items.
-    item_id_to_iid : Optional[Dict[Any, int]]
+    item_id_to_iid:
         The mapper from item id to item index. If not supplied, create own mapping from df_.
-    heldout_ratio : float
+    heldout_ratio:
         The percentage of items (per-user) to be held out as a test(validation) ones.
-    rns : np.random.RandomState
+    n_heldout:
+        The maximal number of items (per-user) to be held out as a test(validation) ones.
+    rns:
         The random state
-    rating_column : Optional[str], optional
+    rating_column:
         The column for the rating values. If None, the rating values will be all equal (1), by default None
-
     Returns
     -------
     UserDataSet
         Resulting train-test split dataset.
     """
 
-    if item_id_to_iid is None:
-        item_id_to_iid = {id: i for i, id in enumerate(np.unique(df_[item_colname]))}
-    df_ = df_[df_[item_colname].isin(item_id_to_iid.keys())]
+    df_ = df_[df_[item_colname].isin(item_ids)]
 
-    item_indices = df_[item_colname].map(item_id_to_iid)
+    item_indices = pd.Categorical(df_[item_colname], categories=item_ids).codes
 
     user_ids, user_indices = np.unique(df_[user_colname], return_inverse=True)
     if rating_column is not None:
@@ -134,28 +160,85 @@ def split_train_test_userwise(
 
     X_all = sps.csr_matrix(
         (data, (user_indices, item_indices)),
-        shape=(len(user_ids), len(item_id_to_iid)),
+        shape=(len(user_ids), len(item_ids)),
     )
     X_learn, X_predict = rowwise_train_test_split(
         X_all,
         heldout_ratio,
+        n_heldout,
         random_seed=rns.randint(-(2 ** 31), 2 ** 31 - 1),
     )
 
-    return UserTrainTestInteractionPair(user_ids, X_learn.tocsr(), X_predict.tocsr())
+    return UserTrainTestInteractionPair(
+        user_ids, X_learn.tocsr(), X_predict.tocsr(), item_ids
+    )
+
+
+def split_train_test_userwise_time(
+    df_: pd.DataFrame,
+    user_colname: str,
+    item_colname: str,
+    time_colname: str,
+    item_ids: List[Any],
+    heldout_ratio: float,
+    n_heldout: Optional[int],
+    rating_column: Optional[str] = None,
+) -> UserTrainTestInteractionPair:
+    df_ = df_[df_[item_colname].isin(item_ids)]
+    unique_user_ids, user_index = np.unique(df_[user_colname], return_inverse=True)
+    item_index = pd.Categorical(df_[item_colname], categories=item_ids).codes
+    df_aux = pd.DataFrame(
+        dict(
+            user_index=user_index,
+            item_index=item_index,
+            timestamp=df_[time_colname].values,
+        )
+    )
+    if rating_column is not None:
+        df_aux["rating"] = df_[rating_column]
+    else:
+        df_aux["rating"] = 1.0
+
+    shape_ = (len(unique_user_ids), len(item_ids))
+
+    df_train, df_test = split_last_n_interaction_df(
+        df_aux,
+        "user_index",
+        "timestamp",
+        n_heldout=n_heldout,
+        heldout_ratio=heldout_ratio,
+    )
+    X_train = sps.csr_matrix(
+        (
+            df_train.rating.values,
+            (df_train.user_index.values, df_train.item_index.values),
+        ),
+        shape=shape_,
+    )
+    X_test = sps.csr_matrix(
+        (
+            df_test.rating.values,
+            (df_test.user_index.values, df_test.item_index.values),
+        ),
+        shape=shape_,
+    )
+    return UserTrainTestInteractionPair(unique_user_ids, X_train, X_test, item_ids)
 
 
 def split_dataframe_partial_user_holdout(
     df_all: pd.DataFrame,
     user_column: str,
     item_column: str,
+    time_column: Optional[str] = None,
     rating_column: Optional[str] = None,
     n_val_user: Optional[int] = None,
     n_test_user: Optional[int] = None,
     val_user_ratio: float = 0.1,
     test_user_ratio: float = 0.1,
     heldout_ratio_val: float = 0.5,
+    n_heldout_val: Optional[int] = None,
     heldout_ratio_test: float = 0.5,
+    n_heldout_test: Optional[int] = None,
     random_state: int = 42,
 ) -> Tuple[Dict[str, UserTrainTestInteractionPair], List[Any]]:
     """Splits the DataFrame and build an interaction matrix,
@@ -169,6 +252,10 @@ def split_dataframe_partial_user_holdout(
             The column name for user_id.
         item_column:
             The column name for movie_id.
+        time_column:
+            The column name (if any) specifying the time of the interaction.
+            If this is set, the split will be based on time, and some of the most recent interactions will be held out for each user.
+            Defaults to None.
         rating_column:
             The column name for ratings. If ``None``, the rating will be treated as
             ``1`` for all interactions. Defaults to None.
@@ -183,9 +270,15 @@ def split_dataframe_partial_user_holdout(
             The percentage of "test users" with respect to all users.
             Ignored when ``n_text_user`` is set. Defaults to 0.1.
         heldout_ratio_val:
-            The percentage of held-out interactions for "validation users". Defaults to 0.5.
+            The percentage of held-out interactions for "validation users".
+            Ignored if ``n_heldout_val`` is specified. Defaults to 0.5.
+        n_heldout_val:
+            The maximal number of held-out interactions for "validation users".
         heldout_ratio_test:
-            The percentage of held-out interactions for "test users". Defaults to 0.5.
+            The percentage of held-out interactions for "test users".
+            Ignored if ``n_heldout_test`` is specified. Defaults to 0.5.
+        n_heldout_val:
+            The maximal number of held-out interactions for "test users".
         random_state:
             The random seed for this procedure. Defaults to 42.
 
@@ -238,13 +331,8 @@ def split_dataframe_partial_user_holdout(
     df_train = df_all[df_all[user_column].isin(train_uids)].copy()
     df_val = df_all[df_all[user_column].isin(val_uids)]
     df_test = df_all[df_all[user_column].isin(test_uids)]
-    item_all: List[Any] = list(df_train[item_column].unique())
+    item_all: List[Any] = list(set(df_all[item_column]))
 
-    def select_item(df: pd.DataFrame) -> pd.DataFrame:
-        return df[df[item_column].isin(item_all)]
-
-    df_val = select_item(df_val).copy()
-    df_test = select_item(df_test).copy()
     item_id_to_iid = {id_: i for i, id_ in enumerate(item_all)}
     for df in [df_train, df_val, df_test]:
         df["item_iid"] = df[item_column].map(item_id_to_iid)
@@ -261,25 +349,37 @@ def split_dataframe_partial_user_holdout(
 
     train_user_interactions = sps.csr_matrix(
         (train_user_data, (train_user_row, train_user_col)),
-        shape=(len(train_uids), len(item_id_to_iid)),
+        shape=(len(train_uids), len(item_all)),
     )
 
     valid_data: Dict[str, UserTrainTestInteractionPair] = dict(
         train=UserTrainTestInteractionPair(train_uids, train_user_interactions, None)
     )
-
-    for df_, dataset_name, heldout_ratio in [
-        (df_val, "val", heldout_ratio_val),
-        (df_test, "test", heldout_ratio_test),
-    ]:
-
-        valid_data[dataset_name] = split_train_test_userwise(
-            df_,
-            user_column,
-            item_column,
-            item_id_to_iid,
-            heldout_ratio,
-            rns,
-            rating_column=rating_column,
-        )
+    val_test_info_: List[Tuple[pd.DataFrame, str, float, Optional[int]]] = [
+        (df_val, "val", heldout_ratio_val, n_heldout_val),
+        (df_test, "test", heldout_ratio_test, n_heldout_test),
+    ]
+    for df_, dataset_name, heldout_ratio, n_heldout in val_test_info_:
+        if time_column is None:
+            valid_data[dataset_name] = split_train_test_userwise_random(
+                df_,
+                user_column,
+                item_column,
+                item_all,
+                heldout_ratio,
+                n_heldout,
+                rns,
+                rating_column=rating_column,
+            )
+        else:
+            valid_data[dataset_name] = split_train_test_userwise_time(
+                df_,
+                user_column,
+                item_column,
+                time_column,
+                item_all,
+                heldout_ratio,
+                n_heldout,
+                rating_column=rating_column,
+            )
     return valid_data, item_all

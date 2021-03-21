@@ -13,7 +13,7 @@ with open(os.path.join(SETUP_DIRECTORY, "Readme.md")) as ifs:
 
 install_requires = (
     [
-        "numpy >= 1.11",
+        "numpy<1.20.0",
         "tqdm",
         "optuna>=1.0.0",
         "pandas>=1.0.0",

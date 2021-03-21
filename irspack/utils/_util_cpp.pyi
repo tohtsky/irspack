@@ -15,9 +15,8 @@ import scipy.sparse
 __all__ = [
     "okapi_BM_25_weight",
     "remove_diagonal",
-    "rowwise_train_test_split_d",
-    "rowwise_train_test_split_f",
-    "rowwise_train_test_split_i",
+    "rowwise_train_test_split_by_fixed_n",
+    "rowwise_train_test_split_by_ratio",
     "slim_weight_allow_negative",
     "slim_weight_positive_only",
     "sparse_mm_threaded",
@@ -34,19 +33,14 @@ def remove_diagonal(
 ) -> scipy.sparse.csr_matrix[float64]:
     pass
 
-def rowwise_train_test_split_d(
-    arg0: scipy.sparse.csr_matrix[float64], arg1: float, arg2: int
+def rowwise_train_test_split_by_fixed_n(
+    arg0: scipy.sparse.csr_matrix[float64], arg1: int, arg2: int
 ) -> Tuple[scipy.sparse.csr_matrix[float64], scipy.sparse.csr_matrix[float64]]:
     pass
 
-def rowwise_train_test_split_f(
-    arg0: scipy.sparse.csr_matrix[float32], arg1: float, arg2: int
-) -> Tuple[scipy.sparse.csr_matrix[float32], scipy.sparse.csr_matrix[float32]]:
-    pass
-
-def rowwise_train_test_split_i(
-    arg0: scipy.sparse.csr_matrix[float32], arg1: float, arg2: int
-) -> Tuple[scipy.sparse.csr_matrix[float32], scipy.sparse.csr_matrix[float32]]:
+def rowwise_train_test_split_by_ratio(
+    arg0: scipy.sparse.csr_matrix[float64], arg1: int, arg2: float, arg3: bool
+) -> Tuple[scipy.sparse.csr_matrix[float64], scipy.sparse.csr_matrix[float64]]:
     pass
 
 def slim_weight_allow_negative(

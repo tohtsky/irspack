@@ -1,4 +1,5 @@
 #pragma once
+#include "../argcheck.hpp"
 #include "IALSLearningConfig.hpp"
 #include "definitions.hpp"
 #include <Eigen/Cholesky>
@@ -178,7 +179,7 @@ struct Solver {
           P_local.noalias() = P;
           B.array() = static_cast<Real>(0);
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-            std::int64_t other_index = it.col();
+            int64_t other_index = it.col();
             Real alphaX = (config.alpha * it.value());
             vcache = other_factor.row(other_index).transpose();
             P_local.noalias() += alphaX * vcache * vcache.transpose();
@@ -250,13 +251,14 @@ struct IALSTrainer {
   }
 
   DenseMatrix user_scores(size_t userblock_begin, size_t userblock_end) {
-    if (userblock_end < userblock_begin) {
-      throw std::invalid_argument("begin > end");
-    }
-    std::int64_t result_size = userblock_end - userblock_begin;
-    if (userblock_end > n_users) {
-      throw std::invalid_argument("end > n_users");
-    }
+    irspack::check_arg(
+        userblock_end >= userblock_begin,
+        "userblock_end must be greater than or equal to userblock_begin");
+    irspack::check_arg(
+        n_users >= userblock_end,
+        "userblock_end must be smaller than or equal to n_users");
+
+    int64_t result_size = userblock_end - userblock_begin;
     DenseMatrix result(result_size, n_items);
     std::vector<std::thread> workers;
     std::atomic<int64_t> cursor(0);

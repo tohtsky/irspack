@@ -27,9 +27,10 @@ class IALSTrainer(TrainerBase):
         init_std: float,
         use_cg: bool,
         max_cg_steps: int,
+        random_seed: int,
         n_threads: int,
     ):
-        X_train_all_f32 = X.astype(np.int32)
+        X_train_all_f32 = X.astype(np.float32)
         config = (
             IALSLearningConfigBuilder()
             .set_K(n_components)
@@ -39,6 +40,7 @@ class IALSTrainer(TrainerBase):
             .set_n_threads(n_threads)
             .set_use_cg(use_cg)
             .set_max_cg_steps(max_cg_steps)
+            .set_random_seed(random_seed)
             .build()
         )
 
@@ -116,6 +118,7 @@ class IALSRecommender(
         init_std: float = 0.1,
         use_cg: bool = True,
         max_cg_steps: int = 3,
+        random_seed: int = 42,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
         n_threads: Optional[int] = None,
@@ -135,6 +138,7 @@ class IALSRecommender(
         self.init_std = init_std
         self.use_cg = use_cg
         self.max_cg_steps = max_cg_steps
+        self.random_seed = random_seed
         self.n_threads = get_n_threads(n_threads)
 
         self.trainer: Optional[IALSTrainer] = None
@@ -148,6 +152,7 @@ class IALSRecommender(
             self.init_std,
             self.use_cg,
             self.max_cg_steps,
+            self.random_seed,
             self.n_threads,
         )
 
