@@ -1,7 +1,9 @@
+import enum
 import pickle
 from typing import IO, Optional
 
 import numpy as np
+import scipy.sparse as sps
 
 from irspack.utils import get_n_threads
 
@@ -62,12 +64,17 @@ class IALSTrainer(TrainerBase):
         self.core_trainer.step()
 
 
+class IALSConfigScaling(enum.Enum):
+    none = enum.auto()
+    log = enum.auto()
+
+
 class IALSRecommender(
     BaseRecommenderWithEarlyStopping,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    """Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
+    r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
 
     See:
 
@@ -87,8 +94,27 @@ class IALSRecommender(
             The dimension for latent factor. Defaults to 20.
         alpha (float, optional):
             The confidence parameter alpha in the original paper. Defaults to 0.0.
-        reg (float, optional):
+        reg (float, optional) :
             Regularization coefficient for both user & item factors. Defaults to 1e-3.
+        confidence_scaling (str, optional) :
+            Specifies how to scale confidence scaling :math:`c_{ui}`. Must be either "none" or "log".
+            If "none", the non-zero "rating" :math:`r_{ui}` yields
+
+            .. math ::
+
+                c_{ui} = 1 + \alpha r_{ui}
+
+            If "log"
+
+            .. math ::
+
+                c_{ui} = 1 + \alpha \log (1 + r_{ui} / \epsilon )
+
+            Defaults to "none".
+        epsilon (float, optional):
+            The :math:`\epsilon` parameter for log-scaling described above.
+            Will not have any effect if `confidence_scaling` is "none".
+            Defaults to 1.0f.
         init_std (float, optional):
             Standard deviation for initialization normal distribution. Defaults to 0.1.
         use_cg (bool, optional):
@@ -109,12 +135,25 @@ class IALSRecommender(
             Maximal number of epochs. Defaults to 512.
     """
 
+    @classmethod
+    def _scale_X(
+        cls, X: sps.csr_matrix, scheme: IALSConfigScaling, epsilon: float
+    ) -> sps.csr_matrix:
+        if scheme is IALSConfigScaling.none:
+            return X
+        else:
+            X_ret: sps.csr_matrix = X.copy()
+            X_ret.data = np.log(1 + X_ret.data / epsilon)
+            return X_ret
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
         n_components: int = 20,
         alpha: float = 0.0,
         reg: float = 1e-3,
+        confidence_scaling: str = "none",
+        epsilon: float = 1.0,
         init_std: float = 0.1,
         use_cg: bool = True,
         max_cg_steps: int = 3,
@@ -138,6 +177,8 @@ class IALSRecommender(
         self.init_std = init_std
         self.use_cg = use_cg
         self.max_cg_steps = max_cg_steps
+        self.confidence_scaling = IALSConfigScaling[confidence_scaling]
+        self.epsilon = epsilon
         self.random_seed = random_seed
         self.n_threads = get_n_threads(n_threads)
 
@@ -145,7 +186,7 @@ class IALSRecommender(
 
     def _create_trainer(self) -> TrainerBase:
         return IALSTrainer(
-            self.X_train_all,
+            self._scale_X(self.X_train_all, self.confidence_scaling, self.epsilon),
             self.n_components,
             self.alpha,
             self.reg,
@@ -184,10 +225,39 @@ class IALSRecommender(
         return self.core_trainer.item.astype(np.float64)
 
     def compute_user_embedding(self, X: InteractionMatrix) -> DenseMatrix:
-        return self.core_trainer.transform_user(X.astype(np.float32).tocsr())
+        r"""Given an unknown users' interaction with known items,
+        computes the latent factors of the users by least square (fixing item embeddings).
+
+        Parameters:
+            X:
+                The interaction history of the new users.
+                ``X.shape[1]`` must be equal to ``self.n_items``.
+        """
+        return self.core_trainer.transform_user(
+            self._scale_X(
+                sps.csr_matrix(X).astype(np.float32),
+                self.confidence_scaling,
+                self.epsilon,
+            )
+        )
 
     def compute_item_embedding(self, X: InteractionMatrix) -> DenseMatrix:
-        return self.core_trainer.transform_item(X.astype(np.float32).tocsr())
+        r"""Given an unknown items' interaction with known user,
+        computes the latent factors of the items by least square (fixing user embeddings).
+
+        Parameters:
+            X:
+                The interaction history of the new users.
+                ``X.shape[0]`` must be equal to ``self.n_users``.
+        """
+
+        return self.core_trainer.transform_item(
+            self._scale_X(
+                sps.csr_matrix(X).astype(np.float32),
+                self.confidence_scaling,
+                self.epsilon,
+            )
+        )
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
