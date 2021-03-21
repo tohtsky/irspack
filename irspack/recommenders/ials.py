@@ -96,7 +96,7 @@ class IALSRecommender(
             The confidence parameter alpha in the original paper. Defaults to 0.0.
         reg (float, optional) :
             Regularization coefficient for both user & item factors. Defaults to 1e-3.
-        confidence_scaling (float, optional) :
+        confidence_scaling (str, optional) :
             Specifies how to scale confidence scaling :math:`c_{ui}`. Must be either "none" or "log".
             If "none", the non-zero "rating" :math:`r_{ui}` yields
 
