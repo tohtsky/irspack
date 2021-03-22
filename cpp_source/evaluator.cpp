@@ -262,7 +262,7 @@ private:
 namespace py = pybind11;
 using namespace irspack;
 
-PYBIND11_MODULE(_evaluator, m) {
+PYBIND11_MODULE(_core, m) {
   py::class_<Metrics>(m, "Metrics")
       .def(py::init<size_t>())
       .def("merge",

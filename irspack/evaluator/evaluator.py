@@ -1,24 +1,24 @@
 import warnings
 from collections import OrderedDict
-from enum import Enum
+from enum import Enum, auto
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
 
-from irspack._evaluator import EvaluatorCore, Metrics
 from irspack.definitions import InteractionMatrix
+from irspack.evaluator._core import EvaluatorCore, Metrics
 from irspack.utils import get_n_threads
 
 if TYPE_CHECKING:
-    from .recommenders import base as base_recommender
+    from irspack.recommenders import base as base_recommender
 
 
 class TargetMetric(Enum):
-    NDCG = "ndcg"
-    RECALL = "recall"
-    HIT = "hit"
-    MAP = "map"
-    PRECISION = "precision"
+    ndcg = auto()
+    recall = auto()
+    hit = auto()
+    map = auto()
+    precision = auto()
 
 
 METRIC_NAMES = [
@@ -96,7 +96,7 @@ class Evaluator:
         self.offset = offset
         self.n_users = ground_truth.shape[0]
         self.n_items = ground_truth.shape[1]
-        self.target_metric = TargetMetric(target_metric)
+        self.target_metric = TargetMetric[target_metric]
         self.cutoff = cutoff
         self.n_threads = get_n_threads(n_threads)
         self.mb_size = mb_size
@@ -110,7 +110,7 @@ class Evaluator:
         Returns:
             The metric value.
         """
-        return self.get_score(model)[self.target_metric.value]
+        return self.get_score(model)[self.target_metric.name]
 
     def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
         """Compute the score with the cutoff being ``self.cutoff``.
