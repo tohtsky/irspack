@@ -76,10 +76,21 @@ class IALSRecommender(
 ):
     r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
 
-    See:
+    It tries to minimize the following loss:
+
+    .. math ::
+
+        \frac{1}{2} \sum _{u, i} c_{ui} (\mathbf{u}_u \cdot \mathbf{v}_i - \mathbb{1}_{r_{ui} > 0}) ^ 2 +
+        \frac{1}{2} \sum _u || \mathbf{u}_u || ^2 +
+        \frac{1}{2} \sum _i || \mathbf{v}_i || ^2
+
+
+    See the seminal paper:
 
         - `Collaborative filtering for implicit feedback datasets
           <http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf>`_
+
+
 
     To speed up the learning procedure, we have also implemented the conjugate gradient descent version following:
 
@@ -104,7 +115,7 @@ class IALSRecommender(
 
                 c_{ui} = 1 + \alpha r_{ui}
 
-            If "log"
+            If "log",
 
             .. math ::
 

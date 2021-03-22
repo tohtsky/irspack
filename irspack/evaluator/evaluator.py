@@ -1,24 +1,25 @@
 import warnings
 from collections import OrderedDict
-from enum import Enum
+from enum import Enum, auto
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
+from scipy import sparse as sps
 
-from irspack._evaluator import EvaluatorCore, Metrics
 from irspack.definitions import InteractionMatrix
+from irspack.evaluator._core import EvaluatorCore, Metrics
 from irspack.utils import get_n_threads
 
 if TYPE_CHECKING:
-    from .recommenders import base as base_recommender
+    from irspack.recommenders import base as base_recommender
 
 
 class TargetMetric(Enum):
-    NDCG = "ndcg"
-    RECALL = "recall"
-    HIT = "hit"
-    MAP = "map"
-    PRECISION = "precision"
+    ndcg = auto()
+    recall = auto()
+    hit = auto()
+    map = auto()
+    precision = auto()
 
 
 METRIC_NAMES = [
@@ -38,7 +39,7 @@ class Evaluator:
 
     Args:
         ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-            The held-out ground-truth.
+            The ground-truth.
         offset (int):
             Where the validation target user block begins.
             Often the validation set is defined for a subset of users.
@@ -59,16 +60,37 @@ class Evaluator:
             and compute the ranking performance within this subset.
         per_user_recommendable_items (Optional[List[List[int]]], optional):
             Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
+        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
+            If set, this matrix masks the score output of recommender model where it is non-zero.
+            If none, the mask will be the training matrix itself owned by the recommender.
+
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
+
+        recall_with_cutoff (bool, optional):
+            This affects the definition of recall.
+            If ``True``, for each user, recall will be evaluated by
+
+            .. math ::
+
+                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_\text{ground_truth})}
+
+            If ``False``, this will be
+
+            .. math ::
+
+                \frac{N_{\text{hit}}}{N_\text{ground_truth}}
+
+
         mb_size (int, optional):
             The rows of chunked user score. Defaults to 1024.
     """
 
     n_users: int
     n_items: int
+    masked_interactions: Optional[sps.csr_matrix]
 
     def __init__(
         self,
@@ -78,7 +100,9 @@ class Evaluator:
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
         per_user_recommendable_items: Optional[List[List[int]]] = None,
+        masked_interactions: Optional[InteractionMatrix] = None,
         n_threads: Optional[int] = None,
+        recall_with_cutoff: bool = False,
         mb_size: int = 1024,
     ) -> None:
 
@@ -96,10 +120,20 @@ class Evaluator:
         self.offset = offset
         self.n_users = ground_truth.shape[0]
         self.n_items = ground_truth.shape[1]
-        self.target_metric = TargetMetric(target_metric)
+        self.target_metric = TargetMetric[target_metric]
         self.cutoff = cutoff
         self.n_threads = get_n_threads(n_threads)
         self.mb_size = mb_size
+        if masked_interactions is None:
+            self.masked_interactions = None
+        else:
+            if masked_interactions.shape != ground_truth.shape:
+                raise ValueError(
+                    "grount_truth and masked_interactions have different shapes. "
+                )
+            self.masked_interactions = sps.csr_matrix(masked_interactions)
+
+        self.recall_with_cutoff = recall_with_cutoff
 
     def get_target_score(self, model: "base_recommender.BaseRecommender") -> float:
         """Compute the optimization target score (self.target_metric) with the cutoff being ``self.cutoff``.
@@ -110,7 +144,7 @@ class Evaluator:
         Returns:
             The metric value.
         """
-        return self.get_score(model)[self.target_metric.value]
+        return self.get_score(model)[self.target_metric.name]
 
     def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
         """Compute the score with the cutoff being ``self.cutoff``.
@@ -166,13 +200,27 @@ class Evaluator:
             chunk_end = min(chunk_start + mb_size, block_end)
             try:
                 # try faster method
-                scores = model.get_score_remove_seen_block(chunk_start, chunk_end)
+                scores = model.get_score_block(chunk_start, chunk_end)
             except NotImplementedError:
                 # block-by-block
-                scores = model.get_score_remove_seen(np.arange(chunk_start, chunk_end))
+                scores = model.get_score(np.arange(chunk_start, chunk_end))
+
+            scores = scores.astype(np.float64)
+
+            if self.masked_interactions is None:
+                mask = model.X_train_all[chunk_start:chunk_end]
+            else:
+                mask = self.masked_interactions[
+                    chunk_start - self.offset : chunk_end - self.offset
+                ]
+            scores[mask.nonzero()] = -np.inf
             for i, c in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
-                    scores, c, chunk_start - self.offset, self.n_threads, False
+                    scores,
+                    c,
+                    chunk_start - self.offset,
+                    self.n_threads,
+                    self.recall_with_cutoff,
                 )
                 metrics[i].merge(chunked_metric)
 
@@ -180,12 +228,13 @@ class Evaluator:
 
 
 class EvaluatorWithColdUser(Evaluator):
-    """Evaluates recommenders' performance against cold (unseen) users.
+    r"""Evaluates recommenders' performance against cold (unseen) users.
 
     Args:
-        input_interaction (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]): The cold-users' known interaction
-            with the items.
-        ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]): The held-out ground-truth.
+        input_interaction (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The cold-users' known interaction with the items.
+        ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The held-out ground-truth.
         offset (int): Where the validation target user block begins.
             Often the validation set is defined for a subset of users.
             When offset is not 0, we assume that the users with validation
@@ -204,10 +253,27 @@ class EvaluatorWithColdUser(Evaluator):
             and compute the ranking performance within this subset.
         per_user_recommendable_items (Optional[List[List[int]]], optional):
             Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
+        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
+            If set, this matrix masks the score output of recommender model where it is non-zero.
+            If none, the mask will be the training matrix (``input_interaction``) it self.
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
+        recall_with_cutoff (bool, optional):
+            This affects the definition of recall.
+            If ``True``, for each user, recall will be evaluated by
+
+            .. math ::
+
+                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_\text{ground_truth})}
+
+            If ``False``, this will be
+
+            .. math ::
+
+                \frac{N_{\text{hit}}}{N_\text{ground_truth}}
+
         mb_size (int, optional):
             The rows of chunked user score. Defaults to 1024.
     """
@@ -219,20 +285,24 @@ class EvaluatorWithColdUser(Evaluator):
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
-        per_item_recommendable_items: Optional[List[List[int]]] = None,
+        per_user_recommendable_items: Optional[List[List[int]]] = None,
+        masked_interactions: Optional[InteractionMatrix] = None,
         n_threads: Optional[int] = None,
+        recall_with_cutoff: bool = False,
         mb_size: int = 1024,
     ):
 
-        super(EvaluatorWithColdUser, self).__init__(
+        super().__init__(
             ground_truth,
-            0,
-            cutoff,
-            target_metric,
-            recommendable_items,
-            per_item_recommendable_items,
-            n_threads,
-            mb_size,
+            offset=0,
+            cutoff=cutoff,
+            target_metric=target_metric,
+            recommendable_items=recommendable_items,
+            per_user_recommendable_items=per_user_recommendable_items,
+            masked_interactions=masked_interactions,
+            n_threads=n_threads,
+            recall_with_cutoff=recall_with_cutoff,
+            mb_size=mb_size,
         )
         self.input_interaction = input_interaction
 
@@ -254,9 +324,16 @@ class EvaluatorWithColdUser(Evaluator):
 
         for chunk_start in range(block_start, block_end, mb_size):
             chunk_end = min(chunk_start + mb_size, block_end)
-            scores = model.get_score_cold_user_remove_seen(
+            scores = model.get_score_cold_user(
                 self.input_interaction[chunk_start:chunk_end]
             )
+            scores = scores.astype(np.float64)
+            if self.masked_interactions is None:
+                mask = self.input_interaction[chunk_start:chunk_end]
+            else:
+                mask = self.masked_interactions[chunk_start:chunk_end]
+            scores[mask.nonzero()] = -np.inf
+
             if not scores.flags.c_contiguous:
                 warnings.warn(
                     "Found col-major(fortran-style) score values.\n"
@@ -266,7 +343,7 @@ class EvaluatorWithColdUser(Evaluator):
 
             for i, c in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
-                    scores, c, chunk_start, self.n_threads, False
+                    scores, c, chunk_start, self.n_threads, self.recall_with_cutoff
                 )
                 metrics[i].merge(chunked_metric)
 

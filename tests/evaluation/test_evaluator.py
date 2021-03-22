@@ -6,7 +6,7 @@ import scipy.sparse as sps
 from sklearn.metrics import average_precision_score, ndcg_score
 
 from irspack.evaluator import Evaluator, EvaluatorWithColdUser
-from irspack.recommenders import P3alphaRecommender
+from irspack.recommenders import P3alphaRecommender, TopPopRecommender
 from irspack.recommenders.base import BaseRecommender
 from irspack.split import rowwise_train_test_split
 
@@ -27,9 +27,8 @@ class MockRecommender(BaseRecommender):
 def test_metrics(U: int, I: int) -> None:
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
-    X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
+    X_gt = (rns.rand(U, I) >= 0.7).astype(np.float64)
     eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=I, n_threads=4)
-    # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
     my_score = eval.get_score(mock_rec)
     sklearn_metrics = defaultdict(list)
@@ -41,6 +40,41 @@ def test_metrics(U: int, I: int) -> None:
 
     for key in ["map", "ndcg"]:
         assert my_score[key] == pytest.approx(np.mean(sklearn_metrics[key]), abs=1e-8)
+
+    with pytest.raises(ValueError):
+        eval_emptymask = Evaluator(
+            sps.csr_matrix(X_gt),
+            offset=0,
+            cutoff=I,
+            n_threads=None,
+            masked_interactions=sps.csr_matrix(
+                (X_gt.shape[0] + 1, X_gt.shape[1])
+            ),  # empty
+        )
+
+    X_gt = X_gt[(X_gt.sum(axis=1) > 0) & ((X_gt > 0).sum(axis=1) < I)]
+
+    eval_emptymask = Evaluator(
+        sps.csr_matrix(X_gt),
+        offset=0,
+        cutoff=1,
+        n_threads=None,
+        mb_size=3,
+        masked_interactions=sps.csr_matrix(X_gt.shape),  # empty
+        recall_with_cutoff=True,
+    )
+    mock_rec = MockRecommender(sps.csr_matrix(X_gt), X_gt)
+    perfect_score = eval_emptymask.get_score(mock_rec)
+    assert perfect_score["recall"] == pytest.approx(1.0)
+    eval_vicious = Evaluator(
+        sps.csr_matrix(X_gt),
+        offset=0,
+        cutoff=1,
+        n_threads=1,
+        masked_interactions=X_gt,
+    )
+    vicious_score = eval_vicious.get_score(mock_rec)
+    assert vicious_score["recall"] == 0.0
 
 
 @pytest.mark.parametrize("U, I, C", [(10, 5, 5), (10, 30, 29)])
@@ -104,6 +138,34 @@ def test_metrics_with_cutoff(U: int, I: int, C: int) -> None:
     assert my_score["recall"] == pytest.approx(recall / valid_users, abs=1e-8)
     assert my_score["entropy"] == pytest.approx(entropy)
     assert my_score["gini_index"] == pytest.approx(gini_index)
+
+
+@pytest.mark.parametrize("U, I, U_test", [(10, 5, 3), (10, 30, 8)])
+def test_metrics_colduser_mask(U: int, I: int, U_test: int) -> None:
+    rns = np.random.RandomState(42)
+    X_gt = (rns.rand(U, I) >= 0.5).astype(np.float64)
+    X_gt = X_gt[(X_gt.sum(axis=1) > 0)]
+    X_gt = sps.csr_matrix(X_gt)
+    rec = TopPopRecommender(X_gt).learn()
+    vicious_eval = EvaluatorWithColdUser(X_gt, X_gt, cutoff=1)
+    vicious_metric = vicious_eval.get_score(rec)
+    assert vicious_metric["hit"] == 0.0
+
+    popularity = rec.get_score_cold_user(X_gt[:1, :]).ravel()
+    most_pop_indices = np.where(popularity.max() == popularity)[0]
+
+    X_gt_pop = np.zeros(X_gt.shape)
+    X_gt_pop[:, most_pop_indices] = 1
+    X_gt_pop = sps.csr_matrix(X_gt_pop)
+    generous_eval = EvaluatorWithColdUser(
+        X_gt_pop,
+        X_gt_pop,
+        cutoff=1,
+        masked_interactions=sps.csr_matrix(X_gt.shape),
+        recall_with_cutoff=True,
+    )
+    generous_metric = generous_eval.get_score(rec)
+    assert generous_metric["recall"] == 1.0
 
 
 @pytest.mark.parametrize("U, I, U_test", [(10, 5, 3), (10, 30, 8)])
