@@ -27,9 +27,8 @@ class MockRecommender(BaseRecommender):
 def test_metrics(U: int, I: int) -> None:
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
-    X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
+    X_gt = (rns.rand(U, I) >= 0.7).astype(np.float64)
     eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=I, n_threads=4)
-    # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
     my_score = eval.get_score(mock_rec)
     sklearn_metrics = defaultdict(list)
@@ -41,6 +40,41 @@ def test_metrics(U: int, I: int) -> None:
 
     for key in ["map", "ndcg"]:
         assert my_score[key] == pytest.approx(np.mean(sklearn_metrics[key]), abs=1e-8)
+
+    with pytest.raises(ValueError):
+        eval_emptymask = Evaluator(
+            sps.csr_matrix(X_gt),
+            offset=0,
+            cutoff=I,
+            n_threads=None,
+            masked_interactions=sps.csr_matrix(
+                (X_gt.shape[0] + 1, X_gt.shape[1])
+            ),  # empty
+        )
+
+    X_gt = X_gt[(X_gt.sum(axis=1) > 0) & ((X_gt > 0).sum(axis=1) < I)]
+
+    eval_emptymask = Evaluator(
+        sps.csr_matrix(X_gt),
+        offset=0,
+        cutoff=1,
+        n_threads=None,
+        mb_size=3,
+        masked_interactions=sps.csr_matrix(X_gt.shape),  # empty
+        recall_with_cutoff=True,
+    )
+    mock_rec = MockRecommender(sps.csr_matrix(X_gt), X_gt)
+    perfect_score = eval_emptymask.get_score(mock_rec)
+    assert perfect_score["recall"] == pytest.approx(1.0)
+    eval_vicious = Evaluator(
+        sps.csr_matrix(X_gt),
+        offset=0,
+        cutoff=1,
+        n_threads=1,
+        masked_interactions=X_gt,
+    )
+    vicious_score = eval_vicious.get_score(mock_rec)
+    assert vicious_score["recall"] == 0.0
 
 
 @pytest.mark.parametrize("U, I, C", [(10, 5, 5), (10, 30, 29)])

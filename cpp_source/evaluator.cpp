@@ -233,7 +233,10 @@ private:
       }
       metrics_local.precision +=
           n_hit / static_cast<double>(n_recommendable_items);
-      metrics_local.recall += n_hit / static_cast<double>(n_gt);
+      metrics_local.recall +=
+          n_hit / static_cast<double>(recall_with_cutoff
+                                          ? (n_gt > cutoff ? cutoff : n_gt)
+                                          : n_gt);
       double dcg = 0;
       double idcg = std::accumulate(
           dcg_discount.begin(),
