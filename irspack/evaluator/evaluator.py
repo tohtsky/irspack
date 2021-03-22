@@ -4,6 +4,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
+from scipy import sparse as sps
 
 from irspack.definitions import InteractionMatrix
 from irspack.evaluator._core import EvaluatorCore, Metrics
@@ -38,13 +39,16 @@ class Evaluator:
 
     Args:
         ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-            The held-out ground-truth.
+            The ground-truth.
         offset (int):
             Where the validation target user block begins.
             Often the validation set is defined for a subset of users.
             When offset is not 0, we assume that the users with validation
             ground truth corresponds to X_train[offset:] where X_train
             is the matrix feeded into the recommender class.
+        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
+            If set, this matrix masks the score output of recommender model where it is non-zero.
+            If none, the mask will be the training matrix itself owned by the recommender.
         cutoff (int, optional):
             Controls the default number of recommendation.
             When the evaluator is used for parameter tuning, this cutoff value will be used.
@@ -69,11 +73,13 @@ class Evaluator:
 
     n_users: int
     n_items: int
+    masked_interactions: Optional[sps.csr_matrix]
 
     def __init__(
         self,
         ground_truth: InteractionMatrix,
         offset: int = 0,
+        masked_interactions: Optional[InteractionMatrix] = None,
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
@@ -100,6 +106,14 @@ class Evaluator:
         self.cutoff = cutoff
         self.n_threads = get_n_threads(n_threads)
         self.mb_size = mb_size
+        if masked_interactions is None:
+            self.masked_interactions = None
+        else:
+            if masked_interactions.shape != ground_truth.shape:
+                raise ValueError(
+                    "grount_truth and masked_interactions have different shapes. "
+                )
+            self.masked_interactions = sps.csr_matrix(masked_interactions)
 
     def get_target_score(self, model: "base_recommender.BaseRecommender") -> float:
         """Compute the optimization target score (self.target_metric) with the cutoff being ``self.cutoff``.
@@ -166,10 +180,18 @@ class Evaluator:
             chunk_end = min(chunk_start + mb_size, block_end)
             try:
                 # try faster method
-                scores = model.get_score_remove_seen_block(chunk_start, chunk_end)
+                scores = model.get_score_block(chunk_start, chunk_end)
             except NotImplementedError:
                 # block-by-block
-                scores = model.get_score_remove_seen(np.arange(chunk_start, chunk_end))
+                scores = model.get_score(np.arange(chunk_start, chunk_end))
+
+            if self.masked_interactions is None:
+                mask = model.X_train_all[chunk_start:chunk_end]
+            else:
+                mask = self.masked_interactions[
+                    chunk_start - self.offset : chunk_end - self.offset
+                ]
+            scores[mask.nonzero()] = -np.inf
             for i, c in enumerate(cutoffs):
                 chunked_metric = self.core.get_metrics(
                     scores, c, chunk_start - self.offset, self.n_threads, False
@@ -183,9 +205,13 @@ class EvaluatorWithColdUser(Evaluator):
     """Evaluates recommenders' performance against cold (unseen) users.
 
     Args:
-        input_interaction (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]): The cold-users' known interaction
-            with the items.
-        ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]): The held-out ground-truth.
+        input_interaction (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The cold-users' known interaction with the items.
+        ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            The held-out ground-truth.
+        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
+            If set, this matrix masks the score output of recommender model where it is non-zero.
+            If none, the mask will be the training matrix (``input_interaction``) it self.
         offset (int): Where the validation target user block begins.
             Often the validation set is defined for a subset of users.
             When offset is not 0, we assume that the users with validation
@@ -216,6 +242,7 @@ class EvaluatorWithColdUser(Evaluator):
         self,
         input_interaction: InteractionMatrix,
         ground_truth: InteractionMatrix,
+        masked_interactions: Optional[InteractionMatrix],
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
@@ -227,6 +254,7 @@ class EvaluatorWithColdUser(Evaluator):
         super(EvaluatorWithColdUser, self).__init__(
             ground_truth,
             0,
+            masked_interactions,
             cutoff,
             target_metric,
             recommendable_items,
@@ -254,9 +282,15 @@ class EvaluatorWithColdUser(Evaluator):
 
         for chunk_start in range(block_start, block_end, mb_size):
             chunk_end = min(chunk_start + mb_size, block_end)
-            scores = model.get_score_cold_user_remove_seen(
+            scores = model.get_score_cold_user(
                 self.input_interaction[chunk_start:chunk_end]
             )
+            if self.masked_interactions is None:
+                mask = self.input_interaction[chunk_start:chunk_end]
+            else:
+                mask = self.masked_interactions[chunk_start:chunk_end]
+            scores[mask.nonzero()] = -np.inf
+
             if not scores.flags.c_contiguous:
                 warnings.warn(
                     "Found col-major(fortran-style) score values.\n"
