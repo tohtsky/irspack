@@ -125,6 +125,8 @@ struct EvaluatorCore {
     Metrics overall(n_items);
     check_arg(n_threads > 0, "n_threads == 0");
     check_arg(n_users > offset, "got offset >= n_users");
+    check_arg(static_cast<size_t>(offset + scores.rows()) <= n_users,
+              "offset + scores.shape[0] exceeds n_users");
     check_arg(cutoff > 0, "cutoff must be strictly greather than 0.");
     check_arg(cutoff <= n_items, "cutoff must not exeeed the number of items.");
     std::atomic<int64_t> current_index(0);
