@@ -205,6 +205,8 @@ class Evaluator:
                 # block-by-block
                 scores = model.get_score(np.arange(chunk_start, chunk_end))
 
+            scores = scores.astype(np.float64)
+
             if self.masked_interactions is None:
                 mask = model.X_train_all[chunk_start:chunk_end]
             else:
@@ -325,6 +327,7 @@ class EvaluatorWithColdUser(Evaluator):
             scores = model.get_score_cold_user(
                 self.input_interaction[chunk_start:chunk_end]
             )
+            scores = scores.astype(np.float64)
             if self.masked_interactions is None:
                 mask = self.input_interaction[chunk_start:chunk_end]
             else:
