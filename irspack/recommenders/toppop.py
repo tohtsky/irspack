@@ -33,8 +33,8 @@ class TopPopRecommender(BaseRecommender):
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         n_users: int = user_indices.shape[0]
-        return np.repeat(self.score, n_users, axis=0)
+        return np.repeat(self.score, n_users, axis=0).A
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         n_users: int = X.shape[0]
-        return np.repeat(self.score, n_users, axis=0)
+        return np.repeat(self.score, n_users, axis=0).A

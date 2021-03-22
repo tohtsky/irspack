@@ -145,7 +145,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
                 score,
                 time_spent,
             )
-            val_score = score[self.val_evaluator.target_metric.value]
+            val_score = score[self.val_evaluator.target_metric.name]
             if (-val_score) < self.best_val:
                 self.best_val = -val_score
                 self.best_time = time_spent

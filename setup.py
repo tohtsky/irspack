@@ -75,7 +75,7 @@ class get_pybind_include(object):
 
 ext_modules = [
     Extension(
-        "irspack._evaluator",
+        "irspack.evaluator._core",
         ["cpp_source/evaluator.cpp"],
         include_dirs=[
             get_pybind_include(),

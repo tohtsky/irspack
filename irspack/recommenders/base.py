@@ -109,8 +109,6 @@ class BaseRecommender(object, metaclass=ABCMeta):
             scores = scores.toarray()
         m = self.X_train_all[user_indices].tocsr()
         scores[m.nonzero()] = -np.inf
-        if scores.dtype != np.float64:
-            scores = scores.astype(np.float64)
         return scores
 
     def get_score_remove_seen_block(self, begin: int, end: int) -> DenseScoreArray:
@@ -126,8 +124,6 @@ class BaseRecommender(object, metaclass=ABCMeta):
         scores = _sparse_to_array(self.get_score_block(begin, end))
         m = self.X_train_all[begin:end]
         scores[m.nonzero()] = -np.inf
-        if scores.dtype != np.float64:
-            scores = scores.astype(np.float64)
         return scores
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:

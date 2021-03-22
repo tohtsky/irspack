@@ -2,7 +2,7 @@ m: int
 n: int
 from numpy import float32
 
-import irspack._evaluator
+import irspack.evaluator._core
 from typing import *
 from typing import Iterable as iterable
 from typing import Iterator as iterator
