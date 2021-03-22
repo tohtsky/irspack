@@ -46,9 +46,6 @@ class Evaluator:
             When offset is not 0, we assume that the users with validation
             ground truth corresponds to X_train[offset:] where X_train
             is the matrix feeded into the recommender class.
-        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
-            If set, this matrix masks the score output of recommender model where it is non-zero.
-            If none, the mask will be the training matrix itself owned by the recommender.
         cutoff (int, optional):
             Controls the default number of recommendation.
             When the evaluator is used for parameter tuning, this cutoff value will be used.
@@ -63,6 +60,9 @@ class Evaluator:
             and compute the ranking performance within this subset.
         per_user_recommendable_items (Optional[List[List[int]]], optional):
             Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
+        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
+            If set, this matrix masks the score output of recommender model where it is non-zero.
+            If none, the mask will be the training matrix itself owned by the recommender.
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
@@ -79,11 +79,11 @@ class Evaluator:
         self,
         ground_truth: InteractionMatrix,
         offset: int = 0,
-        masked_interactions: Optional[InteractionMatrix] = None,
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
         per_user_recommendable_items: Optional[List[List[int]]] = None,
+        masked_interactions: Optional[InteractionMatrix] = None,
         n_threads: Optional[int] = None,
         mb_size: int = 1024,
     ) -> None:
@@ -209,9 +209,6 @@ class EvaluatorWithColdUser(Evaluator):
             The cold-users' known interaction with the items.
         ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
             The held-out ground-truth.
-        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
-            If set, this matrix masks the score output of recommender model where it is non-zero.
-            If none, the mask will be the training matrix (``input_interaction``) it self.
         offset (int): Where the validation target user block begins.
             Often the validation set is defined for a subset of users.
             When offset is not 0, we assume that the users with validation
@@ -230,6 +227,9 @@ class EvaluatorWithColdUser(Evaluator):
             and compute the ranking performance within this subset.
         per_user_recommendable_items (Optional[List[List[int]]], optional):
             Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
+        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
+            If set, this matrix masks the score output of recommender model where it is non-zero.
+            If none, the mask will be the training matrix (``input_interaction``) it self.
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
@@ -246,21 +246,21 @@ class EvaluatorWithColdUser(Evaluator):
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
-        per_item_recommendable_items: Optional[List[List[int]]] = None,
+        per_user_recommendable_items: Optional[List[List[int]]] = None,
         n_threads: Optional[int] = None,
         mb_size: int = 1024,
     ):
 
-        super(EvaluatorWithColdUser, self).__init__(
+        super().__init__(
             ground_truth,
-            0,
-            masked_interactions,
-            cutoff,
-            target_metric,
-            recommendable_items,
-            per_item_recommendable_items,
-            n_threads,
-            mb_size,
+            offset=0,
+            cutoff=cutoff,
+            target_metric=target_metric,
+            recommendable_items=recommendable_items,
+            per_user_recommendable_items=per_user_recommendable_items,
+            masked_interactions=masked_interactions,
+            n_threads=n_threads,
+            mb_size=mb_size,
         )
         self.input_interaction = input_interaction
 
