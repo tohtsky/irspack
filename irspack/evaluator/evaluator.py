@@ -103,7 +103,7 @@ class Evaluator:
         masked_interactions: Optional[InteractionMatrix] = None,
         n_threads: Optional[int] = None,
         recall_with_cutoff: bool = False,
-        mb_size: int = 1024,
+        mb_size: int = 128,
     ) -> None:
 
         ground_truth = ground_truth.tocsr().astype(np.float64)
