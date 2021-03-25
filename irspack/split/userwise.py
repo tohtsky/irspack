@@ -329,8 +329,8 @@ def split_dataframe_partial_user_holdout(
         val_uids = val_test_uids
         test_uids = np.asarray([], dtype=val_uids.dtype)
     df_train = df_all[df_all[user_column].isin(train_uids)].copy()
-    df_val = df_all[df_all[user_column].isin(val_uids)]
-    df_test = df_all[df_all[user_column].isin(test_uids)]
+    df_val = df_all[df_all[user_column].isin(val_uids)].copy()
+    df_test = df_all[df_all[user_column].isin(test_uids)].copy()
     item_all: List[Any] = list(set(df_all[item_column]))
 
     item_id_to_iid = {id_: i for i, id_ in enumerate(item_all)}

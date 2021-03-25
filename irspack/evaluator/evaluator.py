@@ -71,17 +71,17 @@ class Evaluator:
 
         recall_with_cutoff (bool, optional):
             This affects the definition of recall.
-            If ``True``, for each user, recall will be evaluated by
+            If ``True``, for each user, recall will be computed as
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_{\text{ground_truth}})}
+                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_{\text{ground truth}})}
 
             If ``False``, this will be
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{N_{\text{ground_truth}}}
+                \frac{N_{\text{hit}}}{N_{\text{ground truth}}}
 
 
         mb_size (int, optional):
@@ -266,13 +266,13 @@ class EvaluatorWithColdUser(Evaluator):
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{\min( \text{cutoff}, N_{\text{ground_truth}} )}
+                \frac{N_{\text{hit}}}{\min( \text{cutoff}, N_{\text{ground truth}} )}
 
             If ``False``, this will be
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{N_{\text{ground_truth}}}
+                \frac{N_{\text{hit}}}{N_{\text{ground truth}}}
 
         mb_size (int, optional):
             The rows of chunked user score. Defaults to 1024.

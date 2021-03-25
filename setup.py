@@ -14,7 +14,7 @@ with open(os.path.join(SETUP_DIRECTORY, "Readme.md")) as ifs:
 install_requires = (
     [
         "numpy<1.20.0",
-        "tqdm",
+        "fastprogress>=0.2",
         "optuna>=1.0.0",
         "pandas>=1.0.0",
         "scikit-learn>=0.21.0",

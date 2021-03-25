@@ -142,7 +142,7 @@ class AsymmetricCosineUserKNNRecommender(BaseUserKNNRecommender):
         shrinkage (float, optional):
             The shrinkage parameter for regularization. Defaults to 0.0.
         alpha (bool, optional):
-            Specifies :math:`\\alpha`. Defaults to 0.5.
+            Specifies :math:`\alpha`. Defaults to 0.5.
         top_k (int, optional):
             Specifies the maximal number of allowed neighbors. Defaults to 100.
         feature_weighting (str, optional):
