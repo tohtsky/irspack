@@ -266,7 +266,7 @@ class EvaluatorWithColdUser(Evaluator):
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_{\text{ground_truth})}}
+                \frac{N_{\text{hit}}}{\min( \text{cutoff}, N_{\text{ground_truth}} )}
 
             If ``False``, this will be
 
