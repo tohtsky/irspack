@@ -75,13 +75,13 @@ class Evaluator:
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_\text{ground_truth})}
+                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_{\text{ground_truth})}}
 
             If ``False``, this will be
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{N_\text{ground_truth}}
+                \frac{N_{\text{hit}}}{N_{\text{ground_truth}}}
 
 
         mb_size (int, optional):
@@ -266,13 +266,13 @@ class EvaluatorWithColdUser(Evaluator):
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_\text{ground_truth})}
+                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_{\text{ground_truth})}}
 
             If ``False``, this will be
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{N_\text{ground_truth}}
+                \frac{N_{\text{hit}}}{N_{\text{ground_truth}}}
 
         mb_size (int, optional):
             The rows of chunked user score. Defaults to 1024.

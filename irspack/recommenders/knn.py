@@ -66,7 +66,7 @@ class BaseKNNRecommender(BaseSimilarityRecommender):
 
 
 class CosineKNNRecommender(BaseKNNRecommender):
-    """K-nearest neighbor recommender system based on cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
+    r"""K-nearest neighbor recommender system based on cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
 
@@ -132,7 +132,7 @@ class CosineKNNRecommender(BaseKNNRecommender):
 
 
 class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
-    """K-nearest neighbor recommender system based on asymmetric cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
+    r"""K-nearest neighbor recommender system based on asymmetric cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
 
@@ -194,7 +194,7 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
 
 
 class JaccardKNNRecommender(BaseKNNRecommender):
-    """K-nearest neighbor recommender system based on Jaccard similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
+    r"""K-nearest neighbor recommender system based on Jaccard similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
 
@@ -227,7 +227,7 @@ class JaccardKNNRecommender(BaseKNNRecommender):
 
 
 class TverskyIndexKNNRecommender(BaseKNNRecommender):
-    """K-nearest neighbor recommender system based on Tversky Index. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
+    r"""K-nearest neighbor recommender system based on Tversky Index. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
 
