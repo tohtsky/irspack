@@ -75,7 +75,7 @@ class Evaluator:
 
             .. math ::
 
-                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_{\text{ground_truth})}}
+                \frac{N_{\text{hit}}}{\min(\text{cutoff}, N_{\text{ground_truth}})}
 
             If ``False``, this will be
 
@@ -129,7 +129,7 @@ class Evaluator:
         else:
             if masked_interactions.shape != ground_truth.shape:
                 raise ValueError(
-                    "grount_truth and masked_interactions have different shapes. "
+                    "ground_truth and masked_interactions have different shapes. "
                 )
             self.masked_interactions = sps.csr_matrix(masked_interactions)
 
