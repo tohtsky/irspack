@@ -73,6 +73,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             self.default_tune_range, suggest_overwrite, fixed_params
         )
         self.fixed_params = fixed_params
+        self.successful_trials: List[int] = []
 
     def _suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
         parameters: Dict[str, Any] = dict()
@@ -119,6 +120,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
         self.best_time = None
         self.valid_results = []
         self.tried_configs = []
+        self.successful_trials = []  # trials not pruned
 
         def objective_func(trial: optuna.Trial) -> float:
             self.current_trial += 1  # for pruning
@@ -130,6 +132,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             arg, parameters = self.get_model_arguments(**params)
 
             self.tried_configs.append(parameters)
+
             recommender = self.recommender_class(self._data, *arg, **parameters)
             recommender.learn_with_optimizer(self.val_evaluator, trial)
 
@@ -139,6 +142,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             time_spent = end - start
             score["time"] = time_spent
             self.valid_results.append(score)
+            self.successful_trials.append(self.current_trial)
             self.logger.info(
                 "Config %d obtained the following scores: %s within %f seconds.",
                 self.current_trial,
@@ -153,7 +157,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
                 self.learnt_config_best = dict(**recommender.learnt_config)
                 self.logger.info(
                     "Found best %s using this config.",
-                    self.val_evaluator.target_metric.value,
+                    self.val_evaluator.target_metric.name,
                 )
                 self.best_trial_index = self.current_trial
 
@@ -171,13 +175,15 @@ class BaseOptimizer(object, metaclass=ABCMeta):
         best_params = dict(**self.best_params)
         best_params.update(**self.learnt_config_best)
         self.best_params = best_params
+        base_index = np.arange(len(self.tried_configs))
+        result_df_params = pd.DataFrame(self.tried_configs, index=base_index)
+        result_df_scores = pd.DataFrame(
+            self.valid_results, index=np.asarray(self.successful_trials, dtype=np.int64)
+        )
         result_df = pd.concat(
-            [
-                pd.DataFrame(self.tried_configs),
-                pd.DataFrame(self.valid_results),
-            ],
-            axis=1,
-        ).copy()
+            [result_df_params, result_df_scores.reindex(base_index)], axis=1
+        )
+
         is_best = np.zeros(result_df.shape[0], dtype=np.bool)
         if self.best_trial_index is not None:
             is_best[self.best_trial_index] = True

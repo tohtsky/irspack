@@ -35,7 +35,7 @@ METRIC_NAMES = [
 
 
 class Evaluator:
-    """Evaluates recommenders' performance against validation set.
+    r"""Evaluates recommenders' performance against validation set.
 
     Args:
         ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
@@ -103,7 +103,7 @@ class Evaluator:
         masked_interactions: Optional[InteractionMatrix] = None,
         n_threads: Optional[int] = None,
         recall_with_cutoff: bool = False,
-        mb_size: int = 1024,
+        mb_size: int = 128,
     ) -> None:
 
         ground_truth = ground_truth.tocsr().astype(np.float64)
@@ -136,7 +136,7 @@ class Evaluator:
         self.recall_with_cutoff = recall_with_cutoff
 
     def get_target_score(self, model: "base_recommender.BaseRecommender") -> float:
-        """Compute the optimization target score (self.target_metric) with the cutoff being ``self.cutoff``.
+        r"""Compute the optimization target score (self.target_metric) with the cutoff being ``self.cutoff``.
 
         Args:
             model: The evaluated model.
@@ -147,7 +147,7 @@ class Evaluator:
         return self.get_score(model)[self.target_metric.name]
 
     def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
-        """Compute the score with the cutoff being ``self.cutoff``.
+        r"""Compute the score with the cutoff being ``self.cutoff``.
 
         Args:
             model : The evaluated recommender.
@@ -160,7 +160,7 @@ class Evaluator:
     def get_scores(
         self, model: "base_recommender.BaseRecommender", cutoffs: List[int]
     ) -> Dict[str, float]:
-        """Compute the score with the specified cutoffs.
+        r"""Compute the score with the specified cutoffs.
 
         Args:
             model : The evaluated recommender.

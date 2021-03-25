@@ -1,14 +1,18 @@
+import os
 import pickle
+from contextlib import redirect_stderr, redirect_stdout
 from logging import getLogger
-from typing import IO, Any
+from typing import IO, Any, Dict
 
 import numpy as np
 import pytest
 import scipy.sparse as sps
 
+from irspack import evaluator
 from irspack.definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
-from irspack.evaluator import Evaluator
 from irspack.optimizers.base_optimizer import BaseOptimizerWithEarlyStopping
+from irspack.parameter_tuning import UniformSuggestion
+from irspack.recommenders.base import BaseRecommender
 from irspack.recommenders.base_earlystop import (
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
@@ -43,46 +47,67 @@ class MockRecommender(BaseRecommenderWithEarlyStopping):
     def __init__(
         self,
         X: InteractionMatrix,
-        X_test: InteractionMatrix,
         target_epoch: int = 20,
+        target_score: float = 0.0,
         **kwargs: Any
     ):
         super().__init__(X, **kwargs)
-        self.answer = np.asfarray(X_test)
         self.target_epoch = target_epoch
+        self.target_score = target_score
         self.rns = np.random.RandomState(42)
 
     def _create_trainer(self) -> MockTrainer:
         return MockTrainer()
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        assert isinstance(self.trainer, MockTrainer)
-        score = self.answer[user_indices]
-        score = (
-            score
-            + 10
-            * self.rns.randn(*score.shape)
-            * abs(self.target_epoch - self.trainer.epoch)
-            / self.target_epoch
-        )
+        score = np.zeros(*self.X_train_all.shape)
         return score
+
+    def _current_score(self) -> float:
+        assert isinstance(self.trainer, MockTrainer)
+        coeff: float
+        if self.trainer.epoch > self.target_epoch:
+            coeff = 1 - (self.trainer.epoch - self.target_epoch) / self.target_epoch
+        else:
+            coeff = self.trainer.epoch / self.target_epoch
+        return self.target_score * coeff
+
+
+class MockEvaluator(evaluator.Evaluator):
+    def __init__(self) -> None:
+        self.target_metric = evaluator.TargetMetric.ndcg
+
+    def get_score(self, model: BaseRecommender) -> Dict[str, float]:
+        assert isinstance(model, MockRecommender)
+        return {self.target_metric.name: model._current_score()}
 
 
 class MockOptimizer(BaseOptimizerWithEarlyStopping):
     recommender_class = MockRecommender
+    default_tune_range = [UniformSuggestion("target_score", 0, 1)]
 
 
-@pytest.mark.parametrize(
-    "X, target_epoch", [(X_small, 20), (X_small, 15), (X_large, 5)]
-)
+@pytest.mark.parametrize("X, target_epoch", [(X_small, 20)])
 def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
-    X_train, X_val = rowwise_train_test_split(X)
-    evaluator = Evaluator(X_val, 0)
+    from logging import getLogger
+
+    evaluator = MockEvaluator()
     optimizer = MockOptimizer(
-        X_train,
+        X,
         evaluator,
-        fixed_params=dict(X_test=X_val.toarray(), target_epoch=target_epoch),
+        fixed_params=dict(target_epoch=target_epoch),
         logger=getLogger("IGNORE"),
     )
-    config, _ = optimizer.optimize(n_trials=1, random_seed=42)
+    with redirect_stdout(open(os.devnull, "w")):
+        with redirect_stderr(open(os.devnull, "w")):
+            config, history = optimizer.optimize(n_trials=20, random_seed=42)
     assert config["max_epoch"] == target_epoch
+    best_index = np.nanargmax(history.ndcg.values)
+    best_target_value = history.target_score.iloc[best_index]
+    best_ndcg = history.ndcg.iloc[best_index]
+    not_pruned_trials = np.where(~history.ndcg.isna())[0]
+    np.testing.assert_array_equal(
+        not_pruned_trials, np.asarray(optimizer.successful_trials)
+    )
+    assert best_target_value == pytest.approx(best_ndcg)
+    assert np.all(best_target_value >= history.target_score.values)
