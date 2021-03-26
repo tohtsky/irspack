@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from abc import abstractmethod
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import scipy.sparse as sps
@@ -56,7 +57,7 @@ class IDMappedRecommender:
         )
 
     def _list_of_user_profile_to_matrix(
-        self, users_info: Union[List[List[Any]], List[Dict[Any, float]]]
+        self, users_info: Sequence[Union[List[Any], Dict[Any, float]]]
     ) -> sps.csr_matrix:
         data: List[float] = []
         row: List[int] = []
@@ -139,7 +140,7 @@ class IDMappedRecommender:
 
     def get_recommendation_for_new_user_batch(
         self,
-        user_profiles: Union[List[List[Any]], List[Dict[Any, float]]],
+        user_profiles: Sequence[Union[List[Any], Dict[Any, float]]],
         cutoff: int = 20,
         allowed_item_ids: Optional[List[List[Any]]] = None,
         forbidden_item_ids: Optional[List[List[Any]]] = None,
@@ -148,7 +149,7 @@ class IDMappedRecommender:
         """Retrieve recommendation result for a previously unseen users using item ids with which they have interacted.
 
         Args:
-            user_profiles.:
+            user_profiles:
                 A list of user profiles.
                 Each profile should be either the item ids the user had a cotact, or item-rating dict.
                 Previously unseen item IDs will be ignored.
@@ -214,6 +215,8 @@ class IDMappedRecommender:
         forbidden_item_ids: Optional[List[List[Any]]] = None,
         n_threads: int = 1,
     ) -> List[List[Tuple[Any, float]]]:
+        if forbidden_item_ids is not None:
+            assert len(forbidden_item_ids) == score.shape[0]
 
         allowed_item_indices: List[List[int]] = []
         if allowed_item_ids is not None:

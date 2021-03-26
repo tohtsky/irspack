@@ -438,7 +438,7 @@ retrieve_recommend_from_score(
           allowed_indices.empty(),
       "allowed_indices, if not empty, must have a size equal to X.rows()");
   check_arg(
-      (score.rows() == static_cast<int64_t>(allowed_indices.size())) ||
+      (score.rows() == static_cast<int64_t>(forbidden_indices.size())) ||
           forbidden_indices.empty(),
       "forbidden_indices, if not empty, must have a size equal to X.rows()");
   std::vector<std::vector<std::pair<int64_t, float>>> result(score.rows());

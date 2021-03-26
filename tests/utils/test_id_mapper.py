@@ -124,17 +124,94 @@ def test_basic_usecase() -> None:
         assert len(coldstart_rec_results.intersection(nonzero_items)) == 0
         assert len(coldstart_rec_results.union(nonzero_items)) == n_items
 
-    nonzero_all = [
-        [item_ids[j] for j in X[i].nonzero()[1]] for i, _ in enumerate(user_ids)
-    ]
+    nonzero_batch: List[List[str]] = []
+    forbidden_items_batch: List[List[str]] = []
+    allowed_items_batch: List[List[str]] = []
+    for i, _ in enumerate(user_ids):
+        nonzero_items = [item_ids[j] for j in X[i].nonzero()[1]]
+        nonzero_batch.append(nonzero_items)
+        forbidden_items_batch.append(
+            list(
+                set(
+                    RNS.choice(
+                        list(item_id_set.difference(nonzero_items)),
+                        replace=False,
+                        size=(n_items - len(nonzero_items)) // 2,
+                    )
+                )
+            )
+        )
+        allowed_items_batch.append(
+            list(
+                RNS.choice(
+                    list(item_id_set.difference(nonzero_items)),
+                    size=min(n_items - len(nonzero_items), n_items // 3),
+                )
+            )
+        )
     batch_result_non_masked = mapped_rec.get_recommendation_for_new_user_batch(
-        nonzero_all, cutoff=n_items, n_threads=1
+        nonzero_batch, cutoff=n_items, n_threads=1
     )
+
     assert len(batch_result_non_masked) == n_users
     for recommended_using_batch, uid, nonzero_items in zip(
-        batch_result_non_masked, user_ids, nonzero_all
+        batch_result_non_masked, user_ids, nonzero_batch
     ):
         check_descending(recommended_using_batch)
         recommended_ids = {rec[0] for rec in recommended_using_batch}
         assert len(recommended_ids.intersection(nonzero_items)) == 0
         assert len(recommended_ids.union(nonzero_items)) == n_items
+
+    assert len(batch_result_non_masked) == n_users
+    for recommended_using_batch, uid, nonzero_items in zip(
+        batch_result_non_masked, user_ids, nonzero_batch
+    ):
+        check_descending(recommended_using_batch)
+        recommended_ids = {rec[0] for rec in recommended_using_batch}
+        assert len(recommended_ids.intersection(nonzero_items)) == 0
+        assert len(recommended_ids.union(nonzero_items)) == n_items
+
+    batch_result_masked = mapped_rec.get_recommendation_for_new_user_batch(
+        nonzero_batch,
+        cutoff=n_items,
+        forbidden_item_ids=forbidden_items_batch,
+        n_threads=1,
+    )
+    assert len(batch_result_masked) == n_users
+    for recommended_using_batch_masked, uid, nonzero_items, forbidden_items in zip(
+        batch_result_masked, user_ids, nonzero_batch, forbidden_items_batch
+    ):
+        check_descending(recommended_using_batch_masked)
+        recommended_ids = {rec[0] for rec in recommended_using_batch_masked}
+        assert len(recommended_ids.intersection(nonzero_items)) == 0
+        assert (
+            len(recommended_ids.union(nonzero_items).union(forbidden_items)) == n_items
+        )
+
+    batch_result_masked_restricted = mapped_rec.get_recommendation_for_new_user_batch(
+        nonzero_batch,
+        cutoff=n_items,
+        forbidden_item_ids=forbidden_items_batch,
+        allowed_item_ids=allowed_items_batch,
+        n_threads=1,
+    )
+    assert len(batch_result_masked_restricted) == n_users
+    for (
+        recommended_using_batch_masked_restricted,
+        uid,
+        nonzero_items,
+        forbidden_items,
+        allowed_items,
+    ) in zip(
+        batch_result_masked_restricted,
+        user_ids,
+        nonzero_batch,
+        forbidden_items_batch,
+        allowed_items_batch,
+    ):
+        check_descending(recommended_using_batch_masked_restricted)
+        recommended_ids = {rec[0] for rec in recommended_using_batch_masked_restricted}
+        assert not recommended_ids.intersection(nonzero_items)
+        for rid in recommended_ids:
+            assert rid in allowed_items
+            assert rid not in forbidden_items
