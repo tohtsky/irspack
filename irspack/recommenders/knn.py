@@ -66,13 +66,13 @@ class BaseKNNRecommender(BaseSimilarityRecommender):
 
 
 class CosineKNNRecommender(BaseKNNRecommender):
-    """K-nearest neighbor recommender system based on cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
+    r"""K-nearest neighbor recommender system based on cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
 
-        \mathrm{W}_{i,j} = \\begin{cases}
-            \\frac{\sum_{u} X_{ui} X_{uj}}{||X_{*i}||_2 ||X_{*j}||_2 + \mathrm{shrinkage}} & (\\text{if normalize = True}) \\\\
-            \sum_{u} X_{ui} X_{uj} & (\\text{if normalize = False})
+        \mathrm{W}_{i,j} = \begin{cases}
+            \frac{\sum_{u} X_{ui} X_{uj}}{||X_{*i}||_2 ||X_{*j}||_2 + \mathrm{shrinkage}} & (\text{if normalize = True}) \\
+            \sum_{u} X_{ui} X_{uj} & (\text{if normalize = False})
         \end{cases}
 
     Args:
@@ -132,11 +132,11 @@ class CosineKNNRecommender(BaseKNNRecommender):
 
 
 class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
-    """K-nearest neighbor recommender system based on asymmetric cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
+    r"""K-nearest neighbor recommender system based on asymmetric cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
 
-        \mathrm{W}_{i,j} = \\frac{\sum_{u} X_{ui} X_{uj}}{||X_{*i}||^{2\\alpha}_2 ||X_{*j}||^{2(1-\\alpha)}_2 + \mathrm{shrinkage}}
+        \mathrm{W}_{i,j} = \frac{\sum_{u} X_{ui} X_{uj}}{||X_{*i}||^{2\alpha}_2 ||X_{*j}||^{2(1-\alpha)}_2 + \mathrm{shrinkage}}
 
     Args:
         X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
@@ -144,7 +144,7 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         shrinkage (float, optional):
             The shrinkage parameter for regularization. Defaults to 0.0.
         alpha (bool, optional):
-            Specifies :math:`\\alpha`. Defaults to 0.5.
+            Specifies :math:`\alpha`. Defaults to 0.5.
         top_k (int, optional):
             Specifies the maximal number of allowed neighbors. Defaults to 100.
         feature_weighting (str, optional):
@@ -194,11 +194,11 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
 
 
 class JaccardKNNRecommender(BaseKNNRecommender):
-    """K-nearest neighbor recommender system based on Jaccard similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
+    r"""K-nearest neighbor recommender system based on Jaccard similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
 
-        \mathrm{W}_{i,j} = \\frac{ |U_i \cap U_j |}{ |U_i \cup U_j| + \mathrm{shrinkage}}
+        \mathrm{W}_{i,j} = \frac{ |U_i \cap U_j |}{ |U_i \cup U_j| + \mathrm{shrinkage}}
 
     Args:
         X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
@@ -227,11 +227,11 @@ class JaccardKNNRecommender(BaseKNNRecommender):
 
 
 class TverskyIndexKNNRecommender(BaseKNNRecommender):
-    """K-nearest neighbor recommender system based on Tversky Index. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
+    r"""K-nearest neighbor recommender system based on Tversky Index. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
 
-        \mathrm{W}_{i,j} = \\frac{ |U_i \cap U_j |}{ |U_i \cap U_j | + \\alpha |U_i \setminus U_j| + \\beta |U_j \setminus U_i| + \mathrm{shrinkage}}
+        \mathrm{W}_{i,j} = \frac{ |U_i \cap U_j |}{ |U_i \cap U_j | + \alpha |U_i \setminus U_j| + \beta |U_j \setminus U_i| + \mathrm{shrinkage}}
 
     Args:
         X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):

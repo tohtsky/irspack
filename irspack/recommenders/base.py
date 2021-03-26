@@ -157,6 +157,7 @@ class BaseRecommender(object, metaclass=ABCMeta):
 
 class BaseSimilarityRecommender(BaseRecommender):
     W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
+    """The computed item-item similarity. Might not be initialized before `learn()` is called."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -164,14 +165,7 @@ class BaseSimilarityRecommender(BaseRecommender):
 
     @property
     def W(self) -> Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]:
-        """Computed similarity weight matrix.
-
-        Raises:
-            RuntimeError: Raises When there is not W_ attributes (e.g., method call before the fit).
-
-        Returns:
-            The similarity matrix. Score will be computed by e.g. self.X.dot(self.W)
-        """
+        """The computed item-item similarity weight matrix."""
         if self.W_ is None:
             raise RuntimeError("W fetched before fit.")
         return self.W_
@@ -188,6 +182,7 @@ class BaseSimilarityRecommender(BaseRecommender):
 
 class BaseUserSimilarityRecommender(BaseRecommender):
     U_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
+    """The computed user-user similarity. Might not be initialized before `learn()` is called."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -196,14 +191,7 @@ class BaseUserSimilarityRecommender(BaseRecommender):
 
     @property
     def U(self) -> Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]:
-        """Computed similarity weight matrix.
-
-        Raises:
-            RuntimeError: Raises When there is not W_ attributes (e.g., method call before the fit).
-
-        Returns:
-            The similarity matrix. Score will be computed by e.g. self.X.dot(self.W)
-        """
+        """The computed user-user similarity weight matrix."""
         if self.U_ is None:
             raise RuntimeError("W fetched before fit.")
         return self.U_

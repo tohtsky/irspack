@@ -9,11 +9,11 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 import optuna
+from fastprogress import progress_bar
 from jax._src.random import PRNGKey
 from optuna import exceptions
 from scipy import sparse as sps
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
 
 from irspack.utils.default_logger import get_default_logger
 
@@ -238,7 +238,7 @@ class MLPOptimizer(object):
         score_degradation_count = 0
         val_score_degradation_max = 10
         best_epoch = 0
-        for epoch in tqdm(range(n_epochs)):
+        for epoch in progress_bar(range(n_epochs)):
             train_loss = 0
             for X_mb, y_mb, _ in self.stream(
                 self.profile_train, self.embedding_train, mb_size
@@ -335,7 +335,7 @@ class MLPOptimizer(object):
             return loss_value, new_params, opt_state
 
         mb_size = 128
-        for _ in tqdm(range(config.best_epoch)):
+        for _ in progress_bar(range(config.best_epoch)):
             train_loss = 0
             for X_mb, y_mb, _ in self.stream(X, y, mb_size):
                 rng_key, sub_key = jax.random.split(rng_key)

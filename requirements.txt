@@ -1,5 +1,5 @@
 numpy >= 1.11
-tqdm
+fastprogress >= 0.2
 optuna>=1.0.0
 pandas>=1.0.0
 scikit-learn>=0.21.0
