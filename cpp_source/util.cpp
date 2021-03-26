@@ -31,4 +31,9 @@ PYBIND11_MODULE(_util_cpp, m) {
         py::arg("X"), py::arg("n_threads"), py::arg("n_iter"),
         py::arg("l2_coeff"), py::arg("l1_coeff"), py::arg("tol"),
         py::arg("top_k") = -1);
+
+  m.def("retrieve_recommend_from_score",
+        &sparse_util::retrieve_recommend_from_score<double>, py::arg("score"),
+        py::arg("allowed_indices"), py::arg("forbidden_indices"),
+        py::arg("cutoff"), py::arg("n_threads") = 1);
 }

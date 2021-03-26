@@ -4,6 +4,7 @@ from typing import Any, List, Tuple
 import numpy as np
 import pytest
 import scipy.sparse as sps
+from numpy.core.fromnumeric import nonzero
 
 from irspack.definitions import DenseScoreArray, InteractionMatrix
 from irspack.recommenders import BaseRecommender
@@ -122,3 +123,18 @@ def test_basic_usecase() -> None:
         coldstart_rec_results = {_[0] for _ in recommendations_for_coldstart}
         assert len(coldstart_rec_results.intersection(nonzero_items)) == 0
         assert len(coldstart_rec_results.union(nonzero_items)) == n_items
+
+    nonzero_all = [
+        [item_ids[j] for j in X[i].nonzero()[1]] for i, _ in enumerate(user_ids)
+    ]
+    batch_result_non_masked = mapped_rec.get_recommendation_for_new_user_batch(
+        nonzero_all, cutoff=n_items, n_threads=1
+    )
+    assert len(batch_result_non_masked) == n_users
+    for recommended_using_batch, uid, nonzero_items in zip(
+        batch_result_non_masked, user_ids, nonzero_all
+    ):
+        check_descending(recommended_using_batch)
+        recommended_ids = {rec[0] for rec in recommended_using_batch}
+        assert len(recommended_ids.intersection(nonzero_items)) == 0
+        assert len(recommended_ids.union(nonzero_items)) == n_items

@@ -15,6 +15,7 @@ import scipy.sparse
 __all__ = [
     "okapi_BM_25_weight",
     "remove_diagonal",
+    "retrieve_recommend_from_score",
     "rowwise_train_test_split_by_fixed_n",
     "rowwise_train_test_split_by_ratio",
     "slim_weight_allow_negative",
@@ -31,6 +32,15 @@ def okapi_BM_25_weight(
 def remove_diagonal(
     arg0: scipy.sparse.csr_matrix[float64],
 ) -> scipy.sparse.csr_matrix[float64]:
+    pass
+
+def retrieve_recommend_from_score(
+    score: numpy.ndarray[float64, _Shape[m, n]],
+    allowed_indices: List[List[int]],
+    forbidden_indices: List[List[int]],
+    cutoff: int,
+    n_threads: int = 1,
+) -> List[List[Tuple[int, float]]]:
     pass
 
 def rowwise_train_test_split_by_fixed_n(
