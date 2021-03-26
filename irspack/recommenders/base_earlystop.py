@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from io import BytesIO
 from typing import IO, Any, Optional, Type
 
+from fastprogress import progress_bar
 from optuna import Trial, exceptions
-from tqdm import tqdm
 
 from ..definitions import InteractionMatrix
 from ..evaluator import Evaluator
@@ -107,34 +107,32 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         self.start_learning()
         best_score = -float("inf")
         n_score_degradation = 0
+        pb = progress_bar(range(self.max_epoch))
+        for epoch in pb:
+            self.run_epoch()
+            if (epoch + 1) % self.validate_epoch:
+                continue
 
-        with tqdm(total=self.max_epoch) as progress_bar:
-            for epoch in range(self.max_epoch):
-                self.run_epoch()
-                progress_bar.update(1)
-                if (epoch + 1) % self.validate_epoch:
-                    continue
+            if evaluator is None:
+                continue
 
-                if evaluator is None:
-                    continue
+            target_score = evaluator.get_target_score(self)
 
-                target_score = evaluator.get_target_score(self)
+            pb.comment = f"valid_score={target_score}"
+            relevant_score = target_score
+            if relevant_score > best_score:
+                best_score = relevant_score
+                self.save_state()
+                self.learnt_config["max_epoch"] = epoch + 1
+                n_score_degradation = 0
+            else:
+                n_score_degradation += 1
+                if n_score_degradation >= self.score_degradation_max:
+                    break
+            if trial is not None:
+                trial.report(-relevant_score, epoch)
+                if trial.should_prune():
+                    raise exceptions.TrialPruned()
 
-                progress_bar.set_description(f"valid_score={target_score}")
-                relevant_score = target_score
-                if relevant_score > best_score:
-                    best_score = relevant_score
-                    self.save_state()
-                    self.learnt_config["max_epoch"] = epoch + 1
-                    n_score_degradation = 0
-                else:
-                    n_score_degradation += 1
-                    if n_score_degradation >= self.score_degradation_max:
-                        break
-                if trial is not None:
-                    trial.report(-relevant_score, epoch)
-                    if trial.should_prune():
-                        raise exceptions.TrialPruned()
-
-            if evaluator is not None:
-                self.load_state()
+        if evaluator is not None:
+            self.load_state()
