@@ -1,14 +1,12 @@
-from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import scipy.sparse as sps
 
-from irspack.definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
+from irspack.definitions import DenseScoreArray, UserIndexArray
 from irspack.recommenders import BaseRecommender
-from irspack.utils import get_n_threads
-
-from ._util_cpp import retrieve_recommend_from_score
+from irspack.utils._util_cpp import retrieve_recommend_from_score
+from irspack.utils.threading import get_n_threads
 
 
 class IDMappedRecommender:

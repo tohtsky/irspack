@@ -1,4 +1,3 @@
-import os
 import random
 from typing import Optional, Tuple
 
@@ -6,8 +5,8 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sps
 
-from ..definitions import InteractionMatrix
-from ._util_cpp import (
+from irspack.definitions import InteractionMatrix
+from irspack.utils._util_cpp import (
     okapi_BM_25_weight,
     remove_diagonal,
     rowwise_train_test_split_by_fixed_n,
@@ -15,6 +14,8 @@ from ._util_cpp import (
     sparse_mm_threaded,
     tf_idf_weight,
 )
+from irspack.utils.id_mapping import IDMappedRecommender
+from irspack.utils.threading import get_n_threads
 
 
 def rowwise_train_test_split(
@@ -61,21 +62,6 @@ def rowwise_train_test_split(
     )
 
 
-def get_n_threads(n_threads: Optional[int]) -> int:
-    if n_threads is not None:
-        return n_threads
-    else:
-        try:
-            n_threads_cand = os.environ.get(
-                "IRSPACK_NUM_THREADS_DEFAULT", os.cpu_count()
-            )
-            return int(n_threads_cand or 1)
-        except:
-            raise ValueError(
-                'failed to interpret "IRSPACK_NUM_THREADS_DEFAULT" as an integer.'
-            )
-
-
 def df_to_sparse(
     df: pd.DataFrame,
     user_colname: str,
@@ -103,4 +89,6 @@ __all__ = [
     "okapi_BM_25_weight",
     "tf_idf_weight",
     "remove_diagonal",
+    "get_n_threads",
+    "IDMappedRecommender",
 ]

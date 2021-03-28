@@ -162,14 +162,20 @@ def test_basic_usecase() -> None:
         assert len(recommended_ids.intersection(nonzero_items)) == 0
         assert len(recommended_ids.union(nonzero_items)) == n_items
 
-    assert len(batch_result_non_masked) == n_users
-    for recommended_using_batch, uid, nonzero_items in zip(
-        batch_result_non_masked, user_ids, nonzero_batch
+    cnt = 0
+    batch_result_non_masked_cutoff_3 = mapped_rec.get_recommendation_for_new_user_batch(
+        nonzero_batch, cutoff=3, n_threads=2
+    )
+
+    assert len(batch_result_non_masked_cutoff_3) == n_users
+    for recommended_using_batch_cutoff_3, uid, nonzero_items in zip(
+        batch_result_non_masked_cutoff_3, user_ids, nonzero_batch
     ):
-        check_descending(recommended_using_batch)
-        recommended_ids = {rec[0] for rec in recommended_using_batch}
-        assert len(recommended_ids.intersection(nonzero_items)) == 0
-        assert len(recommended_ids.union(nonzero_items)) == n_items
+        assert len(recommended_using_batch_cutoff_3) == 3
+        check_descending(recommended_using_batch_cutoff_3)
+        recommended_ids = {rec[0] for rec in recommended_using_batch_cutoff_3}
+        for rid in recommended_ids:
+            assert rid not in nonzero_items
 
     batch_result_masked = mapped_rec.get_recommendation_for_new_user_batch(
         nonzero_batch,

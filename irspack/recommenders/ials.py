@@ -81,8 +81,7 @@ class IALSRecommender(
     .. math ::
 
         \frac{1}{2} \sum _{u, i} c_{ui} (\mathbf{u}_u \cdot \mathbf{v}_i - \mathbb{1}_{r_{ui} > 0}) ^ 2 +
-        \frac{1}{2} \sum _u || \mathbf{u}_u || ^2 +
-        \frac{1}{2} \sum _i || \mathbf{v}_i || ^2
+        \frac{\text{reg}}{2} \left( \sum _u || \mathbf{u}_u || ^2 + \sum _i || \mathbf{v}_i || ^2 \right)
 
 
     See the seminal paper:
