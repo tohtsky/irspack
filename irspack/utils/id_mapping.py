@@ -1,12 +1,15 @@
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import scipy.sparse as sps
 
 from irspack.definitions import DenseScoreArray, UserIndexArray
-from irspack.recommenders import BaseRecommender
 from irspack.utils._util_cpp import retrieve_recommend_from_score
 from irspack.utils.threading import get_n_threads
+
+if TYPE_CHECKING:
+    # We should move this module out of "utils".
+    from irspack.recommenders import BaseRecommender
 
 
 class IDMappedRecommender:
@@ -29,7 +32,7 @@ class IDMappedRecommender:
     """
 
     def __init__(
-        self, recommender: BaseRecommender, user_ids: List[Any], item_ids: List[Any]
+        self, recommender: "BaseRecommender", user_ids: List[Any], item_ids: List[Any]
     ):
 
         if (recommender.n_users != len(user_ids)) or (
