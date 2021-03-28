@@ -8,7 +8,7 @@ from scipy import sparse as sps
 
 from irspack.definitions import InteractionMatrix
 from irspack.evaluator._core import EvaluatorCore, Metrics
-from irspack.utils import get_n_threads
+from irspack.utils.threading import get_n_threads
 
 if TYPE_CHECKING:
     from irspack.recommenders import base as base_recommender
