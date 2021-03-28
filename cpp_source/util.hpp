@@ -12,6 +12,7 @@
 #include <thread>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "argcheck.hpp"
@@ -421,6 +422,87 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
   CSCMatrix<Real> result(X.cols(), X.cols());
   result.setFromTriplets(nnzs.begin(), nnzs.end());
   result.makeCompressed();
+  return result;
+}
+
+template <typename Real>
+inline std::vector<std::vector<std::pair<int64_t, float>>>
+retrieve_recommend_from_score(
+    const RowMajorMatrix<Real> &score,
+    const std::vector<std::vector<int64_t>> &allowed_indices,
+    const std::vector<std::vector<int64_t>> &forbidden_indices,
+    const size_t cutoff, size_t n_threads) {
+  check_arg(n_threads > 0, "n_threads must not be 0.");
+  check_arg(
+      (score.rows() == static_cast<int64_t>(allowed_indices.size())) ||
+          allowed_indices.empty(),
+      "allowed_indices, if not empty, must have a size equal to X.rows()");
+  check_arg(
+      (score.rows() == static_cast<int64_t>(forbidden_indices.size())) ||
+          forbidden_indices.empty(),
+      "forbidden_indices, if not empty, must have a size equal to X.rows()");
+  std::vector<std::vector<std::pair<int64_t, float>>> result(score.rows());
+  std::vector<std::thread> workers;
+  std::atomic<size_t> cursor(0);
+  for (size_t thread = 0; thread < n_threads; thread++) {
+    workers.emplace_back([&score, cutoff, &allowed_indices, &forbidden_indices,
+                          &cursor, &result]() {
+      const int64_t n_rows = score.rows();
+      const int64_t n_items = score.cols();
+      std::unordered_set<int64_t> forbidden_indices_user;
+      std::vector<int64_t> index_holder(n_items);
+      for (int64_t i = 0; i < n_items; i++) {
+        index_holder[i] = i;
+      }
+      while (true) {
+        int64_t current = cursor++;
+        if (current >= n_rows) {
+          break;
+        }
+
+        std::vector<std::pair<int64_t, float>> inserted;
+        const Real *score_ptr = score.data() + n_items * current;
+        if (!allowed_indices.empty()) {
+          index_holder.clear();
+          for (auto item_index : allowed_indices.at(current)) {
+            if ((item_index < n_items) && (item_index >= 0)) {
+              index_holder.push_back(item_index);
+            }
+          }
+        }
+        if (!forbidden_indices.empty()) {
+          forbidden_indices_user.clear();
+          for (auto item_index : forbidden_indices.at(current)) {
+            forbidden_indices_user.insert(item_index);
+          }
+        }
+        std::sort(index_holder.begin(), index_holder.end(),
+                  [&score_ptr](int64_t i1, int64_t i2) {
+                    return score_ptr[i1] > score_ptr[i2];
+                  });
+
+        for (auto item_index : index_holder) {
+
+          Real score = score_ptr[item_index];
+          if (score == -std::numeric_limits<Real>::infinity()) {
+            break;
+          }
+          if (inserted.size() >= cutoff) {
+            break;
+          }
+          if (forbidden_indices_user.find(item_index) !=
+              forbidden_indices_user.end()) {
+            continue;
+          }
+          inserted.emplace_back(item_index, score);
+        }
+        result[current] = std::move(inserted);
+      }
+    });
+  }
+  for (auto &worker : workers) {
+    worker.join();
+  }
   return result;
 }
 

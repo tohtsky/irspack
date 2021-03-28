@@ -5,9 +5,9 @@ from typing import IO, Any, Optional, Type
 from fastprogress import progress_bar
 from optuna import Trial, exceptions
 
-from ..definitions import InteractionMatrix
-from ..evaluator import Evaluator
-from .base import BaseRecommender
+from irspack.definitions import InteractionMatrix
+from irspack.evaluator.evaluator import Evaluator
+from irspack.recommenders.base import BaseRecommender
 
 
 class TrainerBase(ABC):

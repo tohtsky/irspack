@@ -3,11 +3,10 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from irspack.definitions import InteractionMatrix
+from irspack.evaluator.evaluator import METRIC_NAMES, EvaluatorCore, Metrics
 from irspack.user_cold_start.recommenders import base
-from irspack.utils import get_n_threads
-
-from ..evaluator import METRIC_NAMES, EvaluatorCore, Metrics
-from ..recommenders.base import InteractionMatrix
+from irspack.utils.threading import get_n_threads
 
 
 class UserColdStartEvaluator:
