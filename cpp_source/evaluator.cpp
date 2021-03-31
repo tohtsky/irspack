@@ -1,6 +1,7 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <algorithm>
+#include <cstddef>
 #include <future>
 #include <iostream>
 #include <iterator>
@@ -147,6 +148,9 @@ struct EvaluatorCore {
   }
 
   inline SparseMatrix get_ground_truth() const { return this->X_; }
+  inline std::vector<std::vector<size_t>> get_recommendable_items() const {
+    return this->recommendable_items;
+  }
 
 private:
   inline Metrics get_metrics_local(const Eigen::Ref<DenseMatrix> &scores,
@@ -281,5 +285,18 @@ PYBIND11_MODULE(_core, m) {
       .def("get_metrics", &EvaluatorCore::get_metrics, py::arg("score_array"),
            py::arg("cutoff"), py::arg("offset"), py::arg("n_threads"),
            py::arg("recall_with_cutoff") = false)
-      .def("get_ground_truth", &EvaluatorCore::get_ground_truth);
+      .def("get_ground_truth", &EvaluatorCore::get_ground_truth)
+      .def(py::pickle(
+          [](const EvaluatorCore &evaluator) {
+            return py::make_tuple(evaluator.get_ground_truth(),
+                                  evaluator.get_recommendable_items());
+          },
+          [](py::tuple t) {
+            if (t.size() != 2)
+              throw std::runtime_error("invalid state");
+            return EvaluatorCore(t[0].cast<EvaluatorCore::SparseMatrix>(),
+                                 t[1].cast<std::vector<std::vector<size_t>>>());
+          }));
+
+  ;
 }
