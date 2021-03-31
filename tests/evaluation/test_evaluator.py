@@ -1,4 +1,6 @@
+import pickle
 from collections import defaultdict
+from io import BytesIO
 
 import numpy as np
 import pytest
@@ -166,6 +168,15 @@ def test_metrics_colduser_mask(U: int, I: int, U_test: int) -> None:
     )
     generous_metric = generous_eval.get_score(rec)
     assert generous_metric["recall"] == 1.0
+
+    pickle_content = BytesIO()
+    pickle.dump(generous_eval, pickle_content)
+
+    pickle_content.seek(0)
+
+    generous_eval_pickled = pickle.load(pickle_content)
+
+    assert generous_eval_pickled.get_score(rec)["recall"] == 1.0
 
 
 @pytest.mark.parametrize("U, I, U_test", [(10, 5, 3), (10, 30, 8)])
