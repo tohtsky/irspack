@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from abc import ABCMeta
 from typing import Any, Dict, List, Optional, Tuple, Type
@@ -124,7 +125,6 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             end = time.time()
 
             time_spent = end - start
-            score["time"] = time_spent
             self.logger.info(
                 "Config %d obtained the following scores: %s within %f seconds.",
                 trial.number,
@@ -160,6 +160,11 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             },
         )
         result_df = study.trials_dataframe()
+        # remove prefix
+        result_df.columns = [
+            re.sub(r"^(user_attrs|params)_", "", colname)
+            for colname in result_df.columns
+        ]
         return best_params, result_df
 
     def optimize(
