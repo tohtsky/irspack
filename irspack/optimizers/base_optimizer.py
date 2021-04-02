@@ -1,16 +1,16 @@
 import logging
+import re
 import time
 from abc import ABCMeta
 from typing import Any, Dict, List, Optional, Tuple, Type
 
-import numpy as np
 import optuna
 import pandas as pd
 
 from irspack.utils.default_logger import get_default_logger
 
 from ..evaluator import Evaluator
-from ..parameter_tuning import Suggestion, overwrite_suggestions
+from ..parameter_tuning import Suggestion, is_valid_param_name, overwrite_suggestions
 from ..recommenders.base import BaseRecommender, InteractionMatrix
 from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
@@ -62,18 +62,12 @@ class BaseOptimizer(object, metaclass=ABCMeta):
         self.val_evaluator = val_evaluator
 
         self.current_trial: int = 0
-        self.best_trial_index: Optional[int] = None
         self.best_val = float("inf")
-        self.best_params: Optional[Dict[str, Any]] = None
-        self.learnt_config_best: Dict[str, Any] = dict()  # to store early-stopped epoch
 
-        self.valid_results: List[Dict[str, float]] = []
-        self.tried_configs: List[Dict[str, Any]] = []
         self.suggestions = overwrite_suggestions(
             self.default_tune_range, suggest_overwrite, fixed_params
         )
         self.fixed_params = fixed_params
-        self.successful_trials: List[int] = []
 
     def _suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
         parameters: Dict[str, Any] = dict()
@@ -115,23 +109,14 @@ class BaseOptimizer(object, metaclass=ABCMeta):
                 2. A ``pandas.DataFrame`` that contains the history of optimization.
 
         """
-        self.current_trial = -1
-        self.best_val = float("inf")
-        self.best_time = None
-        self.valid_results = []
-        self.tried_configs = []
-        self.successful_trials = []  # trials not pruned
 
         def objective_func(trial: optuna.Trial) -> float:
-            self.current_trial += 1  # for pruning
             start = time.time()
             params = dict(**self._suggest(trial), **self.fixed_params)
             self.logger.info("Trial %s:", self.current_trial)
             self.logger.info("parameter = %s", params)
 
             arg, parameters = self.get_model_arguments(**params)
-
-            self.tried_configs.append(parameters)
 
             recommender = self.recommender_class(self._data, *arg, **parameters)
             recommender.learn_with_optimizer(self.val_evaluator, trial)
@@ -140,26 +125,22 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             end = time.time()
 
             time_spent = end - start
-            score["time"] = time_spent
-            self.valid_results.append(score)
-            self.successful_trials.append(self.current_trial)
             self.logger.info(
                 "Config %d obtained the following scores: %s within %f seconds.",
-                self.current_trial,
+                trial.number,
                 score,
                 time_spent,
             )
             val_score = score[self.val_evaluator.target_metric.name]
-            if (-val_score) < self.best_val:
-                self.best_val = -val_score
-                self.best_time = time_spent
-                self.best_params = parameters
-                self.learnt_config_best = dict(**recommender.learnt_config)
-                self.logger.info(
-                    "Found best %s using this config.",
-                    self.val_evaluator.target_metric.name,
+
+            # max_epoch will be stored in learnt_config
+            for param_name, param_val in recommender.learnt_config.items():
+                trial.set_user_attr(param_name, param_val)
+
+            for score_name, score_value in score.items():
+                trial.set_user_attr(
+                    f"{score_name}@{self.val_evaluator.cutoff}", score_value
                 )
-                self.best_trial_index = self.current_trial
 
             return -val_score
 
@@ -170,24 +151,20 @@ class BaseOptimizer(object, metaclass=ABCMeta):
         )
 
         study.optimize(objective_func, n_trials=n_trials, timeout=timeout)
-        if self.best_params is None:
-            raise RuntimeError("best parameter not found.")
-        best_params = dict(**self.best_params)
-        best_params.update(**self.learnt_config_best)
-        self.best_params = best_params
-        base_index = np.arange(len(self.tried_configs))
-        result_df_params = pd.DataFrame(self.tried_configs, index=base_index)
-        result_df_scores = pd.DataFrame(
-            self.valid_results, index=np.asarray(self.successful_trials, dtype=np.int64)
+        best_params = dict(
+            **study.best_trial.params,
+            **{
+                key: val
+                for key, val in study.best_trial.user_attrs.items()
+                if is_valid_param_name(key)
+            },
         )
-        result_df = pd.concat(
-            [result_df_params, result_df_scores.reindex(base_index)], axis=1
-        )
-
-        is_best = np.zeros(result_df.shape[0], dtype=np.bool)
-        if self.best_trial_index is not None:
-            is_best[self.best_trial_index] = True
-        result_df["is_best"] = is_best
+        result_df = study.trials_dataframe()
+        # remove prefix
+        result_df.columns = [
+            re.sub(r"^(user_attrs|params)_", "", colname)
+            for colname in result_df.columns
+        ]
         return best_params, result_df
 
     def optimize(

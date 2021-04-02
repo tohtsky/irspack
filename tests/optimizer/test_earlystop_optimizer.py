@@ -76,6 +76,7 @@ class MockRecommender(BaseRecommenderWithEarlyStopping):
 class MockEvaluator(evaluator.Evaluator):
     def __init__(self) -> None:
         self.target_metric = evaluator.TargetMetric.ndcg
+        self.cutoff = 30
 
     def get_score(self, model: BaseRecommender) -> Dict[str, float]:
         assert isinstance(model, MockRecommender)
@@ -101,13 +102,12 @@ def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
     with redirect_stdout(open(os.devnull, "w")):
         with redirect_stderr(open(os.devnull, "w")):
             config, history = optimizer.optimize(n_trials=20, random_seed=42)
+    assert len(config) == 2
     assert config["max_epoch"] == target_epoch
-    best_index = np.nanargmax(history.ndcg.values)
-    best_target_value = history.target_score.iloc[best_index]
-    best_ndcg = history.ndcg.iloc[best_index]
-    not_pruned_trials = np.where(~history.ndcg.isna())[0]
-    np.testing.assert_array_equal(
-        not_pruned_trials, np.asarray(optimizer.successful_trials)
-    )
-    assert best_target_value == pytest.approx(best_ndcg)
-    assert np.all(best_target_value >= history.target_score.values)
+    best_index = np.nanargmax(-history.value.values)
+    best_target_score_inferred = history.target_score.iloc[best_index]
+    best_ndcg = history["ndcg@30"].iloc[best_index]
+
+    assert best_target_score_inferred == pytest.approx(best_ndcg)
+    assert config["target_score"] == pytest.approx(best_target_score_inferred)
+    assert np.all(best_target_score_inferred >= history.target_score.values)

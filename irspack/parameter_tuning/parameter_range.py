@@ -1,17 +1,16 @@
+import re
 from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, List
 
 from optuna import Trial
 
-__all__ = [
-    "Suggestion",
-    "UniformSuggestion",
-    "LogUniformSuggestion",
-    "IntegerSuggestion",
-    "IntegerLogUniformSuggestion",
-    "CategoricalSuggestion",
-    "overwrite_suggestions",
-]
+NAME_CHECKER = re.compile(r"^([a-zA-Z\d]+[\-_]*)+$")
+
+
+def is_valid_param_name(name: str) -> bool:
+    if NAME_CHECKER.match(name) is None:
+        return False
+    return True
 
 
 class Suggestion(object, metaclass=ABCMeta):
@@ -22,6 +21,10 @@ class Suggestion(object, metaclass=ABCMeta):
         Args:
             name (str): The name of the parameter to be tuned.
         """
+        if not is_valid_param_name(name):
+            raise ValueError(
+                fr""""{name}" is  not a valid parameter name. It should match r"^([a-zA-Z\d]+[\-_]*)+$"""
+            )
         self.name = name
 
     @abstractmethod
