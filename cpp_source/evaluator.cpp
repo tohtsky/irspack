@@ -192,13 +192,11 @@ private:
     Metrics metrics_local(n_items);
 
     const Real *score_begin = scores.data();
-    std::vector<StorageIndex> hit_item;
     std::vector<std::pair<Real, StorageIndex>> score_and_index;
     score_and_index.reserve(n_items);
     std::vector<StorageIndex> recommendation(cutoff);
     std::vector<StorageIndex> intersection(cutoff);
     std::vector<double> dcg_discount(cutoff);
-    hit_item.reserve(cutoff);
     for (size_t i = 0; i < cutoff; i++) {
       dcg_discount[i] = 1 / std::log2(2 + i);
     }
@@ -210,8 +208,9 @@ private:
         break;
       }
       auto buffer = score_begin + n_items * u;
-      const auto &gt_indices = this->X_as_set.at(u);
       int u_orig = u + offset;
+
+      const auto &gt_indices = this->X_as_set.at(u_orig);
       metrics_local.total_user += 1;
       recommendation.clear();
       score_and_index.clear();
@@ -221,13 +220,13 @@ private:
       if (this->recommendable_items.empty()) {
         auto score_loc = buffer;
         for (StorageIndex _ = 0; _ < n_items_signed; _++) {
-          score_and_index.emplace_back(*(score_loc++), _);
+          score_and_index.emplace_back(-*(score_loc++), _);
         }
         n_gt = gt_indices.size();
       } else if (this->recommendable_items.size() == 1u) {
         const auto &rec_items_global = recommendable_items[0];
         for (auto i : rec_items_global) {
-          score_and_index.emplace_back(buffer[i], i);
+          score_and_index.emplace_back(-buffer[i], i);
           if (gt_indices.find(i) != gt_indices.cend()) {
             n_gt++;
           }
@@ -236,7 +235,7 @@ private:
       } else {
         const auto &item_local = this->recommendable_items[u_orig];
         for (auto i : item_local) {
-          score_and_index.emplace_back(buffer[i], i);
+          score_and_index.emplace_back(-buffer[i], i);
           if (gt_indices.find(i) != gt_indices.cend()) {
             n_gt++;
           }
@@ -247,50 +246,35 @@ private:
       if ((n_gt == 0) || (n_recommendable_items == 0)) {
         continue;
       }
-      std::sort(
-          score_and_index.begin(), score_and_index.end(),
-          [](std::pair<Real, StorageIndex> i1,
-             std::pair<Real, StorageIndex> i2) { return i1.first > i2.first; });
+      std::sort(score_and_index.begin(), score_and_index.end());
 
       metrics_local.valid_user += 1;
-
-      size_t n_hit = 0;
-      hit_item.clear();
-      for (auto iter = score_and_index.cbegin();
-           iter != (score_and_index.cbegin() + n_recommendable_items); iter++) {
-        auto rec_index = iter->second;
-        metrics_local.item_cnt(rec_index) += 1;
-        if (gt_indices.find(rec_index) == gt_indices.cend()) {
-          hit_item.push_back(0);
-        } else {
-          hit_item.push_back(1);
-          n_hit++;
-        }
-      }
-      if (n_hit > 0) {
-        metrics_local.hit += 1;
-      }
-      metrics_local.precision +=
-          n_hit / static_cast<double>(n_recommendable_items);
-      metrics_local.recall +=
-          n_hit / static_cast<double>(recall_with_cutoff
-                                          ? (n_gt > cutoff ? cutoff : n_gt)
-                                          : n_gt);
       double dcg = 0;
       double idcg = std::accumulate(
           dcg_discount.begin(),
           dcg_discount.begin() + std::min(n_gt, n_recommendable_items), 0.);
-      double cum_hit = 0;
       double average_precision = 0;
 
+      size_t cum_hit = 0;
       for (size_t i = 0; i < n_recommendable_items; i++) {
-        if (hit_item[i] > 0) {
+        auto rec_index = score_and_index[i].second;
+        metrics_local.item_cnt(rec_index) += 1;
+        if (gt_indices.find(rec_index) == gt_indices.cend()) {
+        } else {
           dcg += dcg_discount[i];
-          cum_hit += 1;
-          average_precision += (cum_hit / (i + 1));
+          cum_hit++;
+          average_precision += (static_cast<Real>(cum_hit) / (i + 1));
         }
       }
-
+      if (cum_hit > 0) {
+        metrics_local.hit += 1;
+      }
+      metrics_local.precision +=
+          cum_hit / static_cast<double>(n_recommendable_items);
+      metrics_local.recall +=
+          cum_hit / static_cast<double>(recall_with_cutoff
+                                            ? (n_gt > cutoff ? cutoff : n_gt)
+                                            : n_gt);
       metrics_local.ndcg += (dcg / idcg);
       metrics_local.map += average_precision / n_gt;
     }
