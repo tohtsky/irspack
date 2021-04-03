@@ -1,4 +1,14 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import scipy.sparse as sps
@@ -48,36 +58,42 @@ class IDMappedRecommender:
         self.user_id_to_index = {user_id: i for i, user_id in enumerate(user_ids)}
         self.item_id_to_index = {item_id: i for i, item_id in enumerate(item_ids)}
 
-    def _item_id_list_to_index_list(self, ids: List[Any]) -> List[int]:
+    def _item_id_list_to_index_list(self, ids: Iterable[Any]) -> List[int]:
         return [self.item_id_to_index[id] for id in ids if id in self.item_id_to_index]
 
-    def _item_id_list_to_array(self, ids: List[Any]) -> np.ndarray:
-        return np.asarray(
-            self._item_id_list_to_index_list(ids),
-            dtype=np.int64,
-        )
+    def _user_profile_to_data_col(
+        self, profile: Union[List[Any], Dict[Any, float]]
+    ) -> Tuple[List[float], List[int]]:
+        data: List[float]
+        cols: List[int]
+        # data: np.ndarray
+        if isinstance(profile, list):
+            cols = self._item_id_list_to_index_list(profile)
+            data = [1.0] * len(cols)
+        else:
+            data = []
+            cols = []
+            for id, score in profile.items():
+                if id in self.item_id_to_index:
+                    data.append(score)
+                    cols.append(self.item_id_to_index[id])
+        return data, cols
 
     def _list_of_user_profile_to_matrix(
         self, users_info: Sequence[Union[List[Any], Dict[Any, float]]]
     ) -> sps.csr_matrix:
         data: List[float] = []
-        row: List[int] = []
+        indptr: List[int] = [0]
         col: List[int] = []
-        for user_index, user_info in enumerate(users_info):
-            if isinstance(user_info, list):
-                for iid in user_info:
-                    if iid in self.item_id_to_index:
-                        data.append(1.0)
-                        row.append(user_index)
-                        col.append(self.item_id_to_index[iid])
-            elif isinstance(user_info, dict):
-                for iid, rating in user_info.items():
-                    if iid in self.item_id_to_index:
-                        data.append(rating)
-                        row.append(user_index)
-                        col.append(self.item_id_to_index[iid])
+        indptr_current = 0
+        for user_info in users_info:
+            data_u, col_u = self._user_profile_to_data_col(user_info)
+            data.extend(data_u)
+            col.extend(col_u)
+            indptr_current += len(col_u)
+            indptr.append(indptr_current)
         result = sps.csr_matrix(
-            (data, (row, col)), shape=(len(users_info), len(self.item_ids))
+            (data, col, indptr), shape=(len(users_info), len(self.item_ids))
         )
         return result
 
@@ -104,7 +120,7 @@ class IDMappedRecommender:
 
     def get_recommendation_for_new_user(
         self,
-        item_ids: List[Any],
+        user_profile: Union[List[Any], Dict[Any, float]],
         cutoff: int = 20,
         allowed_item_ids: Optional[List[Any]] = None,
         forbidden_item_ids: Optional[List[Any]] = None,
@@ -112,8 +128,8 @@ class IDMappedRecommender:
         """Retrieve recommendation result for a previously unseen user using item ids with which he or she interacted.
 
         Args:
-            item_ids:
-                Item IDs the user had an interaction with.
+            user_profile:
+                User's profile given either as a list of item ids the user had a cotact or a item id-rating dict.
                 Previously unseen item ID will be ignored.
             cutoff:
                 Maximal number of recommendations allowed.
@@ -127,10 +143,10 @@ class IDMappedRecommender:
         Returns:
             A List of tuples consisting of ``(item_id, score)``.
         """
-        cols = self._item_id_list_to_array(item_ids)
-        rows = np.zeros_like(cols)
-        data = np.ones(cols.shape, dtype=np.float64)
-        X_input = sps.csr_matrix((data, (rows, cols)), shape=(1, len(self.item_ids)))
+        data, cols = self._user_profile_to_data_col(user_profile)
+        X_input = sps.csr_matrix(
+            (data, cols, [0, len(cols)]), shape=(1, len(self.item_ids))
+        )
         score = self.recommender.get_score_cold_user_remove_seen(X_input)[0]
         return self._score_to_recommended_items(
             score,
@@ -187,7 +203,9 @@ class IDMappedRecommender:
         forbidden_item_ids: Optional[List[Any]] = None,
     ) -> List[Tuple[Any, float]]:
         if allowed_item_ids is not None:
-            allowed_item_indices = self._item_id_list_to_array(allowed_item_ids)
+            allowed_item_indices = np.asarray(
+                self._item_id_list_to_index_list(allowed_item_ids), dtype=np.int64
+            )
             high_score_inds = allowed_item_indices[
                 score[allowed_item_indices].argsort()[::-1]
             ]
@@ -218,6 +236,8 @@ class IDMappedRecommender:
     ) -> List[List[Tuple[Any, float]]]:
         if forbidden_item_ids is not None:
             assert len(forbidden_item_ids) == score.shape[0]
+        if allowed_item_ids is not None:
+            assert len(allowed_item_ids) == score.shape[0]
 
         allowed_item_indices: List[List[int]] = []
         if allowed_item_ids is not None:

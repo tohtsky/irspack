@@ -1,10 +1,9 @@
 import uuid
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pytest
 import scipy.sparse as sps
-from numpy.core.fromnumeric import nonzero
 
 from irspack.definitions import DenseScoreArray, InteractionMatrix
 from irspack.recommenders import BaseRecommender
@@ -41,16 +40,18 @@ def test_check_descending_1() -> None:
         check_descending([("1", 100), ("2", 99), ("3", -1000), ("", -999)])
 
 
+RNS = np.random.RandomState(0)
+n_users = 31
+n_items = 42
+user_ids = [str(uuid.uuid4()) for _ in range(n_users)]
+item_ids = [str(uuid.uuid4()) for _ in range(n_items)]
+item_id_set = set(item_ids)
+score = RNS.randn(n_users, n_items)
+X = sps.csr_matrix((score + RNS.randn(*score.shape)) > 0).astype(np.float64)
+rec = MockRecommender(X, score).learn()
+
+
 def test_basic_usecase() -> None:
-    RNS = np.random.RandomState(0)
-    n_users = 31
-    n_items = 42
-    user_ids = [str(uuid.uuid4()) for _ in range(n_users)]
-    item_ids = [str(uuid.uuid4()) for _ in range(n_items)]
-    item_id_set = set(item_ids)
-    score = RNS.randn(n_users, n_items)
-    X = sps.csr_matrix((score + RNS.randn(*score.shape)) > 0).astype(np.float64)
-    rec = MockRecommender(X, score).learn()
 
     with pytest.raises(ValueError):
         mapped_rec = IDMappedRecommender(rec, user_ids, item_ids + [str(uuid.uuid4())])
@@ -162,7 +163,6 @@ def test_basic_usecase() -> None:
         assert len(recommended_ids.intersection(nonzero_items)) == 0
         assert len(recommended_ids.union(nonzero_items)) == n_items
 
-    cnt = 0
     batch_result_non_masked_cutoff_3 = mapped_rec.get_recommendation_for_new_user_batch(
         nonzero_batch, cutoff=3, n_threads=2
     )
@@ -221,3 +221,16 @@ def test_basic_usecase() -> None:
         for rid in recommended_ids:
             assert rid in allowed_items
             assert rid not in forbidden_items
+
+    nonzero_batch_dict: List[Dict[str, float]] = []
+    for i, _ in enumerate(user_ids):
+        profile = {item_ids[j]: 2.0 for j in X[i].nonzero()[1]}
+        nonzero_batch_dict.append(profile)
+    batch_result_dict = mapped_rec.get_recommendation_for_new_user_batch(
+        nonzero_batch_dict, cutoff=n_items, n_threads=1
+    )
+    for i, result in enumerate(batch_result_dict):
+        nnz = len(X[i].nonzero()[1])
+        softmax_denom = X.shape[1] - nnz + np.exp(2) * nnz
+        for _, score in result:
+            assert score == pytest.approx(1 / softmax_denom)

@@ -74,7 +74,8 @@ class MockRecommender(BaseRecommenderWithEarlyStopping):
 
 
 class MockEvaluator(evaluator.Evaluator):
-    def __init__(self) -> None:
+    def __init__(self, X: sps.csr_matrix) -> None:
+        super().__init__(X, offset=0)
         self.target_metric = evaluator.TargetMetric.ndcg
         self.cutoff = 30
 
@@ -92,7 +93,7 @@ class MockOptimizer(BaseOptimizerWithEarlyStopping):
 def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
     from logging import getLogger
 
-    evaluator = MockEvaluator()
+    evaluator = MockEvaluator(X)
     optimizer = MockOptimizer(
         X,
         evaluator,

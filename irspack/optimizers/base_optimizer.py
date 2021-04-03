@@ -113,7 +113,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
         def objective_func(trial: optuna.Trial) -> float:
             start = time.time()
             params = dict(**self._suggest(trial), **self.fixed_params)
-            self.logger.info("Trial %s:", self.current_trial)
+            self.logger.info("Trial %s:", trial.number)
             self.logger.info("parameter = %s", params)
 
             arg, parameters = self.get_model_arguments(**params)
@@ -137,11 +137,19 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             for param_name, param_val in recommender.learnt_config.items():
                 trial.set_user_attr(param_name, param_val)
 
-            for score_name, score_value in score.items():
-                trial.set_user_attr(
-                    f"{score_name}@{self.val_evaluator.cutoff}", score_value
+            score_history: List[
+                Tuple[int, Dict[str, float]]
+            ] = trial.study.user_attrs.get("scores", [])
+            score_history.append(
+                (
+                    trial.number,
+                    {
+                        f"{score_name}@{self.val_evaluator.cutoff}": score_value
+                        for score_name, score_value in score.items()
+                    },
                 )
-
+            )
+            trial.study.set_user_attr("scores", score_history)
             return -val_score
 
         self.logger.info(
@@ -159,12 +167,23 @@ class BaseOptimizer(object, metaclass=ABCMeta):
                 if is_valid_param_name(key)
             },
         )
-        result_df = study.trials_dataframe()
+        result_df = study.trials_dataframe().set_index("number")
+
         # remove prefix
         result_df.columns = [
             re.sub(r"^(user_attrs|params)_", "", colname)
             for colname in result_df.columns
         ]
+
+        trial_and_scores: List[Tuple[float, Dict[str, float]]] = study.user_attrs.get(
+            "scores", []
+        )
+        score_df = pd.DataFrame(
+            [x[1] for x in trial_and_scores],
+            index=[x[0] for x in trial_and_scores],
+        )
+        score_df.index.name = "number"
+        result_df = result_df.join(score_df, how="left")
         return best_params, result_df
 
     def optimize(
