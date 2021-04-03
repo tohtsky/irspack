@@ -1,7 +1,6 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <algorithm>
-#include <bits/stdint-intn.h>
 #include <cstddef>
 #include <future>
 #include <iostream>
@@ -21,6 +20,11 @@
 #include "argcheck.hpp"
 
 namespace irspack {
+
+#include <chrono>
+#include <cmath>
+#include <ctime>
+#include <iostream>
 
 using CountVector = Eigen::Matrix<std::int64_t, Eigen::Dynamic, 1>;
 struct Metrics {
@@ -244,7 +248,10 @@ private:
       if ((n_gt == 0) || (n_recommendable_items == 0)) {
         continue;
       }
-      std::sort(score_and_index.begin(), score_and_index.end());
+
+      std::partial_sort(score_and_index.begin(),
+                        score_and_index.begin() + n_recommendable_items,
+                        score_and_index.end());
 
       metrics_local.valid_user += 1;
       double dcg = 0;
