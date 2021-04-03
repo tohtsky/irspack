@@ -194,7 +194,6 @@ private:
     const Real *score_begin = scores.data();
     std::vector<std::pair<Real, StorageIndex>> score_and_index;
     score_and_index.reserve(n_items);
-    std::vector<StorageIndex> recommendation(cutoff);
     std::vector<StorageIndex> intersection(cutoff);
     std::vector<double> dcg_discount(cutoff);
     for (size_t i = 0; i < cutoff; i++) {
@@ -212,7 +211,6 @@ private:
 
       const auto &gt_indices = this->X_as_set.at(u_orig);
       metrics_local.total_user += 1;
-      recommendation.clear();
       score_and_index.clear();
 
       size_t n_gt = 0;
