@@ -182,7 +182,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             [x[1] for x in trial_and_scores],
             index=[x[0] for x in trial_and_scores],
         )
-        score_df.index.nae = "number"
+        score_df.index.name = "number"
         result_df = result_df.join(score_df, how="left")
         return best_params, result_df
 
