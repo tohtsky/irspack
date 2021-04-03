@@ -122,6 +122,7 @@ class Evaluator:
         self.n_items = ground_truth.shape[1]
         self.target_metric = TargetMetric[target_metric]
         self.cutoff = cutoff
+        self.target_metric_name = f"{self.target_metric.name}@{self.cutoff}"
         self.n_threads = get_n_threads(n_threads)
         self.mb_size = mb_size
         if masked_interactions is None:

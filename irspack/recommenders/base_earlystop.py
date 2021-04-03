@@ -118,7 +118,7 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
 
             target_score = evaluator.get_target_score(self)
 
-            pb.comment = f"valid_score={target_score}"
+            pb.comment = f"{evaluator.target_metric_name}={target_score}"
             relevant_score = target_score
             if relevant_score > best_score:
                 best_score = relevant_score
