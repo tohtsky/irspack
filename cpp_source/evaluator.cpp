@@ -1,15 +1,11 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <future>
 #include <iostream>
-#include <iterator>
-#include <map>
-#include <mutex>
-#include <random>
 #include <string>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -20,11 +16,6 @@
 #include "argcheck.hpp"
 
 namespace irspack {
-
-#include <chrono>
-#include <cmath>
-#include <ctime>
-#include <iostream>
 
 using CountVector = Eigen::Matrix<std::int64_t, Eigen::Dynamic, 1>;
 struct Metrics {
