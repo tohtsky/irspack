@@ -45,7 +45,7 @@ class Evaluator:
             Often the validation set is defined for a subset of users.
             When offset is not 0, we assume that the users with validation
             ground truth corresponds to X_train[offset:] where X_train
-            is the matrix feeded into the recommender class.
+            is the matrix feeded into the recommender class. Defaults to 0.
         cutoff (int, optional):
             Controls the default number of recommendation.
             When the evaluator is used for parameter tuning, this cutoff value will be used.

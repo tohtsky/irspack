@@ -21,7 +21,6 @@ However, I decided to implement my own one to
 
 - Use [optuna](https://github.com/optuna/optuna) for more efficient parameter search. In particular, if an early stopping scheme is available, optuna can prune unpromising trial based on the intermediate validation score, which drastically reduces overall running time for tuning.
 - Use multi-threaded implementations wherever possible. Currently, several important algorithms (KNN, iALS, SLIM) and performance evaluators are parallelized using C++ thread.
-- Deal with user cold-start scenarios using ["CB2CF" strategy](https://dl.acm.org/doi/10.1145/3298689.3347038), which I found very convenient in practice.
 
 # Installation & Optional Dependencies
 
@@ -91,15 +90,13 @@ We have to split the dataset to train and validation sets
 ```Python
 from irspack.split import rowwise_train_test_split
 from irspack.evaluator import Evaluator
+
+# Random split
 X_train, X_val = rowwise_train_test_split(
     X_interaction, test_ratio=0.2, random_seed=0
 )
 
-# often, X_val is defined for a subset of users.
-# `offset` specifies where the validated user blocks begin.
-# In this split, X_val is defined for the same users as X_train,
-# so offset = 0
-evaluator = Evaluator(ground_truth=X_val, offset=0)
+evaluator = Evaluator(ground_truth=X_val)
 
 recommender = P3alphaRecommender(X_train)
 recommender.learn()
@@ -145,6 +142,4 @@ See `examples/` for more complete examples.
 
 # TODOs
 
-- complete documentation
-- more splitting schemes
 - more benchmark dataset

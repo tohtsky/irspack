@@ -2,7 +2,7 @@ import logging
 import re
 import time
 from abc import ABCMeta
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import optuna
 import pandas as pd
@@ -80,36 +80,9 @@ class BaseOptimizer(object, metaclass=ABCMeta):
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return args, kwargs
 
-    def optimize_with_study(
+    def _objective_function(
         self,
-        study: optuna.Study,
-        n_trials: int = 20,
-        timeout: Optional[int] = None,
-    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
-        """Perform the optimization step using the user-created ``optuna.Study`` object.
-        Creating and managing the study object will be convenient e.g. when you
-
-            1. want to `store/resume the study using RDB backend <https://optuna.readthedocs.io/en/stable/tutorial/003_rdb.html>`_.
-            2. want perform a `distributed optimization <https://optuna.readthedocs.io/en/stable/tutorial/004_distributed.html>`_.
-
-        Args:
-            study:
-                The study object.
-            n_trials:
-                The number of expected trials (include pruned trial.). Defaults to 20.
-            timeout:
-                If set to some value (in seconds), the study will exit after that time period.
-                Note that the running trials is not interrupted, though. Defaults to None.
-
-        Returns:
-            A tuple that consists of
-
-                1. A dict containing the best paramaters.
-                   This dict can be passed to the recommender as ``**kwargs``.
-                2. A ``pandas.DataFrame`` that contains the history of optimization.
-
-        """
-
+    ) -> Callable[[optuna.Trial], float]:
         def objective_func(trial: optuna.Trial) -> float:
             start = time.time()
             params = dict(**self._suggest(trial), **self.fixed_params)
@@ -151,6 +124,40 @@ class BaseOptimizer(object, metaclass=ABCMeta):
             )
             trial.study.set_user_attr("scores", score_history)
             return -val_score
+
+        return objective_func
+
+    def optimize_with_study(
+        self,
+        study: optuna.Study,
+        n_trials: int = 20,
+        timeout: Optional[int] = None,
+    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
+        """Perform the optimization step using the user-created ``optuna.Study`` object.
+        Creating and managing the study object will be convenient e.g. when you
+
+            1. want to `store/resume the study using RDB backend <https://optuna.readthedocs.io/en/stable/tutorial/003_rdb.html>`_.
+            2. want perform a `distributed optimization <https://optuna.readthedocs.io/en/stable/tutorial/004_distributed.html>`_.
+
+        Args:
+            study:
+                The study object.
+            n_trials:
+                The number of expected trials (include pruned trial.). Defaults to 20.
+            timeout:
+                If set to some value (in seconds), the study will exit after that time period.
+                Note that the running trials is not interrupted, though. Defaults to None.
+
+        Returns:
+            A tuple that consists of
+
+                1. A dict containing the best paramaters.
+                   This dict can be passed to the recommender as ``**kwargs``.
+                2. A ``pandas.DataFrame`` that contains the history of optimization.
+
+        """
+
+        objective_func = self._objective_function()
 
         self.logger.info(
             """Start parameter search for %s over the range: %s""",
