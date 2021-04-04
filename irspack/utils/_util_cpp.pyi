@@ -37,7 +37,6 @@ def remove_diagonal(
 def retrieve_recommend_from_score(
     score: numpy.ndarray[float64, _Shape[m, n]],
     allowed_indices: List[List[int]],
-    forbidden_indices: List[List[int]],
     cutoff: int,
     n_threads: int = 1,
 ) -> List[List[Tuple[int, float]]]:

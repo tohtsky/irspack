@@ -244,15 +244,15 @@ class IDMappedRecommender:
             allowed_item_indices = [
                 self._item_id_list_to_index_list(_) for _ in allowed_item_ids
             ]
-        forbidden_item_indices: List[List[int]] = []
         if forbidden_item_ids is not None:
-            forbidden_item_indices = [
-                self._item_id_list_to_index_list(_) for _ in forbidden_item_ids
-            ]
+            for u, forbidden_ids_per_user in enumerate(forbidden_item_ids):
+                score[
+                    u, self._item_id_list_to_index_list(forbidden_ids_per_user)
+                ] = -np.inf
+
         raw_result = retrieve_recommend_from_score(
             score,
             allowed_item_indices,
-            forbidden_item_indices,
             cutoff,
             n_threads=n_threads,
         )
