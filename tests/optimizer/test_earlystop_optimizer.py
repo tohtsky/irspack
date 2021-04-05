@@ -6,6 +6,7 @@ from time import sleep
 from typing import IO, Any, Dict
 
 import numpy as np
+import optuna
 import pytest
 import scipy.sparse as sps
 
@@ -115,13 +116,29 @@ def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
     assert np.all(best_target_score_inferred >= history.target_score.values)
 
 
+def optimize_mock(
+    storage: str,
+    study_name: str,
+    X: sps.csr_matrix,
+    evaluator_: evaluator.Evaluator,
+    fixed_params: Dict[str, Any],
+    n_trials: int,
+) -> None:
+    study = optuna.create_study(storage, study_name=study_name, load_if_exists=True)
+    optimizer = MockOptimizer(
+        X,
+        evaluator_,
+        fixed_params=fixed_params,
+        logger=getLogger("IGNORE"),
+    )
+    optimizer.optimize_with_study(study, n_trials=n_trials)
+
+
 @pytest.mark.parametrize("X, target_epoch", [(X_small, 20)])
 def test_optimizer_another_process(X: InteractionMatrix, target_epoch: int) -> None:
     from logging import getLogger
     from multiprocessing import Process
     from tempfile import NamedTemporaryFile
-
-    import optuna
 
     with NamedTemporaryFile("wb") as storage_file:
         storage_name = f"sqlite:///{storage_file.name}"
@@ -130,24 +147,19 @@ def test_optimizer_another_process(X: InteractionMatrix, target_epoch: int) -> N
         N_TRIAL_SUBPROCESS = 7
         N_TRIAL_MAIN = 2
 
-        def optimize_mock(
-            storage: str,
-            study_name: str,
-            X: sps.csr_matrix,
-            evaluator_: evaluator.Evaluator,
-        ) -> None:
-            study = optuna.create_study(
-                storage, study_name=study_name, load_if_exists=True
-            )
-            optimizer = MockOptimizer(
+        p = Process(
+            target=optimize_mock,
+            args=(
+                storage_name,
+                "mock",
                 X,
                 evaluator_,
-                fixed_params=dict(target_epoch=target_epoch),
-                logger=getLogger("IGNORE"),
-            )
-            optimizer.optimize_with_study(study, n_trials=N_TRIAL_SUBPROCESS)
-
-        p = Process(target=optimize_mock, args=(storage_name, "mock", X, evaluator_))
+                dict(
+                    target_epoch=target_epoch,
+                ),
+                N_TRIAL_SUBPROCESS,
+            ),
+        )
         p.start()
         p.join()
 
