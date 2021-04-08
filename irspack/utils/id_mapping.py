@@ -104,6 +104,25 @@ class IDMappedRecommender:
         allowed_item_ids: Optional[List[Any]] = None,
         forbidden_item_ids: Optional[List[Any]] = None,
     ) -> List[Tuple[Any, float]]:
+        """Retrieve recommendation result for a known user.
+        Args:
+            user_id:
+                The target user ID.
+            cutoff:
+                Maximal number of recommendations allowed.
+            allowed_item_ids:
+                If not ``None``, recommend the items within this list.
+                If ``None``, all known item ids can be recommended (except for those in ``item_ids`` argument).
+                Defaults to ``None``.
+            forbidden_item_ids:
+                If not ``None``, never recommend the items within the list. Defaults to None.
+
+        Raises:
+            RuntimeError: When user_id is not in ``self.user_ids``.
+
+        Returns:
+            A List of tuples consisting of ``(item_id, score)``.
+        """
         if user_id not in self.user_ids:
             raise RuntimeError(f"User with user_id {user_id} not found.")
         user_index: UserIndexArray = np.asarray(
