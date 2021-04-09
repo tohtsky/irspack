@@ -2,7 +2,7 @@ import logging
 import re
 import time
 from abc import ABCMeta
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import optuna
 import pandas as pd
@@ -80,6 +80,53 @@ class BaseOptimizer(object, metaclass=ABCMeta):
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return args, kwargs
 
+    def _objective_function(
+        self,
+    ) -> Callable[[optuna.Trial], float]:
+        def objective_func(trial: optuna.Trial) -> float:
+            start = time.time()
+            params = dict(**self._suggest(trial), **self.fixed_params)
+            self.logger.info("Trial %s:", trial.number)
+            self.logger.info("parameter = %s", params)
+
+            arg, parameters = self.get_model_arguments(**params)
+
+            recommender = self.recommender_class(self._data, *arg, **parameters)
+            recommender.learn_with_optimizer(self.val_evaluator, trial)
+
+            score = self.val_evaluator.get_score(recommender)
+            end = time.time()
+
+            time_spent = end - start
+            self.logger.info(
+                "Config %d obtained the following scores: %s within %f seconds.",
+                trial.number,
+                score,
+                time_spent,
+            )
+            val_score = score[self.val_evaluator.target_metric.name]
+
+            # max_epoch will be stored in learnt_config
+            for param_name, param_val in recommender.learnt_config.items():
+                trial.set_user_attr(param_name, param_val)
+
+            score_history: List[
+                Tuple[int, Dict[str, float]]
+            ] = trial.study.user_attrs.get("scores", [])
+            score_history.append(
+                (
+                    trial.number,
+                    {
+                        f"{score_name}@{self.val_evaluator.cutoff}": score_value
+                        for score_name, score_value in score.items()
+                    },
+                )
+            )
+            trial.study.set_user_attr("scores", score_history)
+            return -val_score
+
+        return objective_func
+
     def optimize_with_study(
         self,
         study: optuna.Study,
@@ -110,39 +157,7 @@ class BaseOptimizer(object, metaclass=ABCMeta):
 
         """
 
-        def objective_func(trial: optuna.Trial) -> float:
-            start = time.time()
-            params = dict(**self._suggest(trial), **self.fixed_params)
-            self.logger.info("Trial %s:", self.current_trial)
-            self.logger.info("parameter = %s", params)
-
-            arg, parameters = self.get_model_arguments(**params)
-
-            recommender = self.recommender_class(self._data, *arg, **parameters)
-            recommender.learn_with_optimizer(self.val_evaluator, trial)
-
-            score = self.val_evaluator.get_score(recommender)
-            end = time.time()
-
-            time_spent = end - start
-            self.logger.info(
-                "Config %d obtained the following scores: %s within %f seconds.",
-                trial.number,
-                score,
-                time_spent,
-            )
-            val_score = score[self.val_evaluator.target_metric.name]
-
-            # max_epoch will be stored in learnt_config
-            for param_name, param_val in recommender.learnt_config.items():
-                trial.set_user_attr(param_name, param_val)
-
-            for score_name, score_value in score.items():
-                trial.set_user_attr(
-                    f"{score_name}@{self.val_evaluator.cutoff}", score_value
-                )
-
-            return -val_score
+        objective_func = self._objective_function()
 
         self.logger.info(
             """Start parameter search for %s over the range: %s""",
@@ -159,12 +174,23 @@ class BaseOptimizer(object, metaclass=ABCMeta):
                 if is_valid_param_name(key)
             },
         )
-        result_df = study.trials_dataframe()
+        result_df = study.trials_dataframe().set_index("number")
+
         # remove prefix
         result_df.columns = [
             re.sub(r"^(user_attrs|params)_", "", colname)
             for colname in result_df.columns
         ]
+
+        trial_and_scores: List[Tuple[float, Dict[str, float]]] = study.user_attrs.get(
+            "scores", []
+        )
+        score_df = pd.DataFrame(
+            [x[1] for x in trial_and_scores],
+            index=[x[0] for x in trial_and_scores],
+        )
+        score_df.index.name = "number"
+        result_df = result_df.join(score_df, how="left")
         return best_params, result_df
 
     def optimize(

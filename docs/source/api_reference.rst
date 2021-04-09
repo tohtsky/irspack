@@ -94,3 +94,14 @@ Split Functions
     split_dataframe_partial_user_holdout
     holdout_specific_interactions
     split_last_n_interaction_df
+
+.. currentmodule:: irspack.utils
+
+Utilities
+---------
+
+.. autosummary::
+    :toctree: api_reference
+    :nosignatures:
+
+    IDMappedRecommender

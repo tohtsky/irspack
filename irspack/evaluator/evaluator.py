@@ -45,7 +45,7 @@ class Evaluator:
             Often the validation set is defined for a subset of users.
             When offset is not 0, we assume that the users with validation
             ground truth corresponds to X_train[offset:] where X_train
-            is the matrix feeded into the recommender class.
+            is the matrix feeded into the recommender class. Defaults to 0.
         cutoff (int, optional):
             Controls the default number of recommendation.
             When the evaluator is used for parameter tuning, this cutoff value will be used.
@@ -122,6 +122,7 @@ class Evaluator:
         self.n_items = ground_truth.shape[1]
         self.target_metric = TargetMetric[target_metric]
         self.cutoff = cutoff
+        self.target_metric_name = f"{self.target_metric.name}@{self.cutoff}"
         self.n_threads = get_n_threads(n_threads)
         self.mb_size = mb_size
         if masked_interactions is None:

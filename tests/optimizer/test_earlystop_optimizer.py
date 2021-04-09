@@ -2,9 +2,11 @@ import os
 import pickle
 from contextlib import redirect_stderr, redirect_stdout
 from logging import getLogger
+from time import sleep
 from typing import IO, Any, Dict
 
 import numpy as np
+import optuna
 import pytest
 import scipy.sparse as sps
 
@@ -49,7 +51,7 @@ class MockRecommender(BaseRecommenderWithEarlyStopping):
         X: InteractionMatrix,
         target_epoch: int = 20,
         target_score: float = 0.0,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         super().__init__(X, **kwargs)
         self.target_epoch = target_epoch
@@ -57,6 +59,7 @@ class MockRecommender(BaseRecommenderWithEarlyStopping):
         self.rns = np.random.RandomState(42)
 
     def _create_trainer(self) -> MockTrainer:
+        sleep(0.01)
         return MockTrainer()
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
@@ -74,7 +77,8 @@ class MockRecommender(BaseRecommenderWithEarlyStopping):
 
 
 class MockEvaluator(evaluator.Evaluator):
-    def __init__(self) -> None:
+    def __init__(self, X: sps.csr_matrix) -> None:
+        super().__init__(X, offset=0)
         self.target_metric = evaluator.TargetMetric.ndcg
         self.cutoff = 30
 
@@ -90,9 +94,8 @@ class MockOptimizer(BaseOptimizerWithEarlyStopping):
 
 @pytest.mark.parametrize("X, target_epoch", [(X_small, 20)])
 def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
-    from logging import getLogger
 
-    evaluator = MockEvaluator()
+    evaluator = MockEvaluator(X)
     optimizer = MockOptimizer(
         X,
         evaluator,

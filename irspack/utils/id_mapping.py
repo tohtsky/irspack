@@ -104,6 +104,25 @@ class IDMappedRecommender:
         allowed_item_ids: Optional[List[Any]] = None,
         forbidden_item_ids: Optional[List[Any]] = None,
     ) -> List[Tuple[Any, float]]:
+        """Retrieve recommendation result for a known user.
+        Args:
+            user_id:
+                The target user ID.
+            cutoff:
+                Maximal number of recommendations allowed.
+            allowed_item_ids:
+                If not ``None``, recommend the items within this list.
+                If ``None``, all known item ids can be recommended (except for those in ``item_ids`` argument).
+                Defaults to ``None``.
+            forbidden_item_ids:
+                If not ``None``, never recommend the items within the list. Defaults to None.
+
+        Raises:
+            RuntimeError: When user_id is not in ``self.user_ids``.
+
+        Returns:
+            A List of tuples consisting of ``(item_id, score)``.
+        """
         if user_id not in self.user_ids:
             raise RuntimeError(f"User with user_id {user_id} not found.")
         user_index: UserIndexArray = np.asarray(
@@ -244,15 +263,15 @@ class IDMappedRecommender:
             allowed_item_indices = [
                 self._item_id_list_to_index_list(_) for _ in allowed_item_ids
             ]
-        forbidden_item_indices: List[List[int]] = []
         if forbidden_item_ids is not None:
-            forbidden_item_indices = [
-                self._item_id_list_to_index_list(_) for _ in forbidden_item_ids
-            ]
+            for u, forbidden_ids_per_user in enumerate(forbidden_item_ids):
+                score[
+                    u, self._item_id_list_to_index_list(forbidden_ids_per_user)
+                ] = -np.inf
+
         raw_result = retrieve_recommend_from_score(
             score,
             allowed_item_indices,
-            forbidden_item_indices,
             cutoff,
             n_threads=n_threads,
         )
