@@ -137,6 +137,47 @@ class IDMappedRecommender:
             forbidden_item_ids=forbidden_item_ids,
         )
 
+    def get_recommendation_for_known_user_batch(
+        self,
+        user_ids: List[Any],
+        cutoff: int = 20,
+        allowed_item_ids: Optional[List[List[Any]]] = None,
+        forbidden_item_ids: Optional[List[List[Any]]] = None,
+        n_threads: Optional[int] = None,
+    ) -> List[List[Tuple[Any, float]]]:
+        """Retrieve recommendation result for a list of known users.
+
+        Args:
+            user_ids:
+                A list of user ids.
+            cutoff:
+                Maximal number of recommendations allowed.
+            allowed_item_ids:
+                If not ``None``, defines "a list of list of recommendable item IDs"
+                and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``.
+                Defaults to ``None``.
+            forbidden_item_ids:
+                If not ``None``, defines "a list of list of forbidden item IDs"
+                and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``
+                Defaults to ``None``.
+
+        Returns:
+            A list of list of tuples consisting of ``(item_id, score)``.
+            Each internal list corresponds to the recommender's recommendation output.
+        """
+        user_indexes: UserIndexArray = np.asarray(
+            [self.user_id_to_index[user_id] for user_id in user_ids], dtype=np.int64
+        )
+
+        score = self.recommender.get_score_remove_seen(user_indexes)
+        return self._score_to_recommended_items_batch(
+            score,
+            cutoff=cutoff,
+            allowed_item_ids=allowed_item_ids,
+            forbidden_item_ids=forbidden_item_ids,
+            n_threads=get_n_threads(n_threads=n_threads),
+        )
+
     def get_recommendation_for_new_user(
         self,
         user_profile: Union[List[Any], Dict[Any, float]],
