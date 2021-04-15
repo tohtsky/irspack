@@ -133,7 +133,7 @@ optimizer = P3alphaOptimizer(X_train, evaluator)
 best_params, trial_dfs  = optimizer.optimize(n_trials=20)
 
 # maximal ndcg around 0.38 ~ 0.39
-trial_dfs.ndcg.max()
+trial_dfs["ndcg@10"].max()
 ```
 
 Of course, we have to hold-out another interaction set for test,
