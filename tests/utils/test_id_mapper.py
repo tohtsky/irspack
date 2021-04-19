@@ -61,6 +61,7 @@ def test_basic_usecase() -> None:
     with pytest.raises(RuntimeError):
         mapped_rec.get_recommendation_for_known_user_id(str(uuid.uuid4()))
 
+    known_user_results_individual = []
     for i, uid in enumerate(user_ids):
         nonzero_items = [item_ids[j] for j in X[i].nonzero()[1]]
         recommended = mapped_rec.get_recommendation_for_known_user_id(
@@ -71,11 +72,12 @@ def test_basic_usecase() -> None:
         assert len(recommended_ids.intersection(nonzero_items)) == 0
         assert len(recommended_ids.union(nonzero_items)) == n_items
         cutoff = n_items // 2
-        recommended_with_cutoff = mapped_rec.get_recommendation_for_known_user_id(
+        recommendation_with_cutoff = mapped_rec.get_recommendation_for_known_user_id(
             uid, cutoff=cutoff
         )
-        check_descending(recommended_with_cutoff)
-        assert len(recommended_with_cutoff) <= cutoff
+        known_user_results_individual.append(recommendation_with_cutoff)
+        check_descending(recommendation_with_cutoff)
+        assert len(recommendation_with_cutoff) <= cutoff
 
         forbbiden_item = list(
             set(
@@ -125,6 +127,19 @@ def test_basic_usecase() -> None:
         assert len(coldstart_rec_results.intersection(nonzero_items)) == 0
         assert len(coldstart_rec_results.union(nonzero_items)) == n_items
 
+    known_user_results_batch = mapped_rec.get_recommendation_for_known_user_batch(
+        user_ids, cutoff=n_items
+    )
+    assert len(known_user_results_batch) == len(known_user_results_individual)
+    for batch_res, indiv_res in zip(
+        known_user_results_batch, known_user_results_individual
+    ):
+        for (id_batch, score_batch), (id_indiv, score_indiv) in zip(
+            batch_res, indiv_res
+        ):
+            assert id_batch == id_indiv
+            assert score_batch == pytest.approx(score_indiv)
+
     nonzero_batch: List[List[str]] = []
     forbidden_items_batch: List[List[str]] = []
     allowed_items_batch: List[List[str]] = []
@@ -155,11 +170,11 @@ def test_basic_usecase() -> None:
     )
 
     assert len(batch_result_non_masked) == n_users
-    for recommended_using_batch, uid, nonzero_items in zip(
+    for recommendation_using_batch, uid, nonzero_items in zip(
         batch_result_non_masked, user_ids, nonzero_batch
     ):
-        check_descending(recommended_using_batch)
-        recommended_ids = {rec[0] for rec in recommended_using_batch}
+        check_descending(recommendation_using_batch)
+        recommended_ids = {rec[0] for rec in recommendation_using_batch}
         assert len(recommended_ids.intersection(nonzero_items)) == 0
         assert len(recommended_ids.union(nonzero_items)) == n_items
 
