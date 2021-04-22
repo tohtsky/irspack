@@ -2,7 +2,7 @@ import logging
 import re
 import time
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, no_type_check
 
 import optuna
 import pandas as pd
@@ -19,42 +19,39 @@ class LowMemoryError(RuntimeError):
     pass
 
 
-class BaseOptimizer(object, metaclass=ABCMeta):
-    """The base optimizer class for recommender classes.
+class OptimizerMeta(ABCMeta):
+    optimizer_name_vs_optimizer_class: Dict[str, "OptimizerMeta"] = {}
 
-    The child class must define
+    @no_type_check
+    def __new__(
+        mcs,
+        name,
+        bases,
+        namespace,
+        **kwargs,
+    ):
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        mcs.optimizer_name_vs_optimizer_class[name] = cls
+        return cls
 
-        - ``recommender_class``
-        - ``default_tune_range``
 
-    Args:
-        data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-            The train data.
-        val_evaluator (Evaluator):
-            The validation evaluator which measures the performance of the recommenders.
-        logger (Optional[logging.Logger], optional):
-            The logger used during the optimization steps. Defaults to None.
-            If ``None``, the default logger of irspack will be used.
-        suggest_overwrite (List[Suggestion], optional):
-            Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
-            the default parameter search space defined by ``default_tune_range``
-            Defaults to list().
-        fixed_params (Dict[str, Any], optional):
-            Fixed parameters passed to recommenders during the optimization procedure.
-            If such a parameter exists in :obj:`default_tune_range`, it will not be tuned.
-            Defaults to dict().
+def get_optimizer_class(optimizer_name: str) -> "BaseOptimizer":
+    result: "BaseOptimizer" = OptimizerMeta.optimizer_name_vs_optimizer_class[
+        optimizer_name
+    ]
+    return result
 
-    """
+
+class BaseOptimizer(object, metaclass=OptimizerMeta):
 
     recommender_class: Type[BaseRecommender]
     default_tune_range: List[Suggestion] = []
 
-    @abstractmethod
     @classmethod
     def tune_range_given_memory_budget(
         cls, X: InteractionMatrix, memory_in_mb: int
     ) -> List[Suggestion]:
-        raise NotImplementedError("implemented in subclass")
+        return []
 
     def __init__(
         self,
