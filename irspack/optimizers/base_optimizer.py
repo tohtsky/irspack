@@ -1,7 +1,7 @@
 import logging
 import re
 import time
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import optuna
@@ -13,6 +13,10 @@ from ..evaluator import Evaluator
 from ..parameter_tuning import Suggestion, is_valid_param_name, overwrite_suggestions
 from ..recommenders.base import BaseRecommender, InteractionMatrix
 from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
+
+
+class LowMemoryError(RuntimeError):
+    pass
 
 
 class BaseOptimizer(object, metaclass=ABCMeta):
@@ -44,6 +48,13 @@ class BaseOptimizer(object, metaclass=ABCMeta):
 
     recommender_class: Type[BaseRecommender]
     default_tune_range: List[Suggestion] = []
+
+    @abstractmethod
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_in_mb: int
+    ) -> List[Suggestion]:
+        raise NotImplementedError("implemented in subclass")
 
     def __init__(
         self,
