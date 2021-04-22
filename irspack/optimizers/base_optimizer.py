@@ -35,13 +35,6 @@ class OptimizerMeta(ABCMeta):
         return cls
 
 
-def get_optimizer_class(optimizer_name: str) -> "BaseOptimizer":
-    result: "BaseOptimizer" = OptimizerMeta.optimizer_name_vs_optimizer_class[
-        optimizer_name
-    ]
-    return result
-
-
 class BaseOptimizer(object, metaclass=OptimizerMeta):
 
     recommender_class: Type[BaseRecommender]
@@ -302,3 +295,10 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
             score_degradation_max=self.score_degradation_max,
             **kwargs,
         )
+
+
+def get_optimizer_class(optimizer_name: str) -> Type[BaseOptimizer]:
+    result: Type[BaseOptimizer] = OptimizerMeta.optimizer_name_vs_optimizer_class[
+        optimizer_name
+    ]
+    return result
