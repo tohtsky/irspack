@@ -173,9 +173,15 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         return args, kwargs
 
-    def _objective_function(
+    def objective_function(
         self,
     ) -> Callable[[optuna.Trial], float]:
+        """Returns the objective function that can be passed to ``optuna.Study`` .
+
+        Returns:
+            A callable that receives ``otpuna.Trial`` and returns float (like ndcg score).
+        """
+
         def objective_func(trial: optuna.Trial) -> float:
             start = time.time()
             params = dict(**self._suggest(trial), **self.fixed_params)
@@ -250,7 +256,7 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
 
         """
 
-        objective_func = self._objective_function()
+        objective_func = self.objective_function()
 
         self.logger.info(
             """Start parameter search for %s over the range: %s""",
