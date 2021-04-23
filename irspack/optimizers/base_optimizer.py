@@ -1,12 +1,13 @@
 import logging
 import re
 import time
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, no_type_check
 
 import optuna
 import pandas as pd
 
+from irspack import recommenders
 from irspack.utils.default_logger import get_default_logger
 
 from ..evaluator import Evaluator
@@ -17,6 +18,85 @@ from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
 class LowMemoryError(RuntimeError):
     pass
+
+
+_BaseOptimizerArgsString = """Args:
+    data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+        The train data.
+    val_evaluator (Evaluator):
+        The validation evaluator which measures the performance of the recommenders.
+    logger (Optional[logging.Logger], optional) :
+        The logger used during the optimization steps. Defaults to None.
+        If ``None``, the default logger of irspack will be used.
+    suggest_overwrite (List[Suggestion], optional) :
+        Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
+        the default parameter search space defined by ``default_tune_range``
+        Defaults to list().
+    fixed_params (Dict[str, Any], optional):
+        Fixed parameters passed to recommenders during the optimization procedure.
+        If such a parameter exists in ``default_tune_range``, it will not be tuned.
+        Defaults to dict().
+"""
+
+_BaseOptimizerWithEarlyStoppingArgsString = """Args:
+    data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+        The train data.
+    val_evaluator (Evaluator):
+        The validation evaluator which measures the performance of the recommenders.
+    logger (Optional[logging.Logger], optional):
+        The logger used during the optimization steps. Defaults to None.
+        If ``None``, the default logger of irspack will be used.
+    suggest_overwrite (List[Suggestion], optional):
+        Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
+        the default parameter search space defined by ``default_tune_range``
+        Defaults to list().
+    fixed_params (Dict[str, Any], optional):
+        Fixed parameters passed to recommenders during the optimization procedure.
+        If such a parameter exists in ``default_tune_range``, it will not be tuned.
+        Defaults to dict().
+    max_epoch (int, optional):
+        The maximal number of epochs for the training. Defaults to 512.
+    validate_epoch (int, optional):
+        The frequency of validation score measurement. Defaults to 5.
+    score_degradation_max (int, optional):
+        Maximal number of allowed score degradation. Defaults to 5. Defaults to 5.
+"""
+
+
+def optimizer_docstring(
+    default_tune_range: Optional[List[Suggestion]],
+    recommender_class: Optional[Type[BaseRecommender]],
+) -> Optional[str]:
+    if recommender_class is None:
+        return None
+    assert default_tune_range is not None
+    if default_tune_range:
+
+        ranges = ""
+        for suggest in default_tune_range:
+            ranges += f"          - ``{suggest!r}``\n"
+
+        ranges += "\n"
+
+    if issubclass(recommender_class, BaseRecommenderWithEarlyStopping):
+        args_docstring = _BaseOptimizerWithEarlyStoppingArgsString
+    else:
+        args_docstring = _BaseOptimizerArgsString
+
+    if default_tune_range:
+        tune_range = f"""The default tune range is
+
+{ranges}"""
+    else:
+        tune_range = "   There is no tunable parameters."
+    docs = f"""Optimizer class for :class:`irspack.recommenders.{recommender_class.__name__}`.
+
+{tune_range}
+
+{args_docstring}
+
+    """
+    return docs
 
 
 class OptimizerMeta(ABCMeta):
@@ -30,7 +110,19 @@ class OptimizerMeta(ABCMeta):
         namespace,
         **kwargs,
     ):
+
+        recommender_class: Optional[Type[BaseRecommender]] = namespace.get(
+            "recommender_class"
+        )
+        default_tune_range: Optional[List[Suggestion]] = namespace.get(
+            "default_tune_range"
+        )
+        if default_tune_range is None:
+            assert recommender_class is None
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        docs = optimizer_docstring(default_tune_range, recommender_class)
+        if docs is not None:
+            cls.__doc__ = docs
         mcs.optimizer_name_vs_optimizer_class[name] = cls
         return cls
 
