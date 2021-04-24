@@ -28,7 +28,7 @@ class Suggestion(object, metaclass=ABCMeta):
         self.name = name
 
     @abstractmethod
-    def suggest(self, trial: Trial) -> Any:
+    def suggest(self, trial: Trial, prefix: str = "") -> Any:
         raise NotImplementedError('"suggest" must be implemented.')
 
     @abstractmethod
@@ -65,8 +65,8 @@ class UniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial) -> Any:
-        return trial.suggest_uniform(self.name, self.low, self.high)
+    def suggest(self, trial: Trial, prefix: str = "") -> Any:
+        return trial.suggest_uniform(prefix + self.name, self.low, self.high)
 
     def __repr__(self) -> str:
         return f"UniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
@@ -81,8 +81,8 @@ class LogUniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial) -> Any:
-        return trial.suggest_loguniform(self.name, self.low, self.high)
+    def suggest(self, trial: Trial, prefix: str = "") -> Any:
+        return trial.suggest_loguniform(prefix + self.name, self.low, self.high)
 
     def __repr__(self) -> str:
         return f"LogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
@@ -98,8 +98,10 @@ class IntegerSuggestion(Suggestion):
         self.high = high
         self.step = step
 
-    def suggest(self, trial: Trial) -> Any:
-        return trial.suggest_int(self.name, self.low, self.high, step=self.step)
+    def suggest(self, trial: Trial, prefix: str = "") -> Any:
+        return trial.suggest_int(
+            prefix + self.name, self.low, self.high, step=self.step
+        )
 
     def __repr__(self) -> str:
         return f"IntegerSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
@@ -114,8 +116,8 @@ class IntegerLogUniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial) -> Any:
-        return round(trial.suggest_loguniform(self.name, self.low, self.high))
+    def suggest(self, trial: Trial, prefix: str = "") -> Any:
+        return round(trial.suggest_loguniform(prefix + self.name, self.low, self.high))
 
     def __repr__(self) -> str:
         return f"IntegerLogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
@@ -126,8 +128,8 @@ class CategoricalSuggestion(Suggestion):
         super().__init__(name)
         self.choices = choices
 
-    def suggest(self, trial: Trial) -> Any:
-        return trial.suggest_categorical(self.name, self.choices)
+    def suggest(self, trial: Trial, prefix: str = "") -> Any:
+        return trial.suggest_categorical(prefix + self.name, self.choices)
 
     def __repr__(self) -> str:
         return (

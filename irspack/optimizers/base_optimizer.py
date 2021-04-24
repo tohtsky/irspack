@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, no_type_che
 import optuna
 import pandas as pd
 
-from irspack import recommenders
 from irspack.utils.default_logger import get_default_logger
 
 from ..evaluator import Evaluator
@@ -127,6 +126,24 @@ class OptimizerMeta(ABCMeta):
         return cls
 
 
+def add_score_to_trial(
+    trial: optuna.Trial, score: Dict[str, float], cutoff: int
+) -> None:
+    score_history: List[Tuple[int, Dict[str, float]]] = trial.study.user_attrs.get(
+        "scores", []
+    )
+    score_history.append(
+        (
+            trial.number,
+            {
+                f"{score_name}@{cutoff}": score_value
+                for score_name, score_value in score.items()
+            },
+        )
+    )
+    trial.study.set_user_attr("scores", score_history)
+
+
 class BaseOptimizer(object, metaclass=OptimizerMeta):
 
     recommender_class: Type[BaseRecommender]
@@ -162,10 +179,10 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
         )
         self.fixed_params = fixed_params
 
-    def _suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
+    def _suggest(self, trial: optuna.Trial, prefix: str = "") -> Dict[str, Any]:
         parameters: Dict[str, Any] = dict()
         for s in self.suggestions:
-            parameters[s.name] = s.suggest(trial)
+            parameters[s.name] = s.suggest(trial, prefix)
         return parameters
 
     def get_model_arguments(
@@ -174,7 +191,7 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
         return args, kwargs
 
     def objective_function(
-        self,
+        self, param_prefix: str = ""
     ) -> Callable[[optuna.Trial], float]:
         """Returns the objective function that can be passed to ``optuna.Study`` .
 
@@ -184,7 +201,7 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
 
         def objective_func(trial: optuna.Trial) -> float:
             start = time.time()
-            params = dict(**self._suggest(trial), **self.fixed_params)
+            params = dict(**self._suggest(trial, param_prefix), **self.fixed_params)
             self.logger.info("Trial %s:", trial.number)
             self.logger.info("parameter = %s", params)
 
@@ -209,19 +226,8 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
             for param_name, param_val in recommender.learnt_config.items():
                 trial.set_user_attr(param_name, param_val)
 
-            score_history: List[
-                Tuple[int, Dict[str, float]]
-            ] = trial.study.user_attrs.get("scores", [])
-            score_history.append(
-                (
-                    trial.number,
-                    {
-                        f"{score_name}@{self.val_evaluator.cutoff}": score_value
-                        for score_name, score_value in score.items()
-                    },
-                )
-            )
-            trial.study.set_user_attr("scores", score_history)
+            add_score_to_trial(trial, score, self.val_evaluator.cutoff)
+
             return -val_score
 
         return objective_func

@@ -88,7 +88,7 @@ class DenseSLIMOptimizer(BaseOptimizer):
         cls, X: InteractionMatrix, memory_budget: int
     ) -> List[Suggestion]:
         n_items: int = X.shape[1]
-        if memory_budget < (2 * n_items ** 2):
+        if (1e6 * memory_budget) < (4 * 2 * n_items ** 2):
             raise LowMemoryError(
                 f"Memory budget {memory_budget} too small for DenseSLIM to work."
             )
