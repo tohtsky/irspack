@@ -1,6 +1,7 @@
 import re
 import time
-from multiprocessing import Process
+from logging import Logger
+from multiprocessing import Process, Queue
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid1
@@ -8,22 +9,27 @@ from uuid import uuid1
 import numpy as np
 import optuna
 from optuna.samplers import TPESampler
+from optuna.storages import RDBStorage
+from optuna.trial import TrialState
 
 from irspack.definitions import InteractionMatrix
 from irspack.evaluator import Evaluator
 from irspack.optimizers.base_optimizer import LowMemoryError, get_optimizer_class
 from irspack.parameter_tuning.parameter_range import Suggestion, is_valid_param_name
+from irspack.utils.default_logger import get_default_logger
 
 DEFAULT_SEARCHNAMES = ["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "SLIM"]
 
 
 def search_one(
+    queue: Queue,
     X: InteractionMatrix,
     evaluator: Evaluator,
     optimizer_names: List[str],
     suggest_overwrites: Dict[str, List[Suggestion]],
     intermediate_result_path: Path,
     random_seed: int,
+    logger: Logger,
     **kwargs: Any,
 ) -> None:
     study = optuna.load_study(
@@ -33,10 +39,14 @@ def search_one(
     )
 
     def objective(trial: optuna.Trial) -> float:
+        queue.put(trial.number)
         optimizer_name = trial.suggest_categorical("optimizer_name", optimizer_names)
         assert isinstance(optimizer_name, str)
         optimizer = get_optimizer_class(optimizer_name)(
-            X, evaluator, suggest_overwrite=suggest_overwrites[optimizer_name]
+            X,
+            evaluator,
+            suggest_overwrite=suggest_overwrites[optimizer_name],
+            logger=logger,
         )
         return optimizer.objective_function(optimizer_name + ".")(trial)
 
@@ -52,6 +62,7 @@ def autopilot(
     searched_recommenders: List[str] = DEFAULT_SEARCHNAMES,
     random_seed: Optional[int] = None,
     cleanup_study: bool = True,
+    logger: Optional[Logger] = None,
 ) -> Tuple[str, Dict[str, Any]]:
     RNS = np.random.RandomState(random_seed)
     assert len(searched_recommenders) > 0
@@ -68,33 +79,45 @@ def autopilot(
             optimizer_names.append(optimizer_class_name)
         except LowMemoryError:
             continue
+    if logger is None:
+        logger = get_default_logger()
 
-    print(optimizer_names)
-    study = optuna.create_study(
-        storage=f"sqlite:///{db_path.name}",
-        study_name="autopilot",
+    logger.info("Trying the following algorithms: %s", optimizer_names)
+    storage = RDBStorage(
+        url=f"sqlite:///{db_path.name}",
     )
+    study_id = storage.create_new_study("autopilot")
     start = time.time()
     for _ in range(n_trials):
 
         timeout_for_this_process: Optional[int] = None
         if timeout is not None:
             timeout_for_this_process = timeout * 5 // n_trials
+        queue = Queue()  # type: ignore
         p = Process(
             target=search_one,
             args=(
+                queue,
                 X,
                 evaluator,
                 optimizer_names,
                 suggest_overwrites,
                 db_path,
                 RNS.randint(0, 2 ** 31),
+                logger,
             ),
         )
         p.start()
+        trial_number: int = queue.get()
         p.join(timeout=timeout_for_this_process)
         if p.exitcode is None:
+            logger.info(f"Trial {trial_number} timeout.")
             p.terminate()
+            trial_id = storage.get_trial_id_from_study_id_trial_number(
+                study_id, trial_number
+            )
+            storage.set_trial_values(trial_id, [0.0])
+            storage.set_trial_state(trial_id, TrialState.COMPLETE)
 
         now = time.time()
         elapsed = now - start
@@ -118,7 +141,7 @@ def autopilot(
         re.sub(r"^([^\.]*\.)", "", key): value
         for key, value in best_params_with_prefix.items()
     }
-    optimizer_name: str = best_params_with_prefix.pop("optimizer_name")
+    optimizer_name: str = best_params.pop("optimizer_name")
     if cleanup_study:
         db_path.unlink()
     return optimizer_name, best_params
