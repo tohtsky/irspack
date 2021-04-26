@@ -144,6 +144,26 @@ def add_score_to_trial(
     trial.study.set_user_attr("scores", score_history)
 
 
+def study_to_dataframe(study: optuna.Study) -> pd.DataFrame:
+    result_df: pd.DataFrame = study.trials_dataframe().set_index("number")
+
+    # remove prefix
+    result_df.columns = [
+        re.sub(r"^(user_attrs|params)_", "", colname) for colname in result_df.columns
+    ]
+
+    trial_and_scores: List[Tuple[float, Dict[str, float]]] = study.user_attrs.get(
+        "scores", []
+    )
+    score_df = pd.DataFrame(
+        [x[1] for x in trial_and_scores],
+        index=[x[0] for x in trial_and_scores],
+    )
+    score_df.index.name = "number"
+    result_df = result_df.join(score_df, how="left")
+    return result_df
+
+
 class BaseOptimizer(object, metaclass=OptimizerMeta):
 
     recommender_class: Type[BaseRecommender]
@@ -279,24 +299,8 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
                 if is_valid_param_name(key)
             },
         )
-        result_df = study.trials_dataframe().set_index("number")
 
-        # remove prefix
-        result_df.columns = [
-            re.sub(r"^(user_attrs|params)_", "", colname)
-            for colname in result_df.columns
-        ]
-
-        trial_and_scores: List[Tuple[float, Dict[str, float]]] = study.user_attrs.get(
-            "scores", []
-        )
-        score_df = pd.DataFrame(
-            [x[1] for x in trial_and_scores],
-            index=[x[0] for x in trial_and_scores],
-        )
-        score_df.index.name = "number"
-        result_df = result_df.join(score_df, how="left")
-        return best_params, result_df
+        return best_params, study_to_dataframe(study)
 
     def optimize(
         self,

@@ -8,13 +8,18 @@ from uuid import uuid1
 
 import numpy as np
 import optuna
+import pandas as pd
 from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
 from optuna.trial import TrialState
 
 from irspack.definitions import InteractionMatrix
 from irspack.evaluator import Evaluator
-from irspack.optimizers.base_optimizer import LowMemoryError, get_optimizer_class
+from irspack.optimizers.base_optimizer import (
+    LowMemoryError,
+    get_optimizer_class,
+    study_to_dataframe,
+)
 from irspack.parameter_tuning.parameter_range import Suggestion, is_valid_param_name
 from irspack.utils.default_logger import get_default_logger
 
@@ -57,19 +62,19 @@ def autopilot(
     X: InteractionMatrix,
     evaluator: Evaluator,
     memory_budget: int = 4000,  # 4GB
-    timeout: Optional[int] = None,
+    timeout_overall: Optional[int] = None,
+    timeout_singlestep: Optional[int] = None,
     n_trials: int = 20,
-    searched_recommenders: List[str] = DEFAULT_SEARCHNAMES,
+    algorithms: List[str] = DEFAULT_SEARCHNAMES,
     random_seed: Optional[int] = None,
     cleanup_study: bool = True,
     logger: Optional[Logger] = None,
-) -> Tuple[str, Dict[str, Any]]:
+) -> Tuple[str, Dict[str, Any], pd.DataFrame]:
     RNS = np.random.RandomState(random_seed)
-    assert len(searched_recommenders) > 0
     suggest_overwrites: Dict[str, List[Suggestion]] = {}
     optimizer_names: List[str] = []
     db_path = Path(f".autopilot-{uuid1()}.db")
-    for rec_name in searched_recommenders:
+    for rec_name in algorithms:
         optimizer_class_name = rec_name + "Optimizer"
         optimizer_class = get_optimizer_class(optimizer_class_name)
         try:
@@ -79,6 +84,10 @@ def autopilot(
             optimizer_names.append(optimizer_class_name)
         except LowMemoryError:
             continue
+
+    if not optimizer_names:
+        raise RuntimeError("No available algorithm with given memory.")
+
     if logger is None:
         logger = get_default_logger()
 
@@ -90,9 +99,6 @@ def autopilot(
     start = time.time()
     for _ in range(n_trials):
 
-        timeout_for_this_process: Optional[int] = None
-        if timeout is not None:
-            timeout_for_this_process = timeout * 5 // n_trials
         queue = Queue()  # type: ignore
         p = Process(
             target=search_one,
@@ -108,7 +114,21 @@ def autopilot(
             ),
         )
         p.start()
+
+        process_start = time.time()
+
+        elapsed_at_start = process_start - start
         trial_number: int = queue.get()
+
+        timeout_for_this_process: Optional[int] = None
+        if (
+            (timeout_singlestep is not None)
+            and (timeout_overall is not None)
+            and (timeout_singlestep + elapsed_at_start > timeout_overall)
+        ):
+            timeout_for_this_process = max(timeout_overall - int(elapsed_at_start), 0)
+        else:
+            timeout_for_this_process = timeout_singlestep
         p.join(timeout=timeout_for_this_process)
         if p.exitcode is None:
             logger.info(f"Trial {trial_number} timeout.")
@@ -121,14 +141,13 @@ def autopilot(
 
         now = time.time()
         elapsed = now - start
-        if timeout is not None:
-            if elapsed > timeout:
+        if timeout_overall is not None:
+            if elapsed > timeout_overall:
                 break
     study = optuna.load_study(
         storage=f"sqlite:///{db_path.name}",
         study_name="autopilot",
     )
-    study.best_trial
     best_params_with_prefix = dict(
         **study.best_trial.params,
         **{
@@ -142,6 +161,7 @@ def autopilot(
         for key, value in best_params_with_prefix.items()
     }
     optimizer_name: str = best_params.pop("optimizer_name")
+    result_df = study_to_dataframe(study)
     if cleanup_study:
         db_path.unlink()
-    return optimizer_name, best_params
+    return (optimizer_name, best_params, result_df)

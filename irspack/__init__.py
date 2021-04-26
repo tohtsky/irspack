@@ -1,8 +1,15 @@
-# __version__ = "0.1.0.dev3"
 from pkg_resources import DistributionNotFound, get_distribution
+
+from irspack.recommenders.toppop import TopPopRecommender
 
 try:
     __version__ = get_distribution("irspack").version
-except DistributionNotFound:
+except DistributionNotFound:  # pragma: no cover
     # package is not installed
-    pass
+    pass  # pragma: no cover
+
+from irspack.definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
+from irspack.evaluator import *
+from irspack.optimizers import *
+from irspack.recommenders import *
+from irspack.split import *
