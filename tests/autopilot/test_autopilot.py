@@ -59,7 +59,7 @@ def test_autopilot() -> None:
         algorithms=["AutoPilotMock"],
         timeout_singlestep=2,
     )
-    assert best_param["wait_time"] < 1.0
+    assert best_param["wait_time"] < 2.0
     wait_times = trial_df["AutoPilotMockOptimizer.wait_time"]
-    assert np.all(trial_df.iloc[(wait_times.values > 1.0)]["ndcg@10"].isna())
+    assert np.all(trial_df.iloc[(wait_times.values > 2.0)]["ndcg@10"].isna())
     assert algorithm_name == "AutoPilotMockOptimizer"
