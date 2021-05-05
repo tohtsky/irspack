@@ -72,8 +72,8 @@ def autopilot(
     logger: Optional[Logger] = None,
     callback: Optional[Callable[[int, pd.DataFrame], None]] = None,
 ) -> Tuple[Type[BaseRecommender], Dict[str, Any], pd.DataFrame]:
-    r"""Given am interaction matrix and an evaluator, search for the best algorithm and its parameters
-    within the time & space constraits.
+    r"""Given an interaction matrix and an evaluator, search for the best algorithm and its parameters
+    (roughly) within the time & space constraints.
 
     Args:
         X:
@@ -192,7 +192,7 @@ def autopilot(
             try:
                 storage.set_trial_values(trial_id, [0.0])
                 storage.set_trial_state(trial_id, TrialState.COMPLETE)
-            except RuntimeError:  # pragma : no cover
+            except RuntimeError:  # pragma: no cover
                 # this happens if the trial completes before accepting the SIGTERM?
                 pass  # pragma: no cover
 

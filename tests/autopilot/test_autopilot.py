@@ -92,7 +92,7 @@ def test_autopilot_timeout() -> None:
             "AutoPilotMockOptimizer.wait_time"
         ].iloc[-1]
 
-    recommender_class, _, trial_df = autopilot(
+    recommender_class, best_param, trial_df = autopilot(
         X_small,
         evaluator,
         memory_budget=1,
@@ -109,6 +109,7 @@ def test_autopilot_timeout() -> None:
     # dense slim should be skipped
     assert len({name for name in trial_df["optimizer_name"] if not pd.isna(name)}) == 1
     assert recommender_class is AutopilotMockRecommender
+    recommender_class(X_small, **best_param).learn()
     for index, row in trial_df.iterrows():
         target_value = row["AutoPilotMockOptimizer.wait_time"]
         test_value = wait_times_given_by_callback[index]

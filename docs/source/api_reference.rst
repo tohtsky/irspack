@@ -81,6 +81,16 @@ Optimizers
     DenseSLIMOptimizer
     MultVAEOptimizer
 
+
+Autopilot
+---------
+.. autosummary::
+    :toctree: api_reference
+    :nosignatures:
+
+    autopilot
+
+
 .. currentmodule:: irspack.split
 
 Split Functions
