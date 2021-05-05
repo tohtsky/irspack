@@ -3,7 +3,7 @@ import time
 from logging import Logger
 from multiprocessing import Process, Queue
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from uuid import uuid1
 
 import numpy as np
@@ -21,6 +21,7 @@ from irspack.optimizers.base_optimizer import (
     study_to_dataframe,
 )
 from irspack.parameter_tuning.parameter_range import Suggestion, is_valid_param_name
+from irspack.recommenders import BaseRecommender
 from irspack.utils.default_logger import get_default_logger
 
 DEFAULT_SEARCHNAMES = ["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "SLIM"]
@@ -62,16 +63,61 @@ def search_one(
 def autopilot(
     X: InteractionMatrix,
     evaluator: Evaluator,
+    n_trials: int = 20,
     memory_budget: int = 4000,  # 4GB
     timeout_overall: Optional[int] = None,
     timeout_singlestep: Optional[int] = None,
-    n_trials: int = 20,
     algorithms: List[str] = DEFAULT_SEARCHNAMES,
     random_seed: Optional[int] = None,
-    cleanup_study: bool = True,
     logger: Optional[Logger] = None,
-    callback: Optional[Callable[[int, optuna.Study], None]] = None,
-) -> Tuple[str, Dict[str, Any], pd.DataFrame]:
+    callback: Optional[Callable[[int, pd.DataFrame], None]] = None,
+) -> Tuple[Type[BaseRecommender], Dict[str, Any], pd.DataFrame]:
+    r"""Given am interaction matrix and an evaluator, search for the best algorithm and its parameters
+    within the time & space constraits.
+
+    Args:
+        X:
+            Input interaction matrix.
+        evaluator:
+            Evaluator to measure the performance of the recommenders.
+        n_trials: The maximal number of trials. Defaults to 20.
+        memory_budget:
+            Optimizers will try search parameters so that memory usage (in megabyte) will not exceed this values.
+            An algorithm will not be searched if it inevitably violates this bound.
+            Note that this value is quite rough one and will not be respected strictly.
+        timeout_overall:
+            If set, the total execution time of the trials will not exceed this value (roughly).
+        timeout_singlestep:
+            If set, a single trial (recommender and a set of its parameter) will not run for more than the value (in seconds).
+            Such a trial is considered to have produced  a score value of 0,
+            and optuna will avoid suggesting such values (if everything works fine).
+            Defaults to `None`.
+        algorithms:
+            A list of algorithm names to be tried.
+            Defaults to `["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "SLIM"]`.
+        random_seed:
+            The random seed that controls the suggestion behavior.
+            Defaults to `None`.
+        logger:
+            The logger to be used. If `None`, irspack's default logger will be used.
+            Defaults to None.
+        callback:
+            If not `None`, called at the end of every single trial with the following arguments
+
+                1. The current trial's number.
+                2. A `pd.DataFrame` that holds history of trial execution.
+
+            Defaults to `None`.
+
+    Raises:
+        RuntimeError: If no trials have been completed within given timeout.
+
+    Returns:
+
+        * The best algorithm's recommender class.
+        * The best parameters.
+        * The dataframe containing the history of trials.
+    """
     RNS = np.random.RandomState(random_seed)
     suggest_overwrites: Dict[str, List[Suggestion]] = {}
     optimizer_names: List[str] = []
@@ -143,11 +189,15 @@ def autopilot(
             trial_id = storage.get_trial_id_from_study_id_trial_number(
                 study_id, trial_number
             )
-            storage.set_trial_values(trial_id, [0.0])
-            storage.set_trial_state(trial_id, TrialState.COMPLETE)
+            try:
+                storage.set_trial_values(trial_id, [0.0])
+                storage.set_trial_state(trial_id, TrialState.COMPLETE)
+            except RuntimeError:  # pragma : no cover
+                # this happens if the trial completes before accepting the SIGTERM?
+                pass  # pragma: no cover
 
         if callback is not None:
-            callback(trial_number, study)
+            callback(trial_number, study_to_dataframe(study))
 
         now = time.time()
         elapsed = now - start
@@ -168,6 +218,7 @@ def autopilot(
     }
     optimizer_name: str = best_params.pop("optimizer_name")
     result_df = study_to_dataframe(study)
-    if cleanup_study:
-        db_path.unlink()
-    return (optimizer_name, best_params, result_df)
+    db_path.unlink()
+    recommender_class = get_optimizer_class(optimizer_name).recommender_class
+
+    return (recommender_class, best_params, result_df)

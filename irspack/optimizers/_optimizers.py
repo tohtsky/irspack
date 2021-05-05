@@ -92,7 +92,7 @@ class DenseSLIMOptimizer(BaseOptimizer):
             raise LowMemoryError(
                 f"Memory budget {memory_budget} too small for DenseSLIM to work."
             )
-        return cls.default_tune_range
+        return []
 
 
 class TruncatedSVDOptimizer(BaseOptimizer):

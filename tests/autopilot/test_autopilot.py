@@ -1,5 +1,5 @@
 import time
-from typing import List
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -12,10 +12,10 @@ from irspack import (
     DenseScoreArray,
     InteractionMatrix,
     UserIndexArray,
+    autopilot,
 )
 from irspack.evaluator.evaluator import Evaluator
 from irspack.parameter_tuning import Suggestion, UniformSuggestion
-from irspack.parameter_tuning.autopilot import autopilot
 
 TIMESCALE = 1.5
 
@@ -53,7 +53,7 @@ class AutoPilotMockOptimizer(BaseOptimizer):
 
 def test_autopilot() -> None:
     evaluator = Evaluator(X_answer, 0)
-    algorithm_name, best_param, trial_df = autopilot(
+    recommender_class, best_param, trial_df = autopilot(
         X_small,
         evaluator,
         memory_budget=1,
@@ -62,9 +62,10 @@ def test_autopilot() -> None:
         timeout_singlestep=2,
     )
     assert best_param["wait_time"] < 2.0
+    assert trial_df.shape[0] == 10
     wait_times = trial_df["AutoPilotMockOptimizer.wait_time"]
     assert np.all(trial_df.iloc[(wait_times.values > 2.0)]["ndcg@10"].isna())
-    assert algorithm_name == "AutoPilotMockOptimizer"
+    assert recommender_class is AutopilotMockRecommender
 
 
 def test_autopilot_timeout() -> None:
@@ -76,23 +77,42 @@ def test_autopilot_timeout() -> None:
             X_small,
             evaluator,
             memory_budget=1,
-            n_trials=wait,
+            n_trials=100,
             algorithms=["DenseSLIM"],
             timeout_overall=5,
+            timeout_singlestep=1,
         )
 
-    algorithm_name, _, trial_df = autopilot(
+    start = time.time()
+
+    wait_times_given_by_callback: Dict[int, float] = {}
+
+    def callback(trial_number: int, history_df: pd.DataFrame) -> None:
+        wait_times_given_by_callback[trial_number] = history_df[
+            "AutoPilotMockOptimizer.wait_time"
+        ].iloc[-1]
+
+    recommender_class, _, trial_df = autopilot(
         X_small,
         evaluator,
         memory_budget=1,
-        n_trials=wait,
+        n_trials=100,
         algorithms=["AutoPilotMock", "DenseSLIM"],
-        timeout_overall=5,
-        timeout_singlestep=2,
+        timeout_overall=wait,
+        timeout_singlestep=1,
+        callback=callback,
     )
+    end = time.time()
+    assert wait < (end - start) + 1
     wait_times = trial_df["AutoPilotMockOptimizer.wait_time"]
-    assert wait_times.iloc[:-1].sum() <= wait
-
+    assert np.all(trial_df.iloc[(wait_times.values > 1.0)]["ndcg@10"].isna())
     # dense slim should be skipped
     assert len({name for name in trial_df["optimizer_name"] if not pd.isna(name)}) == 1
-    assert algorithm_name == "AutoPilotMockOptimizer"
+    assert recommender_class is AutopilotMockRecommender
+    for index, row in trial_df.iterrows():
+        target_value = row["AutoPilotMockOptimizer.wait_time"]
+        test_value = wait_times_given_by_callback[index]
+        if pd.isna(test_value):
+            assert pd.isna(target_value)
+        else:
+            assert target_value == test_value
