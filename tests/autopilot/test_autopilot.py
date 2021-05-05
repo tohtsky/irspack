@@ -2,6 +2,7 @@ import time
 from typing import List
 
 import numpy as np
+import pytest
 from scipy import sparse as sps
 
 from irspack import (
@@ -68,6 +69,17 @@ def test_autopilot() -> None:
 def test_autopilot_timeout() -> None:
     evaluator = Evaluator(X_answer, 0)
     wait = 20
+    with pytest.raises(RuntimeError):
+        # no available algorithm
+        autopilot(
+            X_small,
+            evaluator,
+            memory_budget=1,
+            n_trials=wait,
+            algorithms=["DenseSLIM"],
+            timeout_overall=5,
+        )
+
     algorithm_name, best_param, trial_df = autopilot(
         X_small,
         evaluator,
@@ -80,5 +92,5 @@ def test_autopilot_timeout() -> None:
     assert wait_times.iloc[:-1].sum() <= wait
 
     # dense slim should be skipped
-    assert len(trial_df["algorithm_date"].unique()) == 1
+    assert len(trial_df["optimizer_name"].unique()) == 1
     assert algorithm_name == "AutoPilotMockOptimizer"
