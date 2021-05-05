@@ -1,12 +1,12 @@
 m: int
 n: int
-from numpy import float32
-
-import irspack.recommenders._knn
-from typing import *
 from typing import Iterable as iterable
 from typing import Iterator as iterator
-from numpy import float64
+from typing import *
+
+from numpy import float32, float64
+
+import irspack.recommenders._knn
 
 _Shape = Tuple[int, ...]
 import scipy.sparse

@@ -1,12 +1,12 @@
 m: int
 n: int
-from numpy import float32
-
-import irspack.utils._util_cpp
-from typing import *
 from typing import Iterable as iterable
 from typing import Iterator as iterator
-from numpy import float64
+from typing import *
+
+from numpy import float32, float64
+
+import irspack.utils._util_cpp
 
 _Shape = Tuple[int, ...]
 import numpy

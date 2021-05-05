@@ -1,7 +1,13 @@
 import warnings
 from typing import List, Type
 
-from ..optimizers.base_optimizer import BaseOptimizer, BaseOptimizerWithEarlyStopping
+from irspack.definitions import InteractionMatrix
+
+from ..optimizers.base_optimizer import (
+    BaseOptimizer,
+    BaseOptimizerWithEarlyStopping,
+    LowMemoryError,
+)
 from ..parameter_tuning import (
     CategoricalSuggestion,
     IntegerSuggestion,
@@ -38,81 +44,21 @@ default_tune_range_knn_with_weighting = [
 ]
 
 
-_BaseOptimizerArgsString = """Args:
-    data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-        The train data.
-    val_evaluator (Evaluator):
-        The validation evaluator which measures the performance of the recommenders.
-    logger (Optional[logging.Logger], optional) :
-        The logger used during the optimization steps. Defaults to None.
-        If ``None``, the default logger of irspack will be used.
-    suggest_overwrite (List[Suggestion], optional) :
-        Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
-        the default parameter search space defined by ``default_tune_range``
-        Defaults to list().
-    fixed_params (Dict[str, Any], optional):
-        Fixed parameters passed to recommenders during the optimization procedure.
-        If such a parameter exists in ``default_tune_range``, it will not be tuned.
-        Defaults to dict().
-"""
-
-_BaseOptimizerWithEarlyStoppingArgsString = """Args:
-    data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-        The train data.
-    val_evaluator (Evaluator):
-        The validation evaluator which measures the performance of the recommenders.
-    logger (Optional[logging.Logger], optional):
-        The logger used during the optimization steps. Defaults to None.
-        If ``None``, the default logger of irspack will be used.
-    suggest_overwrite (List[Suggestion], optional):
-        Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
-        the default parameter search space defined by ``default_tune_range``
-        Defaults to list().
-    fixed_params (Dict[str, Any], optional):
-        Fixed parameters passed to recommenders during the optimization procedure.
-        If such a parameter exists in ``default_tune_range``, it will not be tuned.
-        Defaults to dict().
-    max_epoch (int, optional):
-        The maximal number of epochs for the training. Defaults to 512.
-    validate_epoch (int, optional):
-        The frequency of validation score measurement. Defaults to 5.
-    score_degradation_max (int, optional):
-        Maximal number of allowed score degradation. Defaults to 5. Defaults to 5.
-"""
-
-
-def _add_docstring(
-    cls: Type[BaseOptimizer], args: str = _BaseOptimizerArgsString
-) -> None:
-
-    if cls.default_tune_range:
-
-        ranges = ""
-        for suggest in cls.default_tune_range:
-            ranges += f"          - ``{suggest!r}``\n"
-
-        ranges += "\n"
-        tune_range = f"""The default tune range is
-
-{ranges}"""
-    else:
-        tune_range = "   There is no tunable parameters."
-    docs = f"""Optimizer class for :class:`irspack.recommenders.{cls.recommender_class.__name__}`.
-
-{tune_range}
-
-{args}
-
-    """
-    cls.__doc__ = docs
+def _get_maximal_n_components_for_budget(
+    X: InteractionMatrix, budget: int, n_component_max_default: int
+) -> int:
+    return min(int((budget * 1e6) / (8 * (sum(X.shape) + 1))), n_component_max_default)
 
 
 class TopPopOptimizer(BaseOptimizer):
     default_tune_range: List[Suggestion] = []
     recommender_class = TopPopRecommender
 
-
-_add_docstring(TopPopOptimizer)
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        return []
 
 
 class IALSOptimizer(BaseOptimizerWithEarlyStopping):
@@ -123,11 +69,89 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping):
     ]
     recommender_class = IALSRecommender
 
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        n_components = _get_maximal_n_components_for_budget(X, memory_budget, 300)
+        return [
+            IntegerSuggestion("n_components", 4, n_components),
+        ]
 
-_add_docstring(IALSOptimizer, _BaseOptimizerWithEarlyStoppingArgsString)
+
+class DenseSLIMOptimizer(BaseOptimizer):
+    default_tune_range: List[Suggestion] = [LogUniformSuggestion("reg", 1, 1e4)]
+    recommender_class = DenseSLIMRecommender
+
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        n_items: int = X.shape[1]
+        if (1e6 * memory_budget) < (4 * 2 * n_items ** 2):
+            raise LowMemoryError(
+                f"Memory budget {memory_budget} too small for DenseSLIM to work."
+            )
+        return []
 
 
-class P3alphaOptimizer(BaseOptimizer):
+class TruncatedSVDOptimizer(BaseOptimizer):
+    default_tune_range = [IntegerSuggestion("n_components", 4, 512)]
+    recommender_class = TruncatedSVDRecommender
+
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
+        return [
+            IntegerSuggestion("n_components", 4, n_components),
+        ]
+
+
+class NMFOptimizer(BaseOptimizer):
+    default_tune_range = [
+        IntegerSuggestion("n_components", 4, 512),
+        LogUniformSuggestion("alpha", 1e-10, 1e-1),
+        UniformSuggestion("l1_ratio", 0, 1),
+    ]
+    recommender_class = NMFRecommender
+
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
+        return [
+            IntegerSuggestion("top_k", 4, n_components),
+        ]
+
+
+class SimilarityBasedOptimizerBase(BaseOptimizer):
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        top_k_max = min(int(1e6 * memory_budget / 4 // (X.shape[1] + 1)), 1024)
+        if top_k_max <= 4:
+            raise LowMemoryError(
+                f"Memory budget {memory_budget} too small for {cls.__name__} to work."
+            )
+
+        return [
+            IntegerSuggestion("top_k", 4, top_k_max),
+        ]
+
+
+class SLIMOptimizer(SimilarityBasedOptimizerBase):
+    default_tune_range = [
+        LogUniformSuggestion("alpha", 1e-5, 1),
+        UniformSuggestion("l1_ratio", 0, 1),
+    ]
+    recommender_class = SLIMRecommender
+
+
+class P3alphaOptimizer(SimilarityBasedOptimizerBase):
     default_tune_range = [
         IntegerSuggestion("top_k", low=10, high=1000),
         CategoricalSuggestion("normalize_weight", [True, False]),
@@ -135,18 +159,7 @@ class P3alphaOptimizer(BaseOptimizer):
     recommender_class = P3alphaRecommender
 
 
-_add_docstring(P3alphaOptimizer)
-
-
-class DenseSLIMOptimizer(BaseOptimizer):
-    default_tune_range = [LogUniformSuggestion("reg", 1, 1e4)]
-    recommender_class = DenseSLIMRecommender
-
-
-_add_docstring(DenseSLIMOptimizer)
-
-
-class RP3betaOptimizer(BaseOptimizer):
+class RP3betaOptimizer(SimilarityBasedOptimizerBase):
     default_tune_range = [
         IntegerSuggestion("top_k", 2, 1000),
         LogUniformSuggestion("beta", 1e-5, 5e-1),
@@ -155,42 +168,7 @@ class RP3betaOptimizer(BaseOptimizer):
     recommender_class = RP3betaRecommender
 
 
-_add_docstring(RP3betaOptimizer)
-
-
-class TruncatedSVDOptimizer(BaseOptimizer):
-    default_tune_range = [IntegerSuggestion("n_components", 4, 512)]
-    recommender_class = TruncatedSVDRecommender
-
-
-_add_docstring(TruncatedSVDOptimizer)
-
-
-class SLIMOptimizer(BaseOptimizer):
-    default_tune_range = [
-        LogUniformSuggestion("alpha", 1e-5, 1),
-        UniformSuggestion("l1_ratio", 0, 1),
-    ]
-    recommender_class = SLIMRecommender
-
-
-_add_docstring(SLIMOptimizer)
-
-
-class NMFOptimizer(BaseOptimizer):
-    default_tune_range = [
-        IntegerSuggestion("n_components", 4, 512),
-        LogUniformSuggestion("alpha", 1e-10, 1e-1),
-        UniformSuggestion("l1_ratio", 0, 1),
-        CategoricalSuggestion("beta_loss", ["frobenius", "kullback-leibler"]),
-    ]
-    recommender_class = NMFRecommender
-
-
-_add_docstring(NMFOptimizer)
-
-
-class CosineKNNOptimizer(BaseOptimizer):
+class CosineKNNOptimizer(SimilarityBasedOptimizerBase):
     default_tune_range = default_tune_range_knn_with_weighting.copy() + [
         CategoricalSuggestion("normalize", [False, True])
     ]
@@ -198,10 +176,7 @@ class CosineKNNOptimizer(BaseOptimizer):
     recommender_class = CosineKNNRecommender
 
 
-_add_docstring(CosineKNNOptimizer)
-
-
-class AsymmetricCosineKNNOptimizer(BaseOptimizer):
+class AsymmetricCosineKNNOptimizer(SimilarityBasedOptimizerBase):
     default_tune_range = default_tune_range_knn_with_weighting + [
         UniformSuggestion("alpha", 0, 1)
     ]
@@ -209,19 +184,13 @@ class AsymmetricCosineKNNOptimizer(BaseOptimizer):
     recommender_class = AsymmetricCosineKNNRecommender
 
 
-_add_docstring(AsymmetricCosineKNNOptimizer)
-
-
-class JaccardKNNOptimizer(BaseOptimizer):
+class JaccardKNNOptimizer(SimilarityBasedOptimizerBase):
 
     default_tune_range = default_tune_range_knn.copy()
     recommender_class = JaccardKNNRecommender
 
 
-_add_docstring(JaccardKNNOptimizer)
-
-
-class TverskyIndexKNNOptimizer(BaseOptimizer):
+class TverskyIndexKNNOptimizer(SimilarityBasedOptimizerBase):
     default_tune_range = default_tune_range_knn.copy() + [
         UniformSuggestion("alpha", 0, 2),
         UniformSuggestion("beta", 0, 2),
@@ -230,10 +199,18 @@ class TverskyIndexKNNOptimizer(BaseOptimizer):
     recommender_class = TverskyIndexKNNRecommender
 
 
-_add_docstring(TverskyIndexKNNOptimizer)
+class UserSimilarityBasedOptimizerBase(BaseOptimizer):
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        top_k_max = min(int(1e6 * memory_budget / 4 // (X.shape[0] + 1)), 1024)
+        return [
+            IntegerSuggestion("top_k", 4, top_k_max),
+        ]
 
 
-class CosineUserKNNOptimizer(BaseOptimizer):
+class CosineUserKNNOptimizer(UserSimilarityBasedOptimizerBase):
     default_tune_range = default_tune_range_knn_with_weighting.copy() + [
         CategoricalSuggestion("normalize", [False, True])
     ]
@@ -241,18 +218,12 @@ class CosineUserKNNOptimizer(BaseOptimizer):
     recommender_class = CosineUserKNNRecommender
 
 
-_add_docstring(CosineUserKNNOptimizer)
-
-
-class AsymmetricCosineUserKNNOptimizer(BaseOptimizer):
+class AsymmetricCosineUserKNNOptimizer(UserSimilarityBasedOptimizerBase):
     default_tune_range = default_tune_range_knn_with_weighting + [
         UniformSuggestion("alpha", 0, 1)
     ]
 
     recommender_class = AsymmetricCosineUserKNNRecommender
-
-
-_add_docstring(AsymmetricCosineUserKNNOptimizer)
 
 
 try:
@@ -267,11 +238,19 @@ try:
         ]
         recommender_class = BPRFMRecommender
 
-    _add_docstring(BPRFMOptimizer, _BaseOptimizerWithEarlyStoppingArgsString)
+        @classmethod
+        def tune_range_given_memory_budget(
+            cls, X: InteractionMatrix, memory_budget: int
+        ) -> List[Suggestion]:
+            # memory usage will be roughly 4 (float) * (n_users + n_items) * k
+            n_components = _get_maximal_n_components_for_budget(X, memory_budget, 300)
+            return [
+                IntegerSuggestion("n_components", 4, n_components),
+            ]
 
 
-except:
-    pass
+except:  # pragma: no cover
+    pass  # pragma: no cover
 
 
 try:
@@ -285,9 +264,17 @@ try:
         ]
         recommender_class = MultVAERecommender
 
-    _add_docstring(MultVAEOptimizer, _BaseOptimizerWithEarlyStoppingArgsString)
+        @classmethod
+        def tune_range_given_memory_budget(
+            cls, X: InteractionMatrix, memory_budget: int
+        ) -> List[Suggestion]:
+            if memory_budget * 1e6 > (X.shape[1] * 2048 * 8):
+                raise LowMemoryError(
+                    f"Memory budget {memory_budget} too small for MultVAE to work."
+                )
+
+            return []
 
 
-except:
-    warnings.warn("MultVAEOptimizer is not available.")
-    pass
+except:  # pragma: no cover
+    warnings.warn("MultVAEOptimizer is not available.")  # pragma: no cover

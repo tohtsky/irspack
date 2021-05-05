@@ -16,6 +16,7 @@ from ._optimizers import (
     TruncatedSVDOptimizer,
     TverskyIndexKNNOptimizer,
 )
+from .autopilot import autopilot
 
 __all__ = [
     "BaseOptimizer",
@@ -34,6 +35,7 @@ __all__ = [
     "TverskyIndexKNNOptimizer",
     "NMFOptimizer",
     "TruncatedSVDOptimizer",
+    "autopilot",
 ]
 
 try:

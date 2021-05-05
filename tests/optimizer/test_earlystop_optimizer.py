@@ -6,20 +6,21 @@ from time import sleep
 from typing import IO, Any, Dict
 
 import numpy as np
-import optuna
 import pytest
 import scipy.sparse as sps
 
-from irspack import evaluator
-from irspack.definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
-from irspack.optimizers.base_optimizer import BaseOptimizerWithEarlyStopping
-from irspack.parameter_tuning import UniformSuggestion
-from irspack.recommenders.base import BaseRecommender
-from irspack.recommenders.base_earlystop import (
+from irspack import (
+    BaseOptimizerWithEarlyStopping,
+    BaseRecommender,
     BaseRecommenderWithEarlyStopping,
-    TrainerBase,
+    DenseScoreArray,
+    Evaluator,
+    InteractionMatrix,
+    TargetMetric,
+    UserIndexArray,
 )
-from irspack.split import rowwise_train_test_split
+from irspack.parameter_tuning import UniformSuggestion
+from irspack.recommenders.base_earlystop import TrainerBase
 
 X_small = sps.csr_matrix(
     (np.random.RandomState(42).rand(100, 32) > 0.5).astype(np.float64)
@@ -76,10 +77,10 @@ class MockRecommender(BaseRecommenderWithEarlyStopping):
         return self.target_score * coeff
 
 
-class MockEvaluator(evaluator.Evaluator):
+class MockEvaluator(Evaluator):
     def __init__(self, X: sps.csr_matrix) -> None:
         super().__init__(X, offset=0)
-        self.target_metric = evaluator.TargetMetric.ndcg
+        self.target_metric = TargetMetric.ndcg
         self.cutoff = 30
 
     def get_score(self, model: BaseRecommender) -> Dict[str, float]:
