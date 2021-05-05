@@ -18,12 +18,12 @@ jobs:
         run: |
           pip install --upgrade pip
           sudo apt-get install lcov
-          IRSPACK_TESTING="true" python setup.py develop
+          IRSPACK_TESTING=true python setup.py develop
       - name: Run pytest
         run: |
           pip install pytest pytest-cov
           pip install lightfm jaxlib jax dm-haiku optax
-          pytest --cov=./irspack tests/
+          IRSPACK_TESTING=true pytest --cov=./irspack tests/
       - name: Generate coverage (ubuntu)
         run: |
           coverage xml
