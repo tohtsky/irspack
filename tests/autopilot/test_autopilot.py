@@ -1,3 +1,4 @@
+import os
 import time
 from typing import Dict, List
 
@@ -16,6 +17,8 @@ from irspack import (
 )
 from irspack.evaluator.evaluator import Evaluator
 from irspack.parameter_tuning import Suggestion, UniformSuggestion
+
+SKIP_TEST = os.environ.get("IRSPACK_TESTING", "false") != "true"
 
 TIMESCALE = 1.5
 
@@ -51,6 +54,7 @@ class AutoPilotMockOptimizer(BaseOptimizer):
         return []
 
 
+@pytest.mark.skipif(SKIP_TEST)
 def test_autopilot() -> None:
     evaluator = Evaluator(X_answer, 0)
     recommender_class, best_param, trial_df = autopilot(
@@ -68,6 +72,7 @@ def test_autopilot() -> None:
     assert recommender_class is AutopilotMockRecommender
 
 
+@pytest.mark.skipif(SKIP_TEST)
 def test_autopilot_timeout() -> None:
     evaluator = Evaluator(X_answer, 0)
     wait = 20
