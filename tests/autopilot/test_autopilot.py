@@ -1,5 +1,5 @@
 import time
-from typing import Any, List
+from typing import List
 
 import numpy as np
 from scipy import sparse as sps
@@ -18,7 +18,7 @@ from irspack.parameter_tuning.autopilot import autopilot
 TIMESCALE = 1.5
 
 X_small = sps.csr_matrix(
-    (np.random.RandomState(42).rand(100, 32) > 0.5).astype(np.float64)
+    (np.random.RandomState(42).rand(10, 1024) > 0.5).astype(np.float64)
 )
 X_answer = sps.csr_matrix(
     (np.random.RandomState(43).rand(*X_small.shape) > 0.5).astype(np.float64)
@@ -62,4 +62,23 @@ def test_autopilot() -> None:
     assert best_param["wait_time"] < 2.0
     wait_times = trial_df["AutoPilotMockOptimizer.wait_time"]
     assert np.all(trial_df.iloc[(wait_times.values > 2.0)]["ndcg@10"].isna())
+    assert algorithm_name == "AutoPilotMockOptimizer"
+
+
+def test_autopilot_timeout() -> None:
+    evaluator = Evaluator(X_answer, 0)
+    wait = 20
+    algorithm_name, best_param, trial_df = autopilot(
+        X_small,
+        evaluator,
+        memory_budget=1,
+        n_trials=wait,
+        algorithms=["AutoPilotMock", "DenseSLIM"],
+        timeout_overall=5,
+    )
+    wait_times = trial_df["AutoPilotMockOptimizer.wait_time"]
+    assert wait_times.iloc[:-1].sum() <= wait
+
+    # dense slim should be skipped
+    assert len(trial_df["algorithm_date"].unique()) == 1
     assert algorithm_name == "AutoPilotMockOptimizer"

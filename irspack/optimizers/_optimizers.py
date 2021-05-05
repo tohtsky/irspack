@@ -133,6 +133,11 @@ class SimilarityBasedOptimizerBase(BaseOptimizer):
         cls, X: InteractionMatrix, memory_budget: int
     ) -> List[Suggestion]:
         top_k_max = min(int(1e6 * memory_budget / 4 // (X.shape[1] + 1)), 1024)
+        if top_k_max <= 4:
+            raise LowMemoryError(
+                f"Memory budget {memory_budget} too small for {cls.__name__} to work."
+            )
+
         return [
             IntegerSuggestion("top_k", 4, top_k_max),
         ]
@@ -244,8 +249,8 @@ try:
             ]
 
 
-except:
-    pass
+except:  # pragma: no cover
+    pass  # pragma: no cover
 
 
 try:
@@ -271,6 +276,5 @@ try:
             return []
 
 
-except:
-    warnings.warn("MultVAEOptimizer is not available.")
-    pass
+except:  # pragma: no cover
+    warnings.warn("MultVAEOptimizer is not available.")  # pragma: no cover
