@@ -2,6 +2,7 @@ import time
 from typing import List
 
 import numpy as np
+import pandas as pd
 import pytest
 from scipy import sparse as sps
 
@@ -80,17 +81,18 @@ def test_autopilot_timeout() -> None:
             timeout_overall=5,
         )
 
-    algorithm_name, best_param, trial_df = autopilot(
+    algorithm_name, _, trial_df = autopilot(
         X_small,
         evaluator,
         memory_budget=1,
         n_trials=wait,
         algorithms=["AutoPilotMock", "DenseSLIM"],
         timeout_overall=5,
+        timeout_singlestep=2,
     )
     wait_times = trial_df["AutoPilotMockOptimizer.wait_time"]
     assert wait_times.iloc[:-1].sum() <= wait
 
     # dense slim should be skipped
-    assert len(trial_df["optimizer_name"].unique()) == 1
+    assert len({name for name in trial_df["optimizer_name"] if not pd.isna(name)}) == 1
     assert algorithm_name == "AutoPilotMockOptimizer"

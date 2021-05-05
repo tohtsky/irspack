@@ -3,7 +3,7 @@ import time
 from logging import Logger
 from multiprocessing import Process, Queue
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from uuid import uuid1
 
 import numpy as np
@@ -53,7 +53,8 @@ def search_one(
             suggest_overwrite=suggest_overwrites[optimizer_name],
             logger=logger,
         )
-        return optimizer.objective_function(optimizer_name + ".")(trial)
+        result = optimizer.objective_function(optimizer_name + ".")(trial)
+        return result
 
     study.optimize(objective, n_trials=1)
 
@@ -69,6 +70,7 @@ def autopilot(
     random_seed: Optional[int] = None,
     cleanup_study: bool = True,
     logger: Optional[Logger] = None,
+    callback: Optional[Callable[[int, optuna.Study], None]] = None,
 ) -> Tuple[str, Dict[str, Any], pd.DataFrame]:
     RNS = np.random.RandomState(random_seed)
     suggest_overwrites: Dict[str, List[Suggestion]] = {}
@@ -97,6 +99,10 @@ def autopilot(
     )
     study_id = storage.create_new_study("autopilot")
     start = time.time()
+    study = optuna.load_study(
+        storage=f"sqlite:///{db_path.name}",
+        study_name="autopilot",
+    )
     for _ in range(n_trials):
 
         queue = Queue()  # type: ignore
@@ -121,15 +127,16 @@ def autopilot(
         trial_number: int = queue.get()
 
         timeout_for_this_process: Optional[int] = None
-        if (
-            (timeout_singlestep is not None)
-            and (timeout_overall is not None)
-            and (timeout_singlestep + elapsed_at_start > timeout_overall)
-        ):
-            timeout_for_this_process = max(timeout_overall - int(elapsed_at_start), 0)
-        else:
+        if timeout_overall is None:
             timeout_for_this_process = timeout_singlestep
+        else:
+            timeouf_for_this_process = int(timeout_overall - elapsed_at_start)
+            if timeout_singlestep is not None:
+                timeout_for_this_process = min(
+                    timeouf_for_this_process, timeout_singlestep
+                )
         p.join(timeout=timeout_for_this_process)
+
         if p.exitcode is None:
             logger.info(f"Trial {trial_number} timeout.")
             p.terminate()
@@ -139,15 +146,14 @@ def autopilot(
             storage.set_trial_values(trial_id, [0.0])
             storage.set_trial_state(trial_id, TrialState.COMPLETE)
 
+        if callback is not None:
+            callback(trial_number, study)
+
         now = time.time()
         elapsed = now - start
         if timeout_overall is not None:
             if elapsed > timeout_overall:
                 break
-    study = optuna.load_study(
-        storage=f"sqlite:///{db_path.name}",
-        study_name="autopilot",
-    )
     best_params_with_prefix = dict(
         **study.best_trial.params,
         **{
