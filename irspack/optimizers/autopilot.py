@@ -1,7 +1,7 @@
 import re
 import time
 from logging import Logger
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from uuid import uuid1
@@ -29,11 +29,11 @@ DEFAULT_SEARCHNAMES = ["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "S
 
 
 def search_one(
+    queue: Queue,
     X: InteractionMatrix,
     evaluator: Evaluator,
     optimizer_names: List[str],
     suggest_overwrites: Dict[str, List[Suggestion]],
-    trial_id: int,
     db_url: str,
     study_name: str,
     random_seed: int,
@@ -45,22 +45,21 @@ def search_one(
         study_name=study_name,
         sampler=TPESampler(seed=random_seed),
     )
-    trial = optuna.Trial(study, trial_id)
 
-    optimizer_name = trial.suggest_categorical("optimizer_name", optimizer_names)
-    assert isinstance(optimizer_name, str)
+    def _obj(trial: optuna.Trial) -> float:
+        queue.put(trial.number)
+        optimizer_name = trial.suggest_categorical("optimizer_name", optimizer_names)
+        assert isinstance(optimizer_name, str)
 
-    optimizer = get_optimizer_class(optimizer_name)(
-        X,
-        evaluator,
-        suggest_overwrite=suggest_overwrites[optimizer_name],
-        logger=logger,
-    )
-    try:
-        result = optimizer.objective_function(optimizer_name + ".")(trial)
-        study.tell(trial.number, result)
-    except optuna.TrialPruned:
-        pass
+        optimizer = get_optimizer_class(optimizer_name)(
+            X,
+            evaluator,
+            suggest_overwrite=suggest_overwrites[optimizer_name],
+            logger=logger,
+        )
+        return optimizer.objective_function(optimizer_name + ".")(trial)
+
+    study.optimize(_obj, n_trials=1)
 
 
 def autopilot(
@@ -160,20 +159,17 @@ def autopilot(
         storage=storage_,
         study_name=study_name,
     )
+    queue = Queue()  # type: ignore
 
     for _ in range(n_trials):
-        trial = study.ask()
-        trial_id = storage_.get_trial_id_from_study_id_trial_number(
-            study_id, trial.number
-        )
         p = Process(
             target=search_one,
             args=(
+                queue,
                 X,
                 evaluator,
                 optimizer_names,
                 suggest_overwrites,
-                trial_id,
                 storage_.url,
                 study_name,
                 RNS.randint(0, 2 ** 31),
@@ -187,6 +183,8 @@ def autopilot(
         elapsed_at_start = process_start - start
 
         timeout_for_this_process: Optional[int] = None
+
+        trial_number: int = queue.get()
         if timeout_overall is None:
             timeout_for_this_process = timeout_singlestep
         else:
@@ -198,16 +196,20 @@ def autopilot(
         p.join(timeout=timeout_for_this_process)
 
         if p.exitcode is None:
-            logger.info(f"Trial {trial.number} timeout.")
+            logger.info(f"Trial {trial_number} timeout.")
             p.terminate()
             try:
-                study.tell(trial, [0.0], TrialState.FAIL)
+                trial_id = storage_.get_trial_id_from_study_id_trial_number(
+                    study_id, trial_number
+                )
+                # storage_.set_tri
+                storage_.set_trial_state(trial_id, TrialState.FAIL)
             except ValueError:  # pragma: no cover
                 # this happens if the trial completes before accepting the SIGTERM?
                 pass  # pragma: no cover
 
         if callback is not None:
-            callback(trial.number, study_to_dataframe(study))
+            callback(trial_number, study_to_dataframe(study))
 
         now = time.time()
         elapsed = now - start

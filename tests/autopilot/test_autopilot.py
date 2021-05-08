@@ -57,7 +57,7 @@ class AutoPilotMockOptimizer(BaseOptimizer):
 @pytest.mark.skipif(SKIP_TEST, reason="May not work on non-Linux.")
 def test_autopilot() -> None:
     evaluator = Evaluator(X_answer, 0)
-    recommender_class, best_param, trial_df = autopilot(
+    recommender_class, best_param, trial_df, _ = autopilot(
         X_small,
         evaluator,
         memory_budget=1,
@@ -97,7 +97,7 @@ def test_autopilot_timeout() -> None:
             "AutoPilotMockOptimizer.wait_time"
         ].iloc[-1]
 
-    recommender_class, best_param, trial_df = autopilot(
+    recommender_class, best_param, trial_df, _ = autopilot(
         X_small,
         evaluator,
         memory_budget=1,

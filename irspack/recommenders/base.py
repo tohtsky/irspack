@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union, no_type_check
 
 import numpy as np
 from optuna.trial import Trial
@@ -27,7 +27,24 @@ class CallBeforeFitError(Exception):
     pass
 
 
-class BaseRecommender(object, metaclass=ABCMeta):
+class RecommenderMeta(ABCMeta):
+    recommender_name_vs_recommender_class: Dict[str, "RecommenderMeta"] = {}
+
+    @no_type_check
+    def __new__(
+        mcs,
+        name,
+        bases,
+        namespace,
+        **kwargs,
+    ):
+
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        mcs.recommender_name_vs_recommender_class[name] = cls
+        return cls
+
+
+class BaseRecommender(object, metaclass=RecommenderMeta):
     X_train_all: sps.csr_matrix
     """The base class for all (hot) recommenders.
 
@@ -258,3 +275,10 @@ class BaseRecommenderWithItemEmbedding(BaseRecommender):
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
         raise NotImplementedError("get_score_from_item_embedding must be implemented.")
+
+
+def get_recommender_class(recommender_name: str) -> Type[BaseRecommender]:
+    result: Type[
+        BaseRecommender
+    ] = RecommenderMeta.recommender_name_vs_recommender_class[recommender_name]
+    return result
