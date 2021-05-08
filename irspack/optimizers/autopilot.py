@@ -1,7 +1,7 @@
 import re
 import time
 from logging import Logger
-from multiprocessing import Process, Queue
+from multiprocessing import Process
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from uuid import uuid1
@@ -9,6 +9,7 @@ from uuid import uuid1
 import numpy as np
 import optuna
 import pandas as pd
+from optuna import storages
 from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
 from optuna.trial import TrialState
@@ -28,36 +29,38 @@ DEFAULT_SEARCHNAMES = ["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "S
 
 
 def search_one(
-    queue: Queue,
     X: InteractionMatrix,
     evaluator: Evaluator,
     optimizer_names: List[str],
     suggest_overwrites: Dict[str, List[Suggestion]],
-    intermediate_result_path: Path,
+    trial_id: int,
+    db_url: str,
+    study_name: str,
     random_seed: int,
     logger: Logger,
     **kwargs: Any,
 ) -> None:
     study = optuna.load_study(
-        storage=f"sqlite:///{intermediate_result_path.name}",
-        study_name="autopilot",
+        storage=db_url,
+        study_name=study_name,
         sampler=TPESampler(seed=random_seed),
     )
+    trial = optuna.Trial(study, trial_id)
 
-    def objective(trial: optuna.Trial) -> float:
-        queue.put(trial.number)
-        optimizer_name = trial.suggest_categorical("optimizer_name", optimizer_names)
-        assert isinstance(optimizer_name, str)
-        optimizer = get_optimizer_class(optimizer_name)(
-            X,
-            evaluator,
-            suggest_overwrite=suggest_overwrites[optimizer_name],
-            logger=logger,
-        )
+    optimizer_name = trial.suggest_categorical("optimizer_name", optimizer_names)
+    assert isinstance(optimizer_name, str)
+
+    optimizer = get_optimizer_class(optimizer_name)(
+        X,
+        evaluator,
+        suggest_overwrite=suggest_overwrites[optimizer_name],
+        logger=logger,
+    )
+    try:
         result = optimizer.objective_function(optimizer_name + ".")(trial)
-        return result
-
-    study.optimize(objective, n_trials=1)
+        study.tell(trial.number, result)
+    except optuna.TrialPruned:
+        pass
 
 
 def autopilot(
@@ -71,7 +74,8 @@ def autopilot(
     random_seed: Optional[int] = None,
     logger: Optional[Logger] = None,
     callback: Optional[Callable[[int, pd.DataFrame], None]] = None,
-) -> Tuple[Type[BaseRecommender], Dict[str, Any], pd.DataFrame]:
+    storage: Optional[RDBStorage] = None,
+) -> Tuple[Type[BaseRecommender], Dict[str, Any], pd.DataFrame, Optional[str]]:
     r"""Given an interaction matrix and an evaluator, search for the best algorithm and its parameters
     (roughly) within the time & space constraints.
 
@@ -117,11 +121,11 @@ def autopilot(
         * The best algorithm's recommender class.
         * The best parameters.
         * The dataframe containing the history of trials.
+        * (Optional) study name created during the process. Returned only when external storage is given.
     """
     RNS = np.random.RandomState(random_seed)
     suggest_overwrites: Dict[str, List[Suggestion]] = {}
     optimizer_names: List[str] = []
-    db_path = Path(f".autopilot-{uuid1()}.db")
     for rec_name in algorithms:
         optimizer_class_name = rec_name + "Optimizer"
         optimizer_class = get_optimizer_class(optimizer_class_name)
@@ -140,27 +144,38 @@ def autopilot(
         logger = get_default_logger()
 
     logger.info("Trying the following algorithms: %s", optimizer_names)
-    storage = RDBStorage(
-        url=f"sqlite:///{db_path.name}",
-    )
-    study_id = storage.create_new_study("autopilot")
+
+    optional_db_path = Path(f".autopilot-{uuid1()}.db")
+    storage_: RDBStorage
+    if storage is None:
+        storage_ = RDBStorage(
+            url=f"sqlite:///{optional_db_path.name}",
+        )
+    else:
+        storage_ = storage
+    study_name = f"autopilot-{uuid1()}"
+    study_id = storage_.create_new_study(study_name)
     start = time.time()
     study = optuna.load_study(
-        storage=f"sqlite:///{db_path.name}",
-        study_name="autopilot",
+        storage=storage_,
+        study_name=study_name,
     )
-    for _ in range(n_trials):
 
-        queue = Queue()  # type: ignore
+    for _ in range(n_trials):
+        trial = study.ask()
+        trial_id = storage_.get_trial_id_from_study_id_trial_number(
+            study_id, trial.number
+        )
         p = Process(
             target=search_one,
             args=(
-                queue,
                 X,
                 evaluator,
                 optimizer_names,
                 suggest_overwrites,
-                db_path,
+                trial_id,
+                storage_.url,
+                study_name,
                 RNS.randint(0, 2 ** 31),
                 logger,
             ),
@@ -170,7 +185,6 @@ def autopilot(
         process_start = time.time()
 
         elapsed_at_start = process_start - start
-        trial_number: int = queue.get()
 
         timeout_for_this_process: Optional[int] = None
         if timeout_overall is None:
@@ -184,20 +198,16 @@ def autopilot(
         p.join(timeout=timeout_for_this_process)
 
         if p.exitcode is None:
-            logger.info(f"Trial {trial_number} timeout.")
+            logger.info(f"Trial {trial.number} timeout.")
             p.terminate()
-            trial_id = storage.get_trial_id_from_study_id_trial_number(
-                study_id, trial_number
-            )
             try:
-                storage.set_trial_values(trial_id, [0.0])
-                storage.set_trial_state(trial_id, TrialState.COMPLETE)
-            except RuntimeError:  # pragma: no cover
+                study.tell(trial, [0.0], TrialState.FAIL)
+            except ValueError:  # pragma: no cover
                 # this happens if the trial completes before accepting the SIGTERM?
                 pass  # pragma: no cover
 
         if callback is not None:
-            callback(trial_number, study_to_dataframe(study))
+            callback(trial.number, study_to_dataframe(study))
 
         now = time.time()
         elapsed = now - start
@@ -218,7 +228,12 @@ def autopilot(
     }
     optimizer_name: str = best_params.pop("optimizer_name")
     result_df = study_to_dataframe(study)
-    db_path.unlink()
+
+    study_name_result = None
+    if storage is None:
+        optional_db_path.unlink()
+    else:
+        study_name_result = study_name
     recommender_class = get_optimizer_class(optimizer_name).recommender_class
 
-    return (recommender_class, best_params, result_df)
+    return (recommender_class, best_params, result_df, study_name_result)
