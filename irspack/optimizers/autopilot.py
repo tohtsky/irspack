@@ -29,15 +29,11 @@ from irspack.utils.default_logger import get_default_logger
 
 DEFAULT_SEARCHNAMES = ["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "SLIM"]
 
-_INTERNAL_ID_KEYNAME = "_autopilot_internal_id"
-
-
 _sort_intermediate: Callable[[Tuple[int, float]], float] = lambda _: _[1]
 
 
 def search_one(
     pipe: Any,
-    autopilot_internal_id: str,
     X: InteractionMatrix,
     evaluator: Evaluator,
     optimizer_names: List[str],
@@ -55,7 +51,6 @@ def search_one(
 
     def _obj(trial: optuna.Trial) -> float:
         pipe.send(trial.number)
-        trial.set_user_attr(_INTERNAL_ID_KEYNAME, autopilot_internal_id)
         optimizer_name = trial.suggest_categorical("optimizer_name", optimizer_names)
         assert isinstance(optimizer_name, str)
 
@@ -74,7 +69,6 @@ class TaskBackend(ABC):
     @abstractmethod
     def __init__(
         self,
-        autopilot_internal_id: str,
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
@@ -114,7 +108,6 @@ class TaskBackend(ABC):
 class MultiProcessingBackend(TaskBackend):
     def __init__(
         self,
-        autopilot_internal_id: str,
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
@@ -129,7 +122,6 @@ class MultiProcessingBackend(TaskBackend):
             target=search_one,
             args=(
                 pipe_child,
-                autopilot_internal_id,
                 X,
                 evaluator,
                 optimizer_names,
@@ -161,7 +153,6 @@ class MultiProcessingBackend(TaskBackend):
 class SameThreadBackend(TaskBackend):
     def __init__(
         self,
-        autopilot_internal_id: str,
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
@@ -172,7 +163,6 @@ class SameThreadBackend(TaskBackend):
         logger: Logger,
     ):
         self._args = (
-            autopilot_internal_id,
             X,
             evaluator,
             optimizer_names,
@@ -340,9 +330,7 @@ def autopilot(
 
             if timeout_singlestep is not None:
                 timeout_for_this_process = min(remaining_time, timeout_singlestep)
-        internal_id = str(uuid1())
         task = task_resource_provider(
-            internal_id,
             X,
             evaluator,
             optimizer_names,
