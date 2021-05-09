@@ -1,6 +1,6 @@
 import warnings
 
-from .base import BaseRecommender, BaseSimilarityRecommender
+from .base import BaseRecommender, BaseSimilarityRecommender, get_recommender_class
 from .base_earlystop import BaseRecommenderWithEarlyStopping
 from .dense_slim import DenseSLIMRecommender
 from .ials import IALSRecommender
@@ -36,6 +36,7 @@ __all__ = [
     "AsymmetricCosineKNNRecommender",
     "CosineUserKNNRecommender",
     "AsymmetricCosineUserKNNRecommender",
+    "get_recommender_class",
 ]
 
 try:

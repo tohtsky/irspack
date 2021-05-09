@@ -10,3 +10,5 @@ ProfileMatrix = Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]
 DenseScoreArray = np.ndarray
 DenseMatrix = np.ndarray
 UserIndexArray = np.ndarray
+
+OptionalRandomState = Union[None, int, np.random.RandomState]

@@ -25,7 +25,7 @@ def test_sparse_mm_threaded() -> None:
 
 
 def test_split() -> None:
-    X_1, X_2 = rowwise_train_test_split(X, test_ratio=0.5, random_seed=1)
+    X_1, X_2 = rowwise_train_test_split(X, test_ratio=0.5, random_state=1)
     np.testing.assert_allclose(X.toarray(), (X_1 + X_2).toarray())
 
     # should have no overwrap
@@ -39,7 +39,7 @@ def test_split() -> None:
 
 def test_split_ceil() -> None:
     X_1, X_2 = rowwise_train_test_split(
-        X, test_ratio=0.5, random_seed=1, ceil_n_test=True
+        X, test_ratio=0.5, random_state=1, ceil_n_test=True
     )
     np.testing.assert_allclose(X.toarray(), (X_1 + X_2).toarray())
 
@@ -53,7 +53,7 @@ def test_split_ceil() -> None:
 
 
 def test_split_fixed_n() -> None:
-    X_1, X_2 = rowwise_train_test_split(X, test_ratio=0.5, n_test=1, random_seed=1)
+    X_1, X_2 = rowwise_train_test_split(X, test_ratio=0.5, n_test=1, random_state=1)
     np.testing.assert_allclose(X.toarray(), (X_1 + X_2).toarray())
 
     # should have no overwrap

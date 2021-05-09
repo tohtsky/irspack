@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import scipy.sparse as sps
-from numpy.core.fromnumeric import choose
 
 from irspack.split import holdout_specific_interactions
 
@@ -69,15 +68,15 @@ def test_holdout_particular_item_interaction() -> None:
     total_validatable_users = n_validatable_users_in_train + val.n_users + test.n_users
 
     assert train_validatable_user_ratio >= (
-        (n_validatable_users_in_train - 1) / total_validatable_users
+        (n_validatable_users_in_train - 2) / total_validatable_users
     )
     assert train_validatable_user_ratio <= (
-        (n_validatable_users_in_train + 1) / total_validatable_users
+        (n_validatable_users_in_train + 2) / total_validatable_users
     )
-    assert val_validatable_user_ratio <= ((val.n_users + 1) / total_validatable_users)
-    assert val_validatable_user_ratio >= ((val.n_users - 1) / total_validatable_users)
-    assert test_validatable_user_ratio <= ((test.n_users + 1) / total_validatable_users)
-    assert test_validatable_user_ratio >= ((test.n_users - 1) / total_validatable_users)
+    assert val_validatable_user_ratio <= ((val.n_users + 2) / total_validatable_users)
+    assert val_validatable_user_ratio >= ((val.n_users - 2) / total_validatable_users)
+    assert test_validatable_user_ratio <= ((test.n_users + 2) / total_validatable_users)
+    assert test_validatable_user_ratio >= ((test.n_users - 2) / total_validatable_users)
 
     assert (
         total_validatable_users
@@ -135,7 +134,7 @@ def test_raise() -> None:
             validatable_interactions,
             validatable_user_ratio_val=validatable_user_ratio_val,
             validatable_user_ratio_test=validatable_user_ratio_test,
-            random_seed=0,
+            random_state=0,
         )
 
 
@@ -152,7 +151,7 @@ def test_holdout_future() -> None:
         validatable_interactions,
         validatable_user_ratio_val=validatable_user_ratio_val,
         validatable_user_ratio_test=validatable_user_ratio_test,
-        random_seed=0,
+        random_state=0,
     )
     train_users = dataset["train"]
     val_users = dataset["val"]

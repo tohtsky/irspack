@@ -39,7 +39,7 @@ class MovieLens100KDataManager(BaseMovieLenstDataLoader):
     def _read_genre(self) -> List[str]:
         with self._read_as_istream(self.GENRE_PATH) as ifs:
             items = ifs.read().decode("latin-1").split()
-            return [re.sub("\|\d+$", "", i.strip()) for i in items]
+            return [re.sub(r"\|\d+$", "", i.strip()) for i in items]
 
     def read_item_info(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         with self._read_as_istream(self.ITEM_INFO_PATH) as ifs:

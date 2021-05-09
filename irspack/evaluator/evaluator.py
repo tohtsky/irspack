@@ -67,7 +67,7 @@ class Evaluator:
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
+            and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
 
         recall_with_cutoff (bool, optional):
             This affects the definition of recall.
@@ -260,7 +260,7 @@ class EvaluatorWithColdUser(Evaluator):
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
+            and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
         recall_with_cutoff (bool, optional):
             This affects the definition of recall.
             If ``True``, for each user, recall will be evaluated by

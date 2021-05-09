@@ -3,11 +3,18 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 from scipy import sparse as sps
-from sklearn.model_selection import train_test_split
 
-from irspack.definitions import InteractionMatrix
+from irspack.definitions import InteractionMatrix, OptionalRandomState
 from irspack.split.time import split_last_n_interaction_df
 from irspack.utils import rowwise_train_test_split
+from irspack.utils.random import convert_randomstate
+
+
+def _split_list(
+    ids: List[Any], test_size: int, rns: np.random.RandomState
+) -> Tuple[List[Any], List[Any]]:
+    rns.shuffle(ids)
+    return ids[test_size:], ids[:test_size]
 
 
 class UserTrainTestInteractionPair:
@@ -166,7 +173,7 @@ def split_train_test_userwise_random(
         X_all,
         heldout_ratio,
         n_heldout,
-        random_seed=rns.randint(-(2 ** 31), 2 ** 31 - 1),
+        random_state=rns,
     )
 
     return UserTrainTestInteractionPair(
@@ -239,7 +246,7 @@ def split_dataframe_partial_user_holdout(
     n_heldout_val: Optional[int] = None,
     heldout_ratio_test: float = 0.5,
     n_heldout_test: Optional[int] = None,
-    random_state: int = 42,
+    random_state: OptionalRandomState = None,
 ) -> Tuple[Dict[str, UserTrainTestInteractionPair], List[Any]]:
     """Splits the DataFrame and build an interaction matrix,
     holding out random interactions for a subset of randomly selected users
@@ -280,7 +287,7 @@ def split_dataframe_partial_user_holdout(
         n_heldout_val:
             The maximal number of held-out interactions for "test users".
         random_state:
-            The random seed for this procedure. Defaults to 42.
+            The random state for this procedure. Defaults to `None`.
 
     Raises:
         ValueError: When ``n_val_user + n_test_user`` is greater than the number of total users.
@@ -314,20 +321,19 @@ def split_dataframe_partial_user_holdout(
             )
 
     df_all = df_all.drop_duplicates([user_column, item_column])
-    rns = np.random.RandomState(random_state)
-    train_uids, val_test_uids = train_test_split(
-        uids, test_size=(n_val_user + n_test_user), random_state=rns
-    )
+    rns = convert_randomstate(random_state)
+
+    train_uids, val_test_uids = _split_list(uids, (n_val_user + n_test_user), rns)
 
     if (test_user_ratio * len(uids)) >= 1:
-        val_uids, test_uids = train_test_split(
+        val_uids, test_uids = _split_list(
             val_test_uids,
-            test_size=n_test_user,
-            random_state=rns,
+            n_test_user,
+            rns,
         )
     else:
         val_uids = val_test_uids
-        test_uids = np.asarray([], dtype=val_uids.dtype)
+        test_uids = np.asarray([])
     df_train = df_all[df_all[user_column].isin(train_uids)].copy()
     df_val = df_all[df_all[user_column].isin(val_uids)].copy()
     df_test = df_all[df_all[user_column].isin(test_uids)].copy()

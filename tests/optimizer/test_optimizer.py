@@ -69,7 +69,7 @@ class MockOptimizer(BaseOptimizer):
 
 @pytest.mark.parametrize("X", [X_small, X_large])
 def test_optimizer_by_mock(X: sps.csr_matrix) -> None:
-    X_train, X_val = rowwise_train_test_split(X, test_ratio=0.5, random_seed=0)
+    X_train, X_val = rowwise_train_test_split(X, test_ratio=0.5, random_state=0)
     evaluator = Evaluator(X_val, 0)
     optimizer = MockOptimizer(
         X_train, evaluator, logger=None, fixed_params=dict(X_test=X_val)

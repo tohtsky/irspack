@@ -170,3 +170,22 @@ def test_user_level_split_val_fixed_n() -> None:
         nnz_predict = X_predict[i].nonzero()[1].shape[0]
         assert ratio >= (nnz_predict - 1) / (nnz_learn + nnz_predict)
         assert ratio <= (nnz_predict + 1) / (nnz_learn + nnz_predict)
+
+
+def test_extreme_case() -> None:
+    ratio = 0.3
+    dataset, mid_list = split_dataframe_partial_user_holdout(
+        df,
+        user_column="userId",
+        item_column="movieId",
+        n_heldout_val=1,
+        val_user_ratio=1.0,
+        test_user_ratio=0,
+        heldout_ratio_test=ratio,
+    )
+    assert len(mid_list) == len(set(df.movieId))
+
+    assert dataset["train"].n_users == 0
+    assert dataset["test"].n_users == 0
+    assert dataset["val"].n_users == len(set(df.userId))
+    assert dataset["val"].X_all.nnz == df.shape[0]

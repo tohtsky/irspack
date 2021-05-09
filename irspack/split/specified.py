@@ -1,12 +1,13 @@
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy import sparse as sps
-from sklearn.model_selection import train_test_split
 
-from .userwise import UserTrainTestInteractionPair
+from irspack.definitions import OptionalRandomState
+from irspack.split.userwise import UserTrainTestInteractionPair, _split_list
+from irspack.utils.random import convert_randomstate
 
 
 def holdout_specific_interactions(
@@ -16,7 +17,7 @@ def holdout_specific_interactions(
     interaction_indicator: np.ndarray,
     validatable_user_ratio_val: float = 0.2,
     validatable_user_ratio_test: float = 0.2,
-    random_seed: Optional[int] = None,
+    random_state: OptionalRandomState = None,
 ) -> Tuple[List[Any], Dict[str, UserTrainTestInteractionPair]]:
     """Holds-out (part of) the interactions specified by the users.
 
@@ -49,8 +50,8 @@ def holdout_specific_interactions(
             The ratio of "validation-set users" in the "validatable users". Defaults to 0.2.
         validatable_user_ration_test:
             The ratio of "test-set users" in the "validatable users". Defaults to 0.2.
-        random_seed:
-            THe random seed used to split validatable users into three. Defaults to None.
+        random_state:
+            The random seed used to split validatable users into three. Defaults to `None`.
 
     Returns:
         A tuple consiting of
@@ -77,20 +78,23 @@ def holdout_specific_interactions(
     df[flg_colname] = flg_column
 
     validatable_users = np.unique(df[flg_column > 0][user_column])
+    n_validatable_users: int = validatable_users.shape[0]
     val_test_ratio = 1 - v_user_ratio_train
+
+    rns = convert_randomstate(random_state)
     if val_test_ratio >= 1.0:
         v_train_users = np.ndarray((0,), dtype=validatable_users.dtype)
         v_val_test_users = validatable_users
     else:
-        v_train_users, v_val_test_users = train_test_split(
+        v_val_test_users, v_train_users = _split_list(
             validatable_users,
-            test_size=val_test_ratio,
-            random_state=random_seed,
+            int(v_user_ratio_train * n_validatable_users),
+            rns,
         )
-    v_val_users, v_test_users = train_test_split(
+    v_test_users, v_val_users = _split_list(
         v_val_test_users,
-        test_size=(validatable_user_ratio_test) / (1 - v_user_ratio_train),
-        random_state=random_seed,
+        int(len(v_val_test_users) * validatable_user_ratio_val / val_test_ratio),
+        rns,
     )
     df_train = pd.concat(
         [
