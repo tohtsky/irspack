@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sps
 
-from irspack.definitions import InteractionMatrix
+from irspack.definitions import InteractionMatrix, OptionalRandomState
 from irspack.utils._util_cpp import (
     okapi_BM_25_weight,
     remove_diagonal,
@@ -15,6 +15,7 @@ from irspack.utils._util_cpp import (
     tf_idf_weight,
 )
 from irspack.utils.id_mapping import IDMappedRecommender
+from irspack.utils.random import convert_randomstate
 from irspack.utils.threading import get_n_threads
 
 
@@ -23,7 +24,7 @@ def rowwise_train_test_split(
     test_ratio: float = 0.5,
     n_test: Optional[int] = None,
     ceil_n_test: bool = False,
-    random_seed: Optional[int] = None,
+    random_state: OptionalRandomState = None,
 ) -> Tuple[InteractionMatrix, InteractionMatrix]:
     """Splits the non-zero elements of a sparse matrix into two (train & test interactions).
     For each row, the ratio of non-zero elements that become the test interaction
@@ -38,14 +39,14 @@ def rowwise_train_test_split(
             the number of elements entering into the test interaction
             will be ``math.floor(test_ratio * NNZ)``.
             Defaults to 0.5.
-        random_seed:
-            The random seed. Defaults to None.
+        random_state:
+            The random state. Defaults to `None`.
 
     Returns:
         A tuple of train & test interactions, which sum back to the original matrix.
     """
-    if random_seed is None:
-        random_seed = random.randint(-(2 ** 32), 2 ** 32 - 1)
+    rns = convert_randomstate(random_state)
+    random_seed = rns.randint(-(2 ** 32), 2 ** 32 - 1)
     original_dtype = X.dtype
     X_double = X.astype(np.float64)
     if n_test is None:
@@ -91,4 +92,5 @@ __all__ = [
     "remove_diagonal",
     "get_n_threads",
     "IDMappedRecommender",
+    "convert_randomstate",
 ]

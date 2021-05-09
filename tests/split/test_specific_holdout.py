@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import scipy.sparse as sps
-from numpy.core.fromnumeric import choose
 
 from irspack.split import holdout_specific_interactions
 
@@ -135,7 +134,7 @@ def test_raise() -> None:
             validatable_interactions,
             validatable_user_ratio_val=validatable_user_ratio_val,
             validatable_user_ratio_test=validatable_user_ratio_test,
-            random_seed=0,
+            random_state=0,
         )
 
 
@@ -152,7 +151,7 @@ def test_holdout_future() -> None:
         validatable_interactions,
         validatable_user_ratio_val=validatable_user_ratio_val,
         validatable_user_ratio_test=validatable_user_ratio_test,
-        random_seed=0,
+        random_state=0,
     )
     train_users = dataset["train"]
     val_users = dataset["val"]
