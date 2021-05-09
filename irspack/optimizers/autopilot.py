@@ -1,7 +1,8 @@
 import re
 import time
+import warnings
 from logging import Logger
-from multiprocessing import Process, Queue
+from multiprocessing import Process
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from uuid import uuid1
@@ -27,9 +28,14 @@ from irspack.utils.default_logger import get_default_logger
 
 DEFAULT_SEARCHNAMES = ["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "SLIM"]
 
+_INTERNAL_ID_KEYNAME = "_autopilot_internal_id"
+
+
+_sort_intermediate: Callable[[Tuple[int, float]], float] = lambda _: _[1]
+
 
 def search_one(
-    queue: Queue,
+    autopilot_internal_id: str,
     X: InteractionMatrix,
     evaluator: Evaluator,
     optimizer_names: List[str],
@@ -47,7 +53,7 @@ def search_one(
     )
 
     def _obj(trial: optuna.Trial) -> float:
-        queue.put(trial.number)
+        trial.set_user_attr(_INTERNAL_ID_KEYNAME, autopilot_internal_id)
         optimizer_name = trial.suggest_categorical("optimizer_name", optimizer_names)
         assert isinstance(optimizer_name, str)
 
@@ -74,7 +80,8 @@ def autopilot(
     logger: Optional[Logger] = None,
     callback: Optional[Callable[[int, pd.DataFrame], None]] = None,
     storage: Optional[RDBStorage] = None,
-) -> Tuple[Type[BaseRecommender], Dict[str, Any], pd.DataFrame, Optional[str]]:
+    study_name: Optional[str] = None,
+) -> Tuple[Type[BaseRecommender], Dict[str, Any], pd.DataFrame]:
     r"""Given an interaction matrix and an evaluator, search for the best algorithm and its parameters
     (roughly) within the time & space constraints.
 
@@ -111,17 +118,28 @@ def autopilot(
                 2. A `pd.DataFrame` that holds history of trial execution.
 
             Defaults to `None`.
-
+        storage:
+            An instance of `optuna.storages.RDBStorage`. Defaults to `None`.
+        study_name:
+            If `storage` argument is given, you have to pass study_name
+            argument.
     Raises:
-        RuntimeError: If no trials have been completed within given timeout.
+        ValueError:
+            If `storage` is given but `study_name` is not specified.
+        RuntimeError:
+            If no recommender algorithms are available within given memory budget.
+        RuntimeError:
+            If no trials have been completed within given timeout.
+
 
     Returns:
 
         * The best algorithm's recommender class.
         * The best parameters.
         * The dataframe containing the history of trials.
-        * (Optional) study name created during the process. Returned only when external storage is given.
     """
+    if storage is not None and study_name is None:
+        raise ValueError('"study_name" must be specified if "storage" is given.')
     RNS = np.random.RandomState(random_seed)
     suggest_overwrites: Dict[str, List[Suggestion]] = {}
     optimizer_names: List[str] = []
@@ -152,26 +170,30 @@ def autopilot(
         )
     else:
         storage_ = storage
-    study_name = f"autopilot-{uuid1()}"
-    study_id = storage_.create_new_study(study_name)
+
+    if study_name is None:
+        study_name_ = f"autopilot-{uuid1()}"
+        study_id = storage_.create_new_study(study_name_)
+    else:
+        study_name_ = study_name
+        study_id = storage_.get_study_id_from_name(study_name_)
     start = time.time()
-    study = optuna.load_study(
-        storage=storage_,
-        study_name=study_name,
+    study = optuna.create_study(
+        storage=storage_, study_name=study_name_, load_if_exists=True
     )
-    queue = Queue()  # type: ignore
 
     for _ in range(n_trials):
+        internal_id = str(uuid1())
         p = Process(
             target=search_one,
             args=(
-                queue,
+                internal_id,
                 X,
                 evaluator,
                 optimizer_names,
                 suggest_overwrites,
                 storage_.url,
-                study_name,
+                study_name_,
                 RNS.randint(0, 2 ** 31),
                 logger,
             ),
@@ -184,7 +206,6 @@ def autopilot(
 
         timeout_for_this_process: Optional[int] = None
 
-        trial_number: int = queue.get()
         if timeout_overall is None:
             timeout_for_this_process = timeout_singlestep
         else:
@@ -194,22 +215,45 @@ def autopilot(
                     timeouf_for_this_process, timeout_singlestep
                 )
         p.join(timeout=timeout_for_this_process)
+        all_trials = study.get_trials()
+        trial_thrown_by_this_worker = [
+            trial
+            for trial in all_trials
+            if trial.user_attrs[_INTERNAL_ID_KEYNAME] == internal_id
+        ]
+        assert len(trial_thrown_by_this_worker) == 1, "Storage inconsistency here?"
+        trial_this = trial_thrown_by_this_worker[0]
 
         if p.exitcode is None:
-            logger.info(f"Trial {trial_number} timeout.")
             p.terminate()
             try:
+                logger.info(f"Trial {trial_this.number} timeout.")
                 trial_id = storage_.get_trial_id_from_study_id_trial_number(
-                    study_id, trial_number
+                    study_id, trial_this.number
                 )
-                # storage_.set_tri
-                storage_.set_trial_state(trial_id, TrialState.FAIL)
-            except ValueError:  # pragma: no cover
-                # this happens if the trial completes before accepting the SIGTERM?
+                intermediate_values = sorted(
+                    list(trial_this.intermediate_values.items()), key=_sort_intermediate
+                )
+
+                if intermediate_values:
+                    # Though terminated, it resulted in some values.
+                    # Regard it as a COMPLETE trial.
+                    storage_.set_trial_values(
+                        trial_id,
+                        [intermediate_values[0][1]],
+                    )
+                    storage_.set_trial_user_attr(
+                        trial_id, "max_epoch", intermediate_values[0][0] + 1
+                    )
+                else:
+                    # Penalize such a time-consuming trial
+                    storage_.set_trial_values(trial_id, [0.0])
+                storage_.set_trial_state(trial_id, TrialState.COMPLETE)
+            except RuntimeError:  # pragma: no cover
                 pass  # pragma: no cover
 
         if callback is not None:
-            callback(trial_number, study_to_dataframe(study))
+            callback(trial_this.number, study_to_dataframe(study))
 
         now = time.time()
         elapsed = now - start
@@ -231,11 +275,8 @@ def autopilot(
     optimizer_name: str = best_params.pop("optimizer_name")
     result_df = study_to_dataframe(study)
 
-    study_name_result = None
     if storage is None:
         optional_db_path.unlink()
-    else:
-        study_name_result = study_name
     recommender_class = get_optimizer_class(optimizer_name).recommender_class
 
-    return (recommender_class, best_params, result_df, study_name_result)
+    return (recommender_class, best_params, result_df)

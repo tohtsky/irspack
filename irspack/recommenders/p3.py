@@ -33,7 +33,7 @@ class P3alphaRecommender(BaseSimilarityRecommender):
             Defaults to False.
         n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if there is no such an environment variable, it will be set to ``os.cpu_count()``. Defaults to None.
+            and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
     """
 
     def __init__(
