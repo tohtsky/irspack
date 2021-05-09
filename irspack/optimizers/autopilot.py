@@ -3,6 +3,7 @@ import time
 import warnings
 from abc import ABC, abstractmethod
 from logging import Logger
+from multiprocessing import Pipe as mp_pipe
 from multiprocessing import Process
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
@@ -28,14 +29,11 @@ from irspack.utils.default_logger import get_default_logger
 
 DEFAULT_SEARCHNAMES = ["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "SLIM"]
 
-_INTERNAL_ID_KEYNAME = "_autopilot_internal_id"
-
-
 _sort_intermediate: Callable[[Tuple[int, float]], float] = lambda _: _[1]
 
 
 def search_one(
-    autopilot_internal_id: str,
+    pipe: Any,
     X: InteractionMatrix,
     evaluator: Evaluator,
     optimizer_names: List[str],
@@ -52,7 +50,7 @@ def search_one(
     )
 
     def _obj(trial: optuna.Trial) -> float:
-        trial.set_user_attr(_INTERNAL_ID_KEYNAME, autopilot_internal_id)
+        pipe.send(trial.number)
         optimizer_name = trial.suggest_categorical("optimizer_name", optimizer_names)
         assert isinstance(optimizer_name, str)
 
@@ -71,7 +69,6 @@ class TaskBackend(ABC):
     @abstractmethod
     def __init__(
         self,
-        autopilot_internal_id: str,
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
@@ -86,6 +83,10 @@ class TaskBackend(ABC):
     @property
     def exit_code(self) -> Optional[int]:
         return self._exit_code()
+
+    @abstractmethod
+    def receive_trial_number(self) -> int:
+        raise NotImplementedError()
 
     @abstractmethod
     def _exit_code(self) -> Optional[int]:
@@ -107,7 +108,6 @@ class TaskBackend(ABC):
 class MultiProcessingBackend(TaskBackend):
     def __init__(
         self,
-        autopilot_internal_id: str,
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
@@ -117,10 +117,11 @@ class MultiProcessingBackend(TaskBackend):
         random_seed: int,
         logger: Logger,
     ):
+        self.pipe_parent, pipe_child = mp_pipe()
         self._p = Process(
             target=search_one,
             args=(
-                autopilot_internal_id,
+                pipe_child,
                 X,
                 evaluator,
                 optimizer_names,
@@ -135,6 +136,10 @@ class MultiProcessingBackend(TaskBackend):
     def _exit_code(self) -> Optional[int]:
         return self._p.exitcode
 
+    def receive_trial_number(self) -> int:
+        result: int = self.pipe_parent.recv()
+        return result
+
     def start(self) -> None:
         self._p.start()
 
@@ -148,7 +153,6 @@ class MultiProcessingBackend(TaskBackend):
 class SameThreadBackend(TaskBackend):
     def __init__(
         self,
-        autopilot_internal_id: str,
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
@@ -159,7 +163,6 @@ class SameThreadBackend(TaskBackend):
         logger: Logger,
     ):
         self._args = (
-            autopilot_internal_id,
             X,
             evaluator,
             optimizer_names,
@@ -169,9 +172,17 @@ class SameThreadBackend(TaskBackend):
             random_seed,
             logger,
         )
+        self._trial_number: Optional[int] = None
+
+    def send(self, i: int) -> None:
+        self._trial_number = i
 
     def start(self) -> None:
-        search_one(*self._args)
+        search_one(self, *self._args)
+
+    def receive_trial_number(self) -> int:
+        assert self._trial_number is not None
+        return self._trial_number
 
     def join(self, timeout: Optional[int]) -> None:
         warnings.warn("Single step timeout will be ignored for ThreadingBackend.")
@@ -313,16 +324,13 @@ def autopilot(
         if timeout_overall is None:
             timeout_for_this_process = timeout_singlestep
         else:
-            timeout_for_this_process = int(timeout_overall - elapsed_at_start)
-            if timeout_singlestep is not None:
-                timeout_for_this_process = min(
-                    timeout_for_this_process, timeout_singlestep
-                )
-            if timeout_for_this_process <= 0:
+            remaining_time = int(timeout_overall - elapsed_at_start)
+            if remaining_time <= 0:
                 break
-        internal_id = str(uuid1())
+
+            if timeout_singlestep is not None:
+                timeout_for_this_process = min(remaining_time, timeout_singlestep)
         task = task_resource_provider(
-            internal_id,
             X,
             evaluator,
             optimizer_names,
@@ -334,23 +342,18 @@ def autopilot(
         )
 
         task.start()
+        trial_number = task.receive_trial_number()
         task.join(timeout=timeout_for_this_process)
-        all_trials = study.get_trials()
-        trial_thrown_by_this_worker = [
-            trial
-            for trial in all_trials
-            if trial.user_attrs[_INTERNAL_ID_KEYNAME] == internal_id
-        ]
-        assert len(trial_thrown_by_this_worker) == 1, "Storage inconsistency here?"
-        trial_this = trial_thrown_by_this_worker[0]
 
         if task.exit_code is None:
             task.terminate()
             try:
-                logger.info(f"Trial {trial_this.number} timeout.")
+                logger.info(f"Trial {trial_number} timeout.")
+                storage_.read_trials_from_remote_storage(study_id)
                 trial_id = storage_.get_trial_id_from_study_id_trial_number(
-                    study_id, trial_this.number
+                    study_id, trial_number
                 )
+                trial_this = storage_.get_trial(trial_id)
                 intermediate_values = sorted(
                     list(trial_this.intermediate_values.items()),
                     key=_sort_intermediate,
@@ -374,7 +377,7 @@ def autopilot(
                 pass  # pragma: no cover
 
         if callback is not None:
-            callback(trial_this.number, study_to_dataframe(study))
+            callback(trial_number, study_to_dataframe(study))
 
         now = time.time()
         elapsed = now - start
