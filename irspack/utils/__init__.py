@@ -46,7 +46,7 @@ def rowwise_train_test_split(
         A tuple of train & test interactions, which sum back to the original matrix.
     """
     rns = convert_randomstate(random_state)
-    random_seed = rns.randint(-(2 ** 32), 2 ** 32 - 1)
+    random_seed = rns.randint(-(2 ** 31), 2 ** 31 - 1)
     original_dtype = X.dtype
     X_double = X.astype(np.float64)
     if n_test is None:
