@@ -296,14 +296,13 @@ def autopilot(
 
     if study_name is None:
         study_name_ = f"autopilot-{uuid1()}"
-        study_id = storage_.create_new_study(study_name_)
     else:
         study_name_ = study_name
-        study_id = storage_.get_study_id_from_name(study_name_)
     start = time.time()
     study = optuna.create_study(
         storage=storage_, study_name=study_name_, load_if_exists=True
     )
+    study_id = storage_.get_study_id_from_name(study_name_)
 
     for _ in range(n_trials):
 

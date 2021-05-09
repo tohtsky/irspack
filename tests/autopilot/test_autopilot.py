@@ -1,19 +1,22 @@
 import sys
 import time
+from tempfile import NamedTemporaryFile
 from typing import Dict
 
 import numpy as np
 import pandas as pd
 import pytest
+from optuna import load_study
+from optuna.storages import RDBStorage
 from scipy import sparse as sps
 
 from irspack import autopilot
-from irspack.evaluator.evaluator import Evaluator
+from irspack.optimizers.autopilot import SameThreadBackend
+from irspack.optimizers.base_optimizer import study_to_dataframe
 
 from .mock_classes import (
     AutopilotMockEarlyStoppableRecommender,
     AutopilotMockEvaluator,
-    AutopilotMockOptimizer,
     AutopilotMockRecommender,
 )
 
@@ -25,6 +28,42 @@ X_small = sps.csr_matrix(
 X_answer = sps.csr_matrix(
     (np.random.RandomState(43).rand(*X_small.shape) > 0.5).astype(np.float64)
 )
+
+
+def test_autopilot_external_db() -> None:
+    if sys.platform == "win32":
+        pytest.skip()
+    evaluator = AutopilotMockEvaluator(X_answer)
+    temp_db_file = NamedTemporaryFile()
+    storage = RDBStorage(f"sqlite:///{temp_db_file.name}")
+    with pytest.raises(ValueError):
+        _ = autopilot(
+            X_small,
+            evaluator,
+            memory_budget=1,
+            n_trials=10,
+            algorithms=["AutopilotMock"],
+            timeout_singlestep=1,
+            timeout_overall=5,
+            storage=storage
+            # task_resource_provider=SameThreadBackend,
+        )
+    _ = autopilot(
+        X_small,
+        evaluator,
+        memory_budget=1,
+        n_trials=10,
+        algorithms=["AutopilotMock"],
+        timeout_singlestep=1,
+        timeout_overall=5,
+        storage=storage,
+        study_name="mock_study",
+        task_resource_provider=SameThreadBackend,
+    )
+    study = load_study(storage=storage, study_name="mock_study")
+    df = study_to_dataframe(study)
+    # They are all executed on the same thread and no sigkill
+    assert np.all(df["value"].values < 0)
 
 
 def test_autopilot() -> None:
