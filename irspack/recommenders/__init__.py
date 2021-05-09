@@ -22,7 +22,6 @@ __all__ = [
     "BaseRecommender",
     "BaseSimilarityRecommender",
     "BaseRecommenderWithEarlyStopping",
-    "get_recommender_class",
     "TopPopRecommender",
     "P3alphaRecommender",
     "RP3betaRecommender",
@@ -37,6 +36,7 @@ __all__ = [
     "AsymmetricCosineKNNRecommender",
     "CosineUserKNNRecommender",
     "AsymmetricCosineUserKNNRecommender",
+    "get_recommender_class",
 ]
 
 try:

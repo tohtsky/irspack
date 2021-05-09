@@ -38,6 +38,7 @@ Recommenders
     AsymmetricCosineUserKNNRecommender
     SLIMRecommender
     DenseSLIMRecommender
+    get_recommender_class
 
 A LightFM wrapper for BPR matrix factorization (requires a separate installation of `lightFM <https://github.com/lyst/lightfm>`_).
 
@@ -80,6 +81,7 @@ Optimizers
     SLIMOptimizer
     DenseSLIMOptimizer
     MultVAEOptimizer
+    get_optimizer_class
 
 
 Autopilot

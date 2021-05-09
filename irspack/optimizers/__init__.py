@@ -1,4 +1,4 @@
-from ._optimizers import (
+from irspack.optimizers._optimizers import (
     AsymmetricCosineKNNOptimizer,
     AsymmetricCosineUserKNNOptimizer,
     BaseOptimizer,
@@ -16,7 +16,8 @@ from ._optimizers import (
     TruncatedSVDOptimizer,
     TverskyIndexKNNOptimizer,
 )
-from .autopilot import autopilot
+from irspack.optimizers.autopilot import autopilot
+from irspack.optimizers.base_optimizer import get_optimizer_class
 
 __all__ = [
     "BaseOptimizer",
@@ -35,6 +36,7 @@ __all__ = [
     "TverskyIndexKNNOptimizer",
     "NMFOptimizer",
     "TruncatedSVDOptimizer",
+    "get_optimizer_class",
     "autopilot",
 ]
 

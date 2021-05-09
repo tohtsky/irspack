@@ -408,6 +408,14 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
 
 
 def get_optimizer_class(optimizer_name: str) -> Type[BaseOptimizer]:
+    r"""Get optimizer class from its class name.
+
+    Args:
+        optimizer_name: The class name of the optimizer.
+
+    Returns:
+        The optimizer class with its class name being `optimizer_name`.
+    """
     result: Type[BaseOptimizer] = OptimizerMeta.optimizer_name_vs_optimizer_class[
         optimizer_name
     ]
