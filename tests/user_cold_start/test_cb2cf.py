@@ -31,7 +31,7 @@ def test_cb2cf(X: InteractionMatrix, profile: ProfileMatrix) -> None:
         raise
 
     X_cf_train_all, X_val = rowwise_train_test_split(
-        X_cf, test_ratio=0.5, random_seed=0
+        X_cf, test_ratio=0.5, random_state=0
     )
     evaluator = Evaluator(X_val, 0)
     optim = CB2IALSOptimizer(

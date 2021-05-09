@@ -306,6 +306,21 @@ def autopilot(
     )
 
     for _ in range(n_trials):
+
+        task_start = time.time()
+        elapsed_at_start = task_start - start
+
+        timeout_for_this_process: Optional[int] = None
+        if timeout_overall is None:
+            timeout_for_this_process = timeout_singlestep
+        else:
+            timeout_for_this_process = int(timeout_overall - elapsed_at_start)
+            if timeout_singlestep is not None:
+                timeout_for_this_process = min(
+                    timeout_for_this_process, timeout_singlestep
+                )
+            if timeout_for_this_process <= 0:
+                break
         internal_id = str(uuid1())
         task = task_resource_provider(
             internal_id,
@@ -318,19 +333,6 @@ def autopilot(
             RNS.randint(0, 2 ** 31),
             logger,
         )
-
-        task_start = time.time()
-        elapsed_at_start = task_start - start
-
-        timeout_for_this_process: Optional[int] = None
-        if timeout_overall is None:
-            timeout_for_this_process = timeout_singlestep
-        else:
-            timeouf_for_this_process = int(timeout_overall - elapsed_at_start)
-            if timeout_singlestep is not None:
-                timeout_for_this_process = min(
-                    timeouf_for_this_process, timeout_singlestep
-                )
 
         task.start()
         task.join(timeout=timeout_for_this_process)
