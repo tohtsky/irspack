@@ -28,8 +28,8 @@ X_answer = sps.csr_matrix(
 
 
 def test_autopilot() -> None:
-    # if sys.platform == "win32":
-    pytest.skip("Skip on Windows.")
+    if sys.platform == "win32":
+        pytest.skip("Skip on Windows.")
 
     evaluator = AutopilotMockEvaluator(X_answer)
     recommender_class, best_param, trial_df = autopilot(
@@ -48,8 +48,8 @@ def test_autopilot() -> None:
 
 
 def test_autopilot_timeout() -> None:
-    # if sys.platform == "win32":
-    pytest.skip("Skip on Windows.")
+    if sys.platform == "win32":
+        pytest.skip("Skip on Windows.")
 
     evaluator = AutopilotMockEvaluator(X_answer)
     wait = 20
