@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from typing import Dict, List
 
@@ -56,6 +57,9 @@ class AutoPilotMockOptimizer(BaseOptimizer):
 
 @pytest.mark.skipif(SKIP_TEST, reason="May not work on non-Linux.")
 def test_autopilot() -> None:
+    if sys.platform == "win32":
+        pytest.skip("Skip on Windows.")
+
     evaluator = Evaluator(X_answer, 0)
     recommender_class, best_param, trial_df = autopilot(
         X_small,
@@ -74,6 +78,9 @@ def test_autopilot() -> None:
 
 @pytest.mark.skipif(SKIP_TEST, reason="May not work on non-Linux.")
 def test_autopilot_timeout() -> None:
+    if sys.platform == "win32":
+        pytest.skip("Skip on Windows.")
+
     evaluator = Evaluator(X_answer, 0)
     wait = 20
     with pytest.raises(RuntimeError):

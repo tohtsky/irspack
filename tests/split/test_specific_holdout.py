@@ -68,15 +68,15 @@ def test_holdout_particular_item_interaction() -> None:
     total_validatable_users = n_validatable_users_in_train + val.n_users + test.n_users
 
     assert train_validatable_user_ratio >= (
-        (n_validatable_users_in_train - 1) / total_validatable_users
+        (n_validatable_users_in_train - 2) / total_validatable_users
     )
     assert train_validatable_user_ratio <= (
-        (n_validatable_users_in_train + 1) / total_validatable_users
+        (n_validatable_users_in_train + 2) / total_validatable_users
     )
-    assert val_validatable_user_ratio <= ((val.n_users + 1) / total_validatable_users)
-    assert val_validatable_user_ratio >= ((val.n_users - 1) / total_validatable_users)
-    assert test_validatable_user_ratio <= ((test.n_users + 1) / total_validatable_users)
-    assert test_validatable_user_ratio >= ((test.n_users - 1) / total_validatable_users)
+    assert val_validatable_user_ratio <= ((val.n_users + 2) / total_validatable_users)
+    assert val_validatable_user_ratio >= ((val.n_users - 2) / total_validatable_users)
+    assert test_validatable_user_ratio <= ((test.n_users + 2) / total_validatable_users)
+    assert test_validatable_user_ratio >= ((test.n_users - 2) / total_validatable_users)
 
     assert (
         total_validatable_users
