@@ -186,8 +186,7 @@ class SameThreadBackend(TaskBackend):
         return 0
 
 
-def autopilot_with_task_backend(
-    task_resource_provider: Type[TaskBackend],
+def autopilot(
     X: InteractionMatrix,
     evaluator: Evaluator,
     n_trials: int = 20,
@@ -200,7 +199,68 @@ def autopilot_with_task_backend(
     callback: Optional[Callable[[int, pd.DataFrame], None]] = None,
     storage: Optional[RDBStorage] = None,
     study_name: Optional[str] = None,
+    task_resource_provider: Type[TaskBackend] = MultiProcessingBackend,
 ) -> Tuple[Type[BaseRecommender], Dict[str, Any], pd.DataFrame]:
+
+    r"""Given an interaction matrix and an evaluator, search for the best algorithm and its parameters
+    (roughly) within the time & space constraints. You can specify how each search step will be executed.
+
+    Args:
+        X:
+            Input interaction matrix.
+        evaluator:
+            Evaluator to measure the performance of the recommenders.
+        n_trials: The maximal number of trials. Defaults to 20.
+        memory_budget:
+            Optimizers will try search parameters so that memory usage (in megabyte) will not exceed this values.
+            An algorithm will not be searched if it inevitably violates this bound.
+            Note that this value is quite rough one and will not be respected strictly.
+        timeout_overall:
+            If set, the total execution time of the trials will not exceed this value (roughly).
+        timeout_singlestep:
+            If set, a single trial (recommender and a set of its parameter) will not run for more than the value (in seconds).
+            Such a trial is considered to have produced  a score value of 0,
+            and optuna will avoid suggesting such values (if everything works fine).
+            Defaults to `None`.
+        algorithms:
+            A list of algorithm names to be tried.
+            Defaults to `["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "SLIM"]`.
+        random_seed:
+            The random seed that controls the suggestion behavior.
+            Defaults to `None`.
+        logger:
+            The logger to be used. If `None`, irspack's default logger will be used.
+            Defaults to None.
+        callback:
+            If not `None`, called at the end of every single trial with the following arguments
+
+                1. The current trial's number.
+                2. A `pd.DataFrame` that holds history of trial execution.
+
+            Defaults to `None`.
+        storage:
+            An instance of `optuna.storages.RDBStorage`. Defaults to `None`.
+        study_name:
+            If `storage` argument is given, you have to pass study_name
+            argument.
+        task_resource_provider:
+            Specifies how each search step is executed. Defaults to `MultiProceesingBackend`.
+    Raises:
+        ValueError:
+            If `storage` is given but `study_name` is not specified.
+        RuntimeError:
+            If no recommender algorithms are available within given memory budget.
+        RuntimeError:
+            If no trials have been completed within given timeout.
+
+
+    Returns:
+
+        * The best algorithm's recommender class.
+        * The best parameters.
+        * The dataframe containing the history of trials.
+
+    """
     if storage is not None and study_name is None:
         raise ValueError('"study_name" must be specified if "storage" is given.')
     RNS = np.random.RandomState(random_seed)
@@ -340,90 +400,3 @@ def autopilot_with_task_backend(
     recommender_class = get_optimizer_class(optimizer_name).recommender_class
 
     return (recommender_class, best_params, result_df)
-
-
-def autopilot(
-    X: InteractionMatrix,
-    evaluator: Evaluator,
-    n_trials: int = 20,
-    memory_budget: int = 4000,  # 4GB
-    timeout_overall: Optional[int] = None,
-    timeout_singlestep: Optional[int] = None,
-    algorithms: List[str] = DEFAULT_SEARCHNAMES,
-    random_seed: Optional[int] = None,
-    logger: Optional[Logger] = None,
-    callback: Optional[Callable[[int, pd.DataFrame], None]] = None,
-    storage: Optional[RDBStorage] = None,
-    study_name: Optional[str] = None,
-) -> Tuple[Type[BaseRecommender], Dict[str, Any], pd.DataFrame]:
-    r"""Given an interaction matrix and an evaluator, search for the best algorithm and its parameters
-    (roughly) within the time & space constraints.
-
-    Args:
-        X:
-            Input interaction matrix.
-        evaluator:
-            Evaluator to measure the performance of the recommenders.
-        n_trials: The maximal number of trials. Defaults to 20.
-        memory_budget:
-            Optimizers will try search parameters so that memory usage (in megabyte) will not exceed this values.
-            An algorithm will not be searched if it inevitably violates this bound.
-            Note that this value is quite rough one and will not be respected strictly.
-        timeout_overall:
-            If set, the total execution time of the trials will not exceed this value (roughly).
-        timeout_singlestep:
-            If set, a single trial (recommender and a set of its parameter) will not run for more than the value (in seconds).
-            Such a trial is considered to have produced  a score value of 0,
-            and optuna will avoid suggesting such values (if everything works fine).
-            Defaults to `None`.
-        algorithms:
-            A list of algorithm names to be tried.
-            Defaults to `["RP3beta", "IALS", "DenseSLIM", "AsymmetricCosineKNN", "SLIM"]`.
-        random_seed:
-            The random seed that controls the suggestion behavior.
-            Defaults to `None`.
-        logger:
-            The logger to be used. If `None`, irspack's default logger will be used.
-            Defaults to None.
-        callback:
-            If not `None`, called at the end of every single trial with the following arguments
-
-                1. The current trial's number.
-                2. A `pd.DataFrame` that holds history of trial execution.
-
-            Defaults to `None`.
-        storage:
-            An instance of `optuna.storages.RDBStorage`. Defaults to `None`.
-        study_name:
-            If `storage` argument is given, you have to pass study_name
-            argument.
-    Raises:
-        ValueError:
-            If `storage` is given but `study_name` is not specified.
-        RuntimeError:
-            If no recommender algorithms are available within given memory budget.
-        RuntimeError:
-            If no trials have been completed within given timeout.
-
-
-    Returns:
-
-        * The best algorithm's recommender class.
-        * The best parameters.
-        * The dataframe containing the history of trials.
-    """
-    return autopilot_with_task_backend(
-        MultiProcessingBackend,
-        X,
-        evaluator,
-        n_trials=n_trials,
-        memory_budget=memory_budget,
-        timeout_overall=timeout_overall,
-        timeout_singlestep=timeout_singlestep,
-        algorithms=algorithms,
-        random_seed=random_seed,
-        logger=logger,
-        callback=callback,
-        storage=storage,
-        study_name=study_name,
-    )
