@@ -278,6 +278,7 @@ class BaseRecommenderWithItemEmbedding(BaseRecommender):
 
 
 def get_recommender_class(recommender_name: str) -> Type[BaseRecommender]:
+
     r"""Get recommender class from its class name.
 
     Args:

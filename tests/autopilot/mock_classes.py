@@ -16,11 +16,7 @@ from irspack import (
 )
 from irspack.evaluator.evaluator import Evaluator
 from irspack.optimizers.base_optimizer import BaseOptimizerWithEarlyStopping
-from irspack.parameter_tuning import Suggestion, UniformSuggestion
-from irspack.parameter_tuning.parameter_range import (
-    IntegerSuggestion,
-    LogUniformSuggestion,
-)
+from irspack.parameter_tuning import IntegerSuggestion, LogUniformSuggestion, Suggestion
 from irspack.recommenders.base_earlystop import (
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
@@ -41,7 +37,9 @@ class AutopilotMockRecommender(BaseRecommender):
 
 class AutopilotMockOptimizer(BaseOptimizer):
     recommender_class = AutopilotMockRecommender
-    default_tune_range: List[Suggestion] = [UniformSuggestion("wait_time", 0.1, 4.0)]
+    default_tune_range: List[Suggestion] = [
+        LogUniformSuggestion("wait_time", 1e-2, 4.0)
+    ]
 
     @classmethod
     def tune_range_given_memory_budget(
