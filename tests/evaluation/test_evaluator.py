@@ -188,7 +188,7 @@ def test_metrics_ColdUser(U: int, I: int, U_test: int) -> None:
     X = sps.csr_matrix((true_score > 0).astype(np.float64))
     X_train = X[:U]
     X_val = X[U:]
-    X_val_learn, X_val_target = rowwise_train_test_split(X_val, random_seed=0)
+    X_val_learn, X_val_target = rowwise_train_test_split(X_val, random_state=0)
     X_train_all = sps.vstack([X_train, X_val_learn])
     hot_evaluator = Evaluator(
         sps.csr_matrix(X_val_target), offset=U, cutoff=I // 2, n_threads=2

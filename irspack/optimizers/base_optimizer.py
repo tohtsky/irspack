@@ -7,12 +7,15 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, no_type_che
 import optuna
 import pandas as pd
 
+from irspack.evaluator import Evaluator
+from irspack.parameter_tuning import (
+    Suggestion,
+    is_valid_param_name,
+    overwrite_suggestions,
+)
+from irspack.recommenders.base import BaseRecommender, InteractionMatrix
+from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 from irspack.utils.default_logger import get_default_logger
-
-from ..evaluator import Evaluator
-from ..parameter_tuning import Suggestion, is_valid_param_name, overwrite_suggestions
-from ..recommenders.base import BaseRecommender, InteractionMatrix
-from ..recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 
 
 class LowMemoryError(RuntimeError):
@@ -341,7 +344,6 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
 
         - ``recommender_class``
         - ``default_tune_range``
-
 
     Args:
         data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
