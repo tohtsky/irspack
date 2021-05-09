@@ -101,7 +101,7 @@ class TaskBackend(ABC):
 
     @abstractmethod
     def terminate(self) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
 
 class MultiProcessingBackend(TaskBackend):
