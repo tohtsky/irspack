@@ -337,7 +337,7 @@ def autopilot(
             suggest_overwrites,
             storage_.url,
             study_name_,
-            RNS.randint(0, 2 ** 32 - 1),
+            RNS.randint(0, np.iinfo(np.int32).max, dtype=np.int32),
             logger,
         )
 
