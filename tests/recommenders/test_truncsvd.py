@@ -2,8 +2,6 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 
-from irspack.recommenders import TruncatedSVDRecommender
-
 RNS = np.random.RandomState(0)
 
 X = RNS.rand(200, 512)
@@ -13,6 +11,11 @@ X = sps.csr_matrix(X)
 
 
 def test_truncsvd() -> None:
+    try:
+        from irspack.recommenders import TruncatedSVDRecommender
+    except ImportError:
+        pytest.skip("Trunc svd not found.")
+
     with pytest.warns(UserWarning):
         overfit_rec = TruncatedSVDRecommender(X, n_components=X.shape[1] + 1)
 

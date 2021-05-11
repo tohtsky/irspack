@@ -1,5 +1,5 @@
 import random
-from typing import Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -67,10 +67,46 @@ def df_to_sparse(
     df: pd.DataFrame,
     user_colname: str,
     item_colname: str,
+    user_ids: Optional[List[Any]] = None,
+    item_ids: Optional[List[Any]] = None,
     rating_colname: Optional[str] = None,
 ) -> Tuple[sps.csr_matrix, np.ndarray, np.ndarray]:
-    row, unique_user_ids = pd.factorize(df[user_colname], sort=True)
-    col, unique_item_ids = pd.factorize(df[item_colname], sort=True)
+    r"""Convert pandas dataframe into sparse matrix.
+
+    Args:
+        df:
+            The dataframe to be converted into a sparse matrix.
+        user_colname:
+            The column name for users.
+        item_colname:
+            The column name for items.
+        user_ids:
+            If not `None`, the resulting matrix's rows correspond exactly to this list.
+        item_ids:
+            If not `None`, the resulting matrix's columns correspond exactly to this list.
+        rating_colname:
+            If not `None`, the non-zero elements of the resulting matrix will correspond to the values of this column.
+    Raises:
+        RuntimeError:
+            If `user_ids` is not `None` and `df[user_colname]` contains values not in `user_ids`.
+        RuntimeError:
+            If `item_ids` is not `None` and `df[item_colname]` contains values not in `item_ids`.
+
+    Returns:
+        - The resulting sparse matrix.
+        - user ids corresponding to the rows in the matrix.
+        - item ids corresponding to the columns in the matrix.
+    """
+    user_codes = pd.Categorical(df[user_colname], categories=user_ids)
+    item_codes = pd.Categorical(df[item_colname], categories=item_ids)
+    if np.any(user_codes.codes < 0):
+        raise RuntimeError("Found unknown user id.")
+    if np.any(item_codes.codes < 0):
+        raise RuntimeError("Found unknown item id.")
+    row = user_codes.codes
+    unique_user_ids = user_codes.categories
+    col = item_codes.codes
+    unique_item_ids = item_codes.categories
     if rating_colname is None:
         data = np.ones(df.shape[0])
     else:
