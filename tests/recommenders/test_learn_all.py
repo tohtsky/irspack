@@ -27,25 +27,14 @@ rec_classes = [
     "AsymmetricCosineUserKNNRecommender",
     "P3alphaRecommender",
     "RP3betaRecommender",
-    "TruncatedSVDRecommender",
-    "NMFRecommender",
     "IALSRecommender",
     "DenseSLIMRecommender",
     "SLIMRecommender",
+    "TruncatedSVDRecommender",
+    "NMFRecommender",
+    "BPRFMRecommender",
+    "MultVAERecommender",
 ]
-try:
-    from irspack.recommenders.bpr import BPRFMRecommender
-
-    rec_classes.append("BPRFMRecommender")
-except:
-    pass
-
-try:
-    from irspack.recommenders.multvae import MultVAERecommender
-
-    rec_classes.append("MultVAERecommender")
-except:
-    pass
 
 
 @pytest.mark.parametrize("class_name", rec_classes)
@@ -55,7 +44,10 @@ def test_recs(class_name: str) -> None:
     Args:
         class_name (str): The recommender class's name to be tested.
     """
-    RecommenderClass = get_recommender_class(class_name)
+    try:
+        RecommenderClass = get_recommender_class(class_name)
+    except:
+        pytest.skip(f"{class_name} not found.")
     rec = RecommenderClass(X_train)
     rec.learn()
 

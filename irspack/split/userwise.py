@@ -2,11 +2,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from numpy.lib.arraysetops import unique
 from scipy import sparse as sps
 
 from irspack.definitions import InteractionMatrix, OptionalRandomState
 from irspack.split.time import split_last_n_interaction_df
-from irspack.utils import rowwise_train_test_split
+from irspack.utils import df_to_sparse, rowwise_train_test_split
 from irspack.utils.random import convert_randomstate
 
 
@@ -154,21 +155,14 @@ def split_train_test_userwise_random(
     UserDataSet
         Resulting train-test split dataset.
     """
-
-    df_ = df_[df_[item_colname].isin(item_ids)]
-
-    item_indices = pd.Categorical(df_[item_colname], categories=item_ids).codes
-
-    user_ids, user_indices = np.unique(df_[user_colname], return_inverse=True)
-    if rating_column is not None:
-        data = df_[rating_column].values
-    else:
-        data = np.ones(df_.shape[0], dtype=np.int32)
-
-    X_all = sps.csr_matrix(
-        (data, (user_indices, item_indices)),
-        shape=(len(user_ids), len(item_ids)),
+    X_all, user_ids, _ = df_to_sparse(
+        df_,
+        user_colname=user_colname,
+        item_colname=item_colname,
+        item_ids=item_ids,
+        rating_colname=rating_column,
     )
+
     X_learn, X_predict = rowwise_train_test_split(
         X_all,
         heldout_ratio,
@@ -191,44 +185,31 @@ def split_train_test_userwise_time(
     n_heldout: Optional[int],
     rating_column: Optional[str] = None,
 ) -> UserTrainTestInteractionPair:
-    df_ = df_[df_[item_colname].isin(item_ids)]
-    unique_user_ids, user_index = np.unique(df_[user_colname], return_inverse=True)
-    item_index = pd.Categorical(df_[item_colname], categories=item_ids).codes
-    df_aux = pd.DataFrame(
-        dict(
-            user_index=user_index,
-            item_index=item_index,
-            timestamp=df_[time_colname].values,
-        )
-    )
-    if rating_column is not None:
-        df_aux["rating"] = df_[rating_column]
-    else:
-        df_aux["rating"] = 1.0
-
-    shape_ = (len(unique_user_ids), len(item_ids))
-
+    unique_user_ids = np.asarray(list(set(df_[user_colname])))
     df_train, df_test = split_last_n_interaction_df(
-        df_aux,
-        "user_index",
-        "timestamp",
+        df_[[user_colname, item_colname, time_colname]],
+        user_colname,
+        time_colname,
         n_heldout=n_heldout,
         heldout_ratio=heldout_ratio,
     )
-    X_train = sps.csr_matrix(
-        (
-            df_train.rating.values,
-            (df_train.user_index.values, df_train.item_index.values),
-        ),
-        shape=shape_,
+    X_train, _, __ = df_to_sparse(
+        df_train,
+        user_colname,
+        item_colname,
+        user_ids=unique_user_ids,
+        item_ids=item_ids,
+        rating_colname=rating_column,
     )
-    X_test = sps.csr_matrix(
-        (
-            df_test.rating.values,
-            (df_test.user_index.values, df_test.item_index.values),
-        ),
-        shape=shape_,
+    X_test, _, __ = df_to_sparse(
+        df_test,
+        user_colname,
+        item_colname,
+        user_ids=unique_user_ids,
+        item_ids=item_ids,
+        rating_colname=rating_column,
     )
+
     return UserTrainTestInteractionPair(unique_user_ids, X_train, X_test, item_ids)
 
 
@@ -339,23 +320,8 @@ def split_dataframe_partial_user_holdout(
     df_test = df_all[df_all[user_column].isin(test_uids)].copy()
     item_all: List[Any] = list(set(df_all[item_column]))
 
-    item_id_to_iid = {id_: i for i, id_ in enumerate(item_all)}
-    for df in [df_train, df_val, df_test]:
-        df["item_iid"] = df[item_column].map(item_id_to_iid)
-
-    train_uids = df_train[user_column].unique()
-    train_uid_to_iid = {uid: iid for iid, uid in enumerate(train_uids)}
-
-    train_user_row = df_train[user_column].map(train_uid_to_iid).values
-    train_user_col = df_train.item_iid
-    if rating_column is None:
-        train_user_data = np.ones(df_train.shape[0])
-    else:
-        train_user_data = df_train[rating_column].values
-
-    train_user_interactions = sps.csr_matrix(
-        (train_user_data, (train_user_row, train_user_col)),
-        shape=(len(train_uids), len(item_all)),
+    train_user_interactions, _, __ = df_to_sparse(
+        df_train, user_column, item_column, user_ids=train_uids, item_ids=item_all
     )
 
     valid_data: Dict[str, UserTrainTestInteractionPair] = dict(

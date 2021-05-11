@@ -1,22 +1,27 @@
-import warnings
-
-from .base import BaseRecommender, BaseSimilarityRecommender, get_recommender_class
-from .base_earlystop import BaseRecommenderWithEarlyStopping
-from .dense_slim import DenseSLIMRecommender
-from .ials import IALSRecommender
-from .knn import (
+from irspack.recommenders.base import (
+    BaseRecommender,
+    BaseSimilarityRecommender,
+    get_recommender_class,
+)
+from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
+from irspack.recommenders.dense_slim import DenseSLIMRecommender
+from irspack.recommenders.ials import IALSRecommender
+from irspack.recommenders.knn import (
     AsymmetricCosineKNNRecommender,
     CosineKNNRecommender,
     JaccardKNNRecommender,
     TverskyIndexKNNRecommender,
 )
-from .nmf import NMFRecommender
-from .p3 import P3alphaRecommender
-from .rp3 import RP3betaRecommender
-from .slim import SLIMRecommender
-from .toppop import TopPopRecommender
-from .truncsvd import TruncatedSVDRecommender
-from .user_knn import AsymmetricCosineUserKNNRecommender, CosineUserKNNRecommender
+from irspack.recommenders.nmf import NMFRecommender
+from irspack.recommenders.p3 import P3alphaRecommender
+from irspack.recommenders.rp3 import RP3betaRecommender
+from irspack.recommenders.slim import SLIMRecommender
+from irspack.recommenders.toppop import TopPopRecommender
+from irspack.recommenders.truncsvd import TruncatedSVDRecommender
+from irspack.recommenders.user_knn import (
+    AsymmetricCosineUserKNNRecommender,
+    CosineUserKNNRecommender,
+)
 
 __all__ = [
     "BaseRecommender",
@@ -26,9 +31,7 @@ __all__ = [
     "P3alphaRecommender",
     "RP3betaRecommender",
     "DenseSLIMRecommender",
-    "NMFRecommender",
     "SLIMRecommender",
-    "TruncatedSVDRecommender",
     "IALSRecommender",
     "CosineKNNRecommender",
     "JaccardKNNRecommender",
@@ -36,22 +39,36 @@ __all__ = [
     "AsymmetricCosineKNNRecommender",
     "CosineUserKNNRecommender",
     "AsymmetricCosineUserKNNRecommender",
+    "TruncatedSVDRecommender",
+    "NMFRecommender",
     "get_recommender_class",
 ]
 
 try:
-    from .multvae import MultVAERecommender
+    from irspack.recommenders.truncsvd import TruncatedSVDRecommender
 
-    __all__.append("MultVAERecommender")
-except ModuleNotFoundError:
-    warnings.warn("Failed to import MultVAERecommender")
+    __all__.append("TruncatedSVDRecommender")
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover
 
 try:
-    from .bpr import BPRFMRecommender
+    from irspack.recommenders.nmf import NMFRecommender
+
+    __all__.append("NMFRecommender")
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover
+
+try:
+    from irspack.recommenders.multvae import MultVAERecommender
+
+    __all__.append("MultVAERecommender")
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover
+
+
+try:
+    from irspack.recommenders.bpr import BPRFMRecommender
 
     __all__.append("BPRFMRecommender")
-except:
-    warnings.warn(
-        "Failed to import BPRFMRecommender. To enable this feature, install `lightfm`."
-    )
-    pass
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover
