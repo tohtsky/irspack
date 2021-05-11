@@ -1,12 +1,9 @@
 from typing import Optional
 
-from sklearn.preprocessing import normalize
-
-from irspack.utils import get_n_threads
-
-from ..definitions import InteractionMatrix
-from ._knn import P3alphaComputer
-from .base import BaseSimilarityRecommender
+from irspack.definitions import InteractionMatrix
+from irspack.recommenders._knn import P3alphaComputer
+from irspack.recommenders.base import BaseSimilarityRecommender
+from irspack.utils import get_n_threads, l1_normalize_row
 
 
 class P3alphaRecommender(BaseSimilarityRecommender):
@@ -60,4 +57,4 @@ class P3alphaRecommender(BaseSimilarityRecommender):
         top_k = self.X_train_all.shape[1] if self.top_k is None else self.top_k
         self.W_ = computer.compute_W(self.X_train_all.T, top_k)
         if self.normalize_weight:
-            self.W_ = normalize(self.W_, norm="l1", axis=1)
+            self.W_ = l1_normalize_row(self.W_)

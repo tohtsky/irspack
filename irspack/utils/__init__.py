@@ -1,12 +1,15 @@
-import random
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import pandas as pd
 import scipy.sparse as sps
 
 from irspack.definitions import InteractionMatrix, OptionalRandomState
-from irspack.utils._util_cpp import (
+from irspack.utils.id_mapping import IDMappedRecommender
+from irspack.utils.random import convert_randomstate
+from irspack.utils.threading import get_n_threads
+
+from ._util_cpp import (
     okapi_BM_25_weight,
     remove_diagonal,
     rowwise_train_test_split_by_fixed_n,
@@ -14,9 +17,17 @@ from irspack.utils._util_cpp import (
     sparse_mm_threaded,
     tf_idf_weight,
 )
-from irspack.utils.id_mapping import IDMappedRecommender
-from irspack.utils.random import convert_randomstate
-from irspack.utils.threading import get_n_threads
+
+SparseMatrixType = TypeVar("SparseMatrixType", sps.csc_matrix, sps.csr_matrix)
+
+
+def l1_normalize_row(X: SparseMatrixType) -> SparseMatrixType:
+    result: SparseMatrixType = X.astype(np.float64)
+    result.sort_indices()
+    l1_norms: np.ndarray = result.sum(axis=1).A1
+    rows, _ = result.nonzero()
+    result.data /= l1_norms[rows]
+    return result
 
 
 def rowwise_train_test_split(
@@ -85,6 +96,7 @@ def df_to_sparse(
 
 
 __all__ = [
+    "l1_normalize_row",
     "rowwise_train_test_split",
     "sparse_mm_threaded",
     "okapi_BM_25_weight",
