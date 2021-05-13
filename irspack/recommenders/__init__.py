@@ -20,7 +20,12 @@ from .rp3 import RP3betaConfig, RP3betaRecommender
 from .slim import SLIMConfig, SLIMRecommender
 from .toppop import TopPopConfig, TopPopRecommender
 from .truncsvd import TruncatedSVDConfig, TruncatedSVDRecommender
-from .user_knn import AsymmetricCosineUserKNNConfig, AsymmetricCosineUserKNNRecommender, CosineUserKNNConfig, CosineUserKNNRecommender
+from .user_knn import (
+    AsymmetricCosineUserKNNConfig,
+    AsymmetricCosineUserKNNRecommender,
+    CosineUserKNNConfig,
+    CosineUserKNNRecommender,
+)
 
 __all__ = [
     "BaseRecommender",

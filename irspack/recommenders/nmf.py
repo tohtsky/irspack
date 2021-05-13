@@ -16,6 +16,7 @@ class NMFConfig(RecommenderConfig):
 
 class NMFRecommender(BaseRecommender):
     config_class = NMFConfig
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,

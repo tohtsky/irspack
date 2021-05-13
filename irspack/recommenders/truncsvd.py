@@ -10,7 +10,11 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding, RecommenderConfig
+from .base import (
+    BaseRecommenderWithItemEmbedding,
+    BaseRecommenderWithUserEmbedding,
+    RecommenderConfig,
+)
 
 
 class TruncatedSVDConfig(RecommenderConfig):

@@ -11,7 +11,11 @@ from optax import OptState, adam
 from scipy import sparse as sps
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
-from .base_earlystop import BaseEarlyStoppingRecommenderConfig, BaseRecommenderWithEarlyStopping, TrainerBase
+from .base_earlystop import (
+    BaseEarlyStoppingRecommenderConfig,
+    BaseRecommenderWithEarlyStopping,
+    TrainerBase,
+)
 
 
 class BaseMLP:
@@ -287,6 +291,7 @@ class MultVAEConfig(BaseEarlyStoppingRecommenderConfig):
 
 class MultVAERecommender(BaseRecommenderWithEarlyStopping):
     config_class = MultVAEConfig
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,

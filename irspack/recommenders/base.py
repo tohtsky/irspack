@@ -70,13 +70,15 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         # e.g., the epoch with the best validation score.
         self.learnt_config: Dict[str, Any] = dict()
 
-
     @classmethod
-    def from_config(cls, X_train_all: InteractionMatrix, config: RecommenderConfig) -> "BaseRecommender":
+    def from_config(
+        cls, X_train_all: InteractionMatrix, config: RecommenderConfig
+    ) -> "BaseRecommender":
         if not isinstance(config, cls.config_class):
-            raise ValueError(f"Different config has been given. config must be {cls.config_class}")
+            raise ValueError(
+                f"Different config has been given. config must be {cls.config_class}"
+            )
         return cls(X_train_all, **config.dict())
-
 
     def learn(self) -> "BaseRecommender":
         """Learns and returns itself.

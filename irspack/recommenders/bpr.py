@@ -13,7 +13,11 @@ from ..definitions import (
     UserIndexArray,
 )
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
-from .base_earlystop import BaseEarlyStoppingRecommenderConfig, BaseRecommenderWithEarlyStopping, TrainerBase
+from .base_earlystop import (
+    BaseEarlyStoppingRecommenderConfig,
+    BaseRecommenderWithEarlyStopping,
+    TrainerBase,
+)
 
 
 class BPRFMTrainer(TrainerBase):

@@ -16,7 +16,11 @@ from ..definitions import (
 from ._ials import IALSLearningConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
-from .base_earlystop import BaseEarlyStoppingRecommenderConfig, BaseRecommenderWithEarlyStopping, TrainerBase
+from .base_earlystop import (
+    BaseEarlyStoppingRecommenderConfig,
+    BaseRecommenderWithEarlyStopping,
+    TrainerBase,
+)
 
 
 class IALSTrainer(TrainerBase):

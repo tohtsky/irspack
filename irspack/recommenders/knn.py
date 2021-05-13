@@ -27,6 +27,7 @@ class BaseKNNConfig(RecommenderConfig):
 
 class BaseKNNRecommender(BaseSimilarityRecommender):
     config_class = BaseKNNConfig
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
