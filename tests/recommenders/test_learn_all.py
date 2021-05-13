@@ -49,6 +49,7 @@ def test_recs(class_name: str) -> None:
     except:
         pytest.skip(f"{class_name} not found.")
     rec = RecommenderClass(X_train)
+    rec = RecommenderClass.from_config(X_train, RecommenderClass.config_class())
     rec.learn()
 
     scores = rec.get_score(np.arange(X_train.shape[0]))

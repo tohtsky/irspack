@@ -7,7 +7,7 @@ from optuna import Trial, exceptions
 
 from irspack.definitions import InteractionMatrix
 from irspack.evaluator.evaluator import Evaluator
-from irspack.recommenders.base import BaseRecommender
+from irspack.recommenders.base import BaseRecommender, RecommenderConfig
 
 
 class TrainerBase(ABC):
@@ -41,7 +41,14 @@ class TrainerBase(ABC):
         raise NotImplementedError()  # pragma: no cover
 
 
+class BaseEarlyStoppingRecommenderConfig(RecommenderConfig):
+    validate_epoch: int = 5
+    score_degradation_max: int = 5
+    max_epoch: int = 512
+
+
 class BaseRecommenderWithEarlyStopping(BaseRecommender):
+    class_name = BaseEarlyStoppingRecommenderConfig
     """The base class for all the early-stoppable recommenders.
 
     Args:

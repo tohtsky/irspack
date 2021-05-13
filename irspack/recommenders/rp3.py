@@ -4,10 +4,19 @@ from irspack.utils import get_n_threads, l1_normalize_row
 
 from ..definitions import InteractionMatrix
 from ._knn import RP3betaComputer
-from .base import BaseSimilarityRecommender
+from .base import BaseSimilarityRecommender, RecommenderConfig
+
+
+class RP3betaConfig(RecommenderConfig):
+    alpha: float = 1
+    beta: float = 0.6
+    top_k: Optional[int] = None
+    normalize_weight: bool = False
+    n_threads: Optional[int] = None
 
 
 class RP3betaRecommender(BaseSimilarityRecommender):
+    config_class = RP3betaConfig
     """3-Path random walk with the item-popularity penalization:
 
         - `Updatable, Accurate, Diverse, and Scalable Recommendations for Interactive Applications

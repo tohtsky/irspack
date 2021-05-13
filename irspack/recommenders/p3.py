@@ -5,8 +5,18 @@ from irspack.recommenders._knn import P3alphaComputer
 from irspack.recommenders.base import BaseSimilarityRecommender
 from irspack.utils import get_n_threads, l1_normalize_row
 
+from .base import BaseSimilarityRecommender, RecommenderConfig
+
+
+class P3alphaConfig(RecommenderConfig):
+    alpha: float = 1
+    top_k: Optional[int] = None
+    normalize_weight: bool = False
+    n_threads: Optional[int] = None
+
 
 class P3alphaRecommender(BaseSimilarityRecommender):
+    config_class = P3alphaConfig
     """Recommendation with 3-steps random walk, proposed in
 
         - `Random Walks in Recommender Systems: Exact Computation and Simulations

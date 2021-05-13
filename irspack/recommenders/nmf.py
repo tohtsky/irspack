@@ -3,10 +3,20 @@ from typing import Optional
 from sklearn.decomposition import NMF
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
-from .base import BaseRecommender
+from .base import BaseRecommender, RecommenderConfig
+
+
+class NMFConfig(RecommenderConfig):
+    n_components: int = 64
+    alpha: float = 1e-2
+    l1_ratio: float = 1e-2
+    beta_loss: str = "frobenius"
+    init: Optional[str] = None
 
 
 class NMFRecommender(BaseRecommender):
+    config_class = NMFConfig
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,

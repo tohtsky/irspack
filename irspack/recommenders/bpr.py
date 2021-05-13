@@ -13,7 +13,11 @@ from ..definitions import (
     UserIndexArray,
 )
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
-from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
+from .base_earlystop import (
+    BaseEarlyStoppingRecommenderConfig,
+    BaseRecommenderWithEarlyStopping,
+    TrainerBase,
+)
 
 
 class BPRFMTrainer(TrainerBase):
@@ -45,11 +49,20 @@ class BPRFMTrainer(TrainerBase):
         pickle.dump(self.fm, ofs, protocol=pickle.HIGHEST_PROTOCOL)
 
 
+class BPRFMConfig(BaseEarlyStoppingRecommenderConfig):
+    n_components: int = 128
+    item_alpha: float = 1e-9
+    user_alpha: float = 1e-9
+    loss: str = "bpr"
+    n_threads: Optional[int] = None
+
+
 class BPRFMRecommender(
     BaseRecommenderWithEarlyStopping,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
+    config_class = BPRFMConfig
     """A `LightFM <https://github.com/lyst/lightfm>`_ wrapper for our interface.
 
     This will create ``LightFM`` instance by

@@ -7,19 +7,26 @@ from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 from irspack.recommenders.dense_slim import DenseSLIMRecommender
 from irspack.recommenders.ials import IALSRecommender
 from irspack.recommenders.knn import (
+    AsymmetricCosineKNNConfig,
     AsymmetricCosineKNNRecommender,
+    CosineKNNConfig,
     CosineKNNRecommender,
+    JaccardKNNConfig,
     JaccardKNNRecommender,
+    TverskyIndexKNNConfig,
     TverskyIndexKNNRecommender,
 )
-from irspack.recommenders.nmf import NMFRecommender
-from irspack.recommenders.p3 import P3alphaRecommender
-from irspack.recommenders.rp3 import RP3betaRecommender
-from irspack.recommenders.slim import SLIMRecommender
-from irspack.recommenders.toppop import TopPopRecommender
-from irspack.recommenders.truncsvd import TruncatedSVDRecommender
-from irspack.recommenders.user_knn import (
+
+from .nmf import NMFConfig, NMFRecommender
+from .p3 import P3alphaConfig, P3alphaRecommender
+from .rp3 import RP3betaConfig, RP3betaRecommender
+from .slim import SLIMConfig, SLIMRecommender
+from .toppop import TopPopConfig, TopPopRecommender
+from .truncsvd import TruncatedSVDConfig, TruncatedSVDRecommender
+from .user_knn import (
+    AsymmetricCosineUserKNNConfig,
     AsymmetricCosineUserKNNRecommender,
+    CosineUserKNNConfig,
     CosineUserKNNRecommender,
 )
 
@@ -27,17 +34,34 @@ __all__ = [
     "BaseRecommender",
     "BaseSimilarityRecommender",
     "BaseRecommenderWithEarlyStopping",
+    "TopPopConfig",
     "TopPopRecommender",
+    "P3alphaConfig",
     "P3alphaRecommender",
+    "RP3betaConfig",
     "RP3betaRecommender",
+    "DenseSLIMConfig",
     "DenseSLIMRecommender",
     "SLIMRecommender",
+    "NMFConfig",
+    "NMFRecommender",
+    "SLIMConfig",
+    "SLIMRecommender",
+    "TruncatedSVDConfig",
+    "TruncatedSVDRecommender",
+    "IALSConfig",
     "IALSRecommender",
+    "CosineKNNConfig",
     "CosineKNNRecommender",
+    "JaccardKNNConfig",
     "JaccardKNNRecommender",
+    "TverskyIndexKNNConfig",
     "TverskyIndexKNNRecommender",
+    "AsymmetricCosineKNNConfig",
     "AsymmetricCosineKNNRecommender",
+    "CosineUserKNNConfig",
     "CosineUserKNNRecommender",
+    "AsymmetricCosineUserKNNConfig",
     "AsymmetricCosineUserKNNRecommender",
     "TruncatedSVDRecommender",
     "NMFRecommender",
@@ -58,17 +82,17 @@ try:
 except ImportError:  # pragma: no cover
     pass  # pragma: no cover
 
-try:
-    from irspack.recommenders.multvae import MultVAERecommender
 
-    __all__.append("MultVAERecommender")
+try:
+    from .multvae import MultVAEConfig, MultVAERecommender
+
+    __all__.extend(["MultVAEConfig", "MultVAERecommender"])
 except ImportError:  # pragma: no cover
     pass  # pragma: no cover
 
-
 try:
-    from irspack.recommenders.bpr import BPRFMRecommender
+    from .bpr import BPRFMConfig, BPRFMRecommender
 
-    __all__.append("BPRFMRecommender")
+    __all__.extend(["BPRFMConfig", "BPRFMRecommender"])
 except ImportError:  # pragma: no cover
     pass  # pragma: no cover
