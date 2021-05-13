@@ -20,7 +20,6 @@ class SLIMConfig(RecommenderConfig):
 
 
 class SLIMRecommender(BaseSimilarityRecommender):
-    config_class = SLIMConfig
     r"""`SLIM <https://dl.acm.org/doi/10.1109/ICDM.2011.134>`_ with ElasticNet-type loss function:
 
     .. math ::
@@ -51,6 +50,8 @@ class SLIMRecommender(BaseSimilarityRecommender):
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
     """
+
+    config_class = SLIMConfig
 
     def __init__(
         self,

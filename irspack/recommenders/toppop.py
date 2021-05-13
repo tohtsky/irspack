@@ -11,7 +11,6 @@ class TopPopConfig(RecommenderConfig):
 
 
 class TopPopRecommender(BaseRecommender):
-    config_class = TopPopConfig
     """A simple recommender system based on the popularity of the items in the
     training set (without any personalization).
 
@@ -19,6 +18,8 @@ class TopPopRecommender(BaseRecommender):
         X_train Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
             Input interaction matrix.
     """
+
+    config_class = TopPopConfig
 
     score_: Optional[np.ndarray]
 

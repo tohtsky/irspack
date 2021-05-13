@@ -16,7 +16,6 @@ class P3alphaConfig(RecommenderConfig):
 
 
 class P3alphaRecommender(BaseSimilarityRecommender):
-    config_class = P3alphaConfig
     """Recommendation with 3-steps random walk, proposed in
 
         - `Random Walks in Recommender Systems: Exact Computation and Simulations
@@ -42,6 +41,8 @@ class P3alphaRecommender(BaseSimilarityRecommender):
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
     """
+
+    config_class = P3alphaConfig
 
     def __init__(
         self,

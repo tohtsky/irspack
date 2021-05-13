@@ -91,7 +91,6 @@ class IALSRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    config_class = IALSConfig
     r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
 
     It tries to minimize the following loss:
@@ -162,6 +161,8 @@ class IALSRecommender(
         max_epoch (int, optional):
             Maximal number of epochs. Defaults to 512.
     """
+
+    config_class = IALSConfig
 
     @classmethod
     def _scale_X(

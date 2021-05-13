@@ -16,7 +16,6 @@ class RP3betaConfig(RecommenderConfig):
 
 
 class RP3betaRecommender(BaseSimilarityRecommender):
-    config_class = RP3betaConfig
     """3-Path random walk with the item-popularity penalization:
 
         - `Updatable, Accurate, Diverse, and Scalable Recommendations for Interactive Applications
@@ -43,6 +42,8 @@ class RP3betaRecommender(BaseSimilarityRecommender):
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
     """
+
+    config_class = RP3betaConfig
 
     def __init__(
         self,

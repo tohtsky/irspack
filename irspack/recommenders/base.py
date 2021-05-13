@@ -51,14 +51,15 @@ class RecommenderMeta(ABCMeta):
 
 
 class BaseRecommender(object, metaclass=RecommenderMeta):
-    X_train_all: sps.csr_matrix
-    config_class = RecommenderConfig
     """The base class for all (hot) recommenders.
 
     Args:
         X_train_all (csr_matrix|csc_matrix|np.ndarray): user/item interaction matrix.
             each row correspods to a user's interaction with items.
     """
+
+    X_train_all: sps.csr_matrix
+    config_class = RecommenderConfig
 
     def __init__(self, X_train_all: InteractionMatrix, **kwargs: Any) -> None:
         self.X_train_all = sps.csr_matrix(X_train_all).astype(np.float64)

@@ -84,7 +84,6 @@ class CosineKNNConfig(BaseCosineKNNConfig):
 
 
 class CosineKNNRecommender(BaseKNNRecommender):
-    config_class = CosineKNNConfig
     r"""K-nearest neighbor recommender system based on cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
@@ -121,6 +120,8 @@ class CosineKNNRecommender(BaseKNNRecommender):
 
     """
 
+    config_class = CosineKNNConfig
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -155,7 +156,6 @@ class AsymmetricCosineKNNConfig(BaseCosineKNNConfig):
 
 
 class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
-    config_class = AsymmetricCosineKNNConfig
     r"""K-nearest neighbor recommender system based on asymmetric cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
@@ -188,6 +188,8 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
 
     """
+
+    config_class = AsymmetricCosineKNNConfig
 
     def __init__(
         self,
@@ -222,7 +224,6 @@ class JaccardKNNConfig(BaseKNNConfig):
 
 
 class JaccardKNNRecommender(BaseKNNRecommender):
-    config_class = JaccardKNNConfig
     r"""K-nearest neighbor recommender system based on Jaccard similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
@@ -241,6 +242,8 @@ class JaccardKNNRecommender(BaseKNNRecommender):
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
 
     """
+
+    config_class = JaccardKNNConfig
 
     def __init__(
         self,
@@ -261,7 +264,6 @@ class TverskyIndexKNNConfig(BaseKNNConfig):
 
 
 class TverskyIndexKNNRecommender(BaseKNNRecommender):
-    config_class = TverskyIndexKNNConfig
     r"""K-nearest neighbor recommender system based on Tversky Index. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
@@ -284,6 +286,8 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
 
     """
+
+    config_class = TverskyIndexKNNConfig
 
     def __init__(
         self,
