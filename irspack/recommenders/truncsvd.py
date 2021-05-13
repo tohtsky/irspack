@@ -10,13 +10,19 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
+from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding, RecommenderConfig
+
+
+class TruncatedSVDConfig(RecommenderConfig):
+    n_components: int = 4
+    random_seed: int = 0
 
 
 class TruncatedSVDRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
+    config_class = TruncatedSVDConfig
     """Use (randomized) SVD to factorize the input matrix into low-rank matrices.
 
     Args:

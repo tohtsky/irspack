@@ -11,6 +11,7 @@ from optax import OptState, adam
 from scipy import sparse as sps
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
+from .base import RecommenderConfig
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 
@@ -273,7 +274,23 @@ class MultVAETrainer(TrainerBase):
         self._setup_jax_funcs()
 
 
+class MultVAEConfig(RecommenderConfig):
+    dim_z: int = 16
+    enc_hidden_dims: int = 256
+    dec_hidden_dims: Optional[int] = None
+    dropout_p: float = 0.5
+    l2_regularizer: float = 0
+    kl_anneal_goal: float = 0.2
+    anneal_end_epoch: int = 50
+    minibatch_size: int = 512
+    max_epoch: int = 300
+    validate_epoch: int = 5
+    score_degradation_max: int = 5
+    learning_rate: float = 1e-3
+
+
 class MultVAERecommender(BaseRecommenderWithEarlyStopping):
+    config_class = MultVAEConfig
     def __init__(
         self,
         X_train_all: InteractionMatrix,

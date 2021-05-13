@@ -10,7 +10,7 @@ from ._knn import (
     JaccardSimilarityComputer,
     TverskyIndexComputer,
 )
-from .base import BaseSimilarityRecommender
+from .base import BaseSimilarityRecommender, RecommenderConfig
 
 
 class FeatureWeightingScheme(str, enum.Enum):
@@ -19,7 +19,14 @@ class FeatureWeightingScheme(str, enum.Enum):
     BM_25 = "BM_25"
 
 
+class BaseKNNConfig(RecommenderConfig):
+    shrinkage: float = 0.0
+    top_k: int = 100
+    n_threads: Optional[int] = None
+
+
 class BaseKNNRecommender(BaseSimilarityRecommender):
+    config_class = BaseKNNConfig
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -65,7 +72,18 @@ class BaseKNNRecommender(BaseSimilarityRecommender):
         ).tocsc()
 
 
+class BaseCosineKNNConfig(BaseKNNConfig):
+    feature_weighting: str = "NONE"
+    bm25_k1: float = 1.2
+    bm25_b: float = 0.75
+
+
+class CosineKNNConfig(BaseCosineKNNConfig):
+    normalize: bool = False
+
+
 class CosineKNNRecommender(BaseKNNRecommender):
+    config_class = CosineKNNConfig
     r"""K-nearest neighbor recommender system based on cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
@@ -131,7 +149,12 @@ class CosineKNNRecommender(BaseKNNRecommender):
         )
 
 
+class AsymmetricCosineKNNConfig(BaseCosineKNNConfig):
+    alpha: float = 0.5
+
+
 class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
+    config_class = AsymmetricCosineKNNConfig
     r"""K-nearest neighbor recommender system based on asymmetric cosine similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
@@ -193,7 +216,12 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
         )
 
 
+class JaccardKNNConfig(BaseKNNConfig):
+    pass
+
+
 class JaccardKNNRecommender(BaseKNNRecommender):
+    config_class = JaccardKNNConfig
     r"""K-nearest neighbor recommender system based on Jaccard similarity. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::
@@ -226,7 +254,13 @@ class JaccardKNNRecommender(BaseKNNRecommender):
         return JaccardSimilarityComputer(X, self.shrinkage, self.n_threads)
 
 
+class TverskyIndexKNNConfig(BaseKNNConfig):
+    alpha: float = 0.5
+    beta: float = 0.5
+
+
 class TverskyIndexKNNRecommender(BaseKNNRecommender):
+    config_class = TverskyIndexKNNConfig
     r"""K-nearest neighbor recommender system based on Tversky Index. That is, the similarity matrix ``W`` is given by (column-wise top-k restricted)
 
     .. math::

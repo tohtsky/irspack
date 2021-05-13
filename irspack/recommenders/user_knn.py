@@ -8,7 +8,7 @@ from irspack.recommenders._knn import (
     JaccardSimilarityComputer,
     TverskyIndexComputer,
 )
-from irspack.recommenders.base import BaseUserSimilarityRecommender
+from irspack.recommenders.base import BaseUserSimilarityRecommender, RecommenderConfig
 from irspack.recommenders.knn import FeatureWeightingScheme
 from irspack.utils import (
     get_n_threads,
@@ -18,7 +18,17 @@ from irspack.utils import (
 )
 
 
+class BaseUserKNNConfig(RecommenderConfig):
+    shrinkage: float = 0.0
+    top_k: int = 100
+    n_threads: Optional[int] = None
+    feature_weighting: str = "NONE"
+    bm25_k1: float = 1.2
+    bm25_b: float = 0.75
+
+
 class BaseUserKNNRecommender(BaseUserSimilarityRecommender):
+    class_name = BaseUserKNNConfig
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -62,6 +72,10 @@ class BaseUserKNNRecommender(BaseUserSimilarityRecommender):
         self.U_ = remove_diagonal(
             computer.compute_similarity(self.X_train_all, self.top_k)
         )
+
+
+class CosineUserKNNConfig(RecommenderConfig):
+    normalize: bool = True
 
 
 class CosineUserKNNRecommender(BaseUserKNNRecommender):
@@ -127,6 +141,10 @@ class CosineUserKNNRecommender(BaseUserKNNRecommender):
         return CosineSimilarityComputer(
             X, self.shrinkage, self.normalize, self.n_threads
         )
+
+
+class AsymmetricCosineUserKNNConfig(RecommenderConfig):
+    alpha: float = 0.5
 
 
 class AsymmetricCosineUserKNNRecommender(BaseUserKNNRecommender):

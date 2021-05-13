@@ -20,6 +20,7 @@ install_requires = (
         "scikit-learn>=0.21.0",
         "scipy>=1.0",
         "colorlog>=4",
+        "pydantic>=1.8.2",
     ],
 )
 

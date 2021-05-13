@@ -15,7 +15,7 @@ from ..definitions import (
 )
 from ._ials import IALSLearningConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
-from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
+from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding, RecommenderConfig
 from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
 
 
@@ -69,11 +69,28 @@ class IALSConfigScaling(enum.Enum):
     log = enum.auto()
 
 
+class IALSConfig(RecommenderConfig):
+    n_components: int = 20
+    alpha: float = 0.0
+    reg: float = 1e-3
+    confidence_scaling: str = "none"
+    epsilon: float = 1.0
+    init_std: float = 0.1
+    use_cg: bool = True
+    max_cg_steps: int = 3
+    random_seed: int = 42
+    validate_epoch: int = 5
+    score_degradation_max: int = 5
+    n_threads: Optional[int] = None
+    max_epoch: int = 512
+
+
 class IALSRecommender(
     BaseRecommenderWithEarlyStopping,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
+    config_class = IALSConfig
     r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
 
     It tries to minimize the following loss:
