@@ -56,7 +56,7 @@ def test_recs(class_name: str) -> None:
         class_name (str): The recommender class's name to be tested.
     """
     RecommenderClass = get_recommender_class(class_name)
-    rec = RecommenderClass(X_train)
+    rec = RecommenderClass.from_config(X_train, RecommenderClass.config_class())
     rec.learn()
 
     scores = rec.get_score(np.arange(X_train.shape[0]))

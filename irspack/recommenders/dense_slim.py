@@ -4,10 +4,15 @@ import numpy as np
 from scipy import linalg
 
 from ..definitions import InteractionMatrix
-from .base import BaseSimilarityRecommender
+from .base import BaseSimilarityRecommender, RecommenderConfig
+
+
+class DenseSLIMConfig(RecommenderConfig):
+    reg: float = 1
 
 
 class DenseSLIMRecommender(BaseSimilarityRecommender):
+    config_class = DenseSLIMConfig
     """Implementation of DenseSLIM or Embarrassingly Shallow AutoEncoder (EASE ^R).
 
     See:

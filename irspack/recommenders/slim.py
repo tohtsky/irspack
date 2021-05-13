@@ -1,7 +1,7 @@
 from typing import Optional
 
 from irspack.definitions import InteractionMatrix
-from irspack.recommenders.base import BaseSimilarityRecommender
+from irspack.recommenders.base import BaseSimilarityRecommender, RecommenderConfig
 from irspack.utils import get_n_threads
 from irspack.utils._util_cpp import (
     slim_weight_allow_negative,
@@ -9,7 +9,18 @@ from irspack.utils._util_cpp import (
 )
 
 
+class SLIMConfig(RecommenderConfig):
+    alpha: float = 0.05
+    l1_ratio: float = 0.01
+    positive_only: bool = True
+    n_iter: int = 100
+    tol: float = 1e-4
+    top_k: Optional[int] = None
+    n_threads: Optional[int] = None
+
+
 class SLIMRecommender(BaseSimilarityRecommender):
+    config_class = SLIMConfig
     r"""`SLIM <https://dl.acm.org/doi/10.1109/ICDM.2011.134>`_ with ElasticNet-type loss function:
 
     .. math ::

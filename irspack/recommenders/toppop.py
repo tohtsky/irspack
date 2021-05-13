@@ -3,10 +3,15 @@ from typing import Optional
 import numpy as np
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
-from .base import BaseRecommender
+from .base import BaseRecommender, RecommenderConfig
+
+
+class TopPopConfig(RecommenderConfig):
+    pass
 
 
 class TopPopRecommender(BaseRecommender):
+    config_class = TopPopConfig
     """A simple recommender system based on the popularity of the items in the
     training set (without any personalization).
 

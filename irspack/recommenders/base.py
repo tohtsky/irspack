@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union, no_type_chec
 
 import numpy as np
 from optuna.trial import Trial
+from pydantic import BaseModel
 from scipy import sparse as sps
 
 if TYPE_CHECKING:
@@ -27,6 +28,11 @@ class CallBeforeFitError(Exception):
     pass
 
 
+class RecommenderConfig(BaseModel):
+    class Config:
+        extra = "forbid"
+
+
 class RecommenderMeta(ABCMeta):
     recommender_name_vs_recommender_class: Dict[str, "RecommenderMeta"] = {}
 
@@ -46,6 +52,7 @@ class RecommenderMeta(ABCMeta):
 
 class BaseRecommender(object, metaclass=RecommenderMeta):
     X_train_all: sps.csr_matrix
+    config_class = RecommenderConfig
     """The base class for all (hot) recommenders.
 
     Args:
@@ -62,6 +69,16 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         # this will store configurable parameters learnt during the training,
         # e.g., the epoch with the best validation score.
         self.learnt_config: Dict[str, Any] = dict()
+
+    @classmethod
+    def from_config(
+        cls, X_train_all: InteractionMatrix, config: RecommenderConfig
+    ) -> "BaseRecommender":
+        if not isinstance(config, cls.config_class):
+            raise ValueError(
+                f"Different config has been given. config must be {cls.config_class}"
+            )
+        return cls(X_train_all, **config.dict())
 
     def learn(self) -> "BaseRecommender":
         """Learns and returns itself.
