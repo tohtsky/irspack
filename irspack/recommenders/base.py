@@ -29,7 +29,8 @@ class CallBeforeFitError(Exception):
 
 
 class RecommenderConfig(BaseModel):
-    pass
+    class Config:
+        extra = "forbid"
 
 
 class RecommenderMeta(ABCMeta):
