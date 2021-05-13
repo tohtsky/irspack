@@ -12,8 +12,8 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding, RecommenderConfig
-from .base_earlystop import BaseRecommenderWithEarlyStopping, TrainerBase
+from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
+from .base_earlystop import BaseEarlyStoppingRecommenderConfig, BaseRecommenderWithEarlyStopping, TrainerBase
 
 
 class BPRFMTrainer(TrainerBase):
@@ -45,15 +45,12 @@ class BPRFMTrainer(TrainerBase):
         pickle.dump(self.fm, ofs, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-class BPRFMConfig(RecommenderConfig):
+class BPRFMConfig(BaseEarlyStoppingRecommenderConfig):
     n_components: int = 128
     item_alpha: float = 1e-9
     user_alpha: float = 1e-9
     loss: str = "bpr"
-    validate_epoch: int = 5
-    score_degradation_max: int = 3
     n_threads: Optional[int] = None
-    max_epoch: int = 512
 
 
 class BPRFMRecommender(
