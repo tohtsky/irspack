@@ -4,8 +4,8 @@ from irspack.recommenders.base import (
     get_recommender_class,
 )
 from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
-from irspack.recommenders.dense_slim import DenseSLIMRecommender
-from irspack.recommenders.ials import IALSRecommender
+from irspack.recommenders.dense_slim import DenseSLIMConfig, DenseSLIMRecommender
+from irspack.recommenders.ials import IALSConfig, IALSRecommender
 from irspack.recommenders.knn import (
     AsymmetricCosineKNNConfig,
     AsymmetricCosineKNNRecommender,
