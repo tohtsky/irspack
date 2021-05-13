@@ -17,12 +17,10 @@ from irspack.recommenders.knn import (
     TverskyIndexKNNRecommender,
 )
 
-from .nmf import NMFConfig, NMFRecommender
 from .p3 import P3alphaConfig, P3alphaRecommender
 from .rp3 import RP3betaConfig, RP3betaRecommender
 from .slim import SLIMConfig, SLIMRecommender
 from .toppop import TopPopConfig, TopPopRecommender
-from .truncsvd import TruncatedSVDConfig, TruncatedSVDRecommender
 from .user_knn import (
     AsymmetricCosineUserKNNConfig,
     AsymmetricCosineUserKNNRecommender,
@@ -42,13 +40,8 @@ __all__ = [
     "RP3betaRecommender",
     "DenseSLIMConfig",
     "DenseSLIMRecommender",
-    "SLIMRecommender",
-    "NMFConfig",
-    "NMFRecommender",
     "SLIMConfig",
     "SLIMRecommender",
-    "TruncatedSVDConfig",
-    "TruncatedSVDRecommender",
     "IALSConfig",
     "IALSRecommender",
     "CosineKNNConfig",
@@ -63,22 +56,23 @@ __all__ = [
     "CosineUserKNNRecommender",
     "AsymmetricCosineUserKNNConfig",
     "AsymmetricCosineUserKNNRecommender",
-    "TruncatedSVDRecommender",
-    "NMFRecommender",
     "get_recommender_class",
 ]
 
 try:
-    from irspack.recommenders.truncsvd import TruncatedSVDRecommender
+    from irspack.recommenders.truncsvd import (
+        TruncatedSVDConfig,
+        TruncatedSVDRecommender,
+    )
 
-    __all__.append("TruncatedSVDRecommender")
+    __all__.extend(["TruncatedSVDRecommender", "TruncatedSVDConfig"])
 except ImportError:  # pragma: no cover
     pass  # pragma: no cover
 
 try:
-    from irspack.recommenders.nmf import NMFRecommender
+    from irspack.recommenders.nmf import NMFConfig, NMFRecommender
 
-    __all__.append("NMFRecommender")
+    __all__.extend(["NMFRecommender", "NMFConfig"])
 except ImportError:  # pragma: no cover
     pass  # pragma: no cover
 

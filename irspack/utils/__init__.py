@@ -3,7 +3,6 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import scipy.sparse as sps
-from scipy.sparse.csc import csc_matrix
 
 from irspack.definitions import InteractionMatrix, OptionalRandomState
 from irspack.utils.id_mapping import IDMappedRecommender
