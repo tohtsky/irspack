@@ -1,8 +1,9 @@
-from typing import Optional, Tuple, TypeVar, List, Any
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import scipy.sparse as sps
+from scipy.sparse.csc import csc_matrix
 
 from irspack.definitions import InteractionMatrix, OptionalRandomState
 from irspack.utils.id_mapping import IDMappedRecommender
@@ -18,15 +19,12 @@ from ._util_cpp import (
     tf_idf_weight,
 )
 
-SparseMatrixType = TypeVar("SparseMatrixType", sps.csc_matrix, sps.csr_matrix)
 
-
-def l1_normalize_row(X: SparseMatrixType) -> SparseMatrixType:
-    result: SparseMatrixType = X.astype(np.float64)
+def l1_normalize_row(X: sps.csc_matrix) -> sps.csc_matrix:
+    result: sps.csc_matrix = X.astype(np.float64)
     result.sort_indices()
     l1_norms: np.ndarray = result.sum(axis=1).A1
-    rows, _ = result.nonzero()
-    result.data /= l1_norms[rows]
+    result.data /= l1_norms[result.indices]
     return result
 
 
