@@ -75,7 +75,7 @@ class BaseUserKNNRecommender(BaseUserSimilarityRecommender):
         )
 
 
-class CosineUserKNNConfig(RecommenderConfig):
+class CosineUserKNNConfig(BaseUserKNNConfig):
     normalize: bool = True
 
 
@@ -146,7 +146,7 @@ class CosineUserKNNRecommender(BaseUserKNNRecommender):
         )
 
 
-class AsymmetricCosineUserKNNConfig(RecommenderConfig):
+class AsymmetricCosineUserKNNConfig(BaseUserKNNConfig):
     alpha: float = 0.5
 
 
