@@ -48,7 +48,6 @@ class BaseEarlyStoppingRecommenderConfig(RecommenderConfig):
 
 
 class BaseRecommenderWithEarlyStopping(BaseRecommender):
-    class_name = BaseEarlyStoppingRecommenderConfig
     """The base class for all the early-stoppable recommenders.
 
     Args:
@@ -59,6 +58,7 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
     """
 
     trainer_class: Type[TrainerBase]
+    config_class = BaseEarlyStoppingRecommenderConfig
 
     def __init__(
         self,
