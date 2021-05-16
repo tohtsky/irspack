@@ -23,7 +23,7 @@ from irspack.recommenders.base_earlystop import (
 )
 
 
-class AutopilotMockRecommender(BaseRecommender):
+class AutopilotMockRecommender(BaseRecommender, register_class=False):
     def __init__(self, X: InteractionMatrix, wait_time: float = 1.0):
         super().__init__(X)
         self.wait_time = wait_time
@@ -64,7 +64,9 @@ class AutopilotMockEarlyStoppableTrainer(TrainerBase):
         self.epoch += 1
 
 
-class AutopilotMockEarlyStoppableRecommender(BaseRecommenderWithEarlyStopping):
+class AutopilotMockEarlyStoppableRecommender(
+    BaseRecommenderWithEarlyStopping, register_class=False
+):
     trainer_class = AutopilotMockEarlyStoppableTrainer
 
     def __init__(

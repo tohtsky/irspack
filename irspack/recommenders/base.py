@@ -42,23 +42,26 @@ class RecommenderMeta(ABCMeta):
         name,
         bases,
         namespace,
+        register_class: bool = True,
         **kwargs,
     ):
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        mcs.recommender_name_vs_recommender_class[name] = cls
+        if register_class:
+            mcs.recommender_name_vs_recommender_class[name] = cls
         return cls
 
 
 class BaseRecommender(object, metaclass=RecommenderMeta):
-    X_train_all: sps.csr_matrix
-    config_class = RecommenderConfig
     """The base class for all (hot) recommenders.
 
     Args:
         X_train_all (csr_matrix|csc_matrix|np.ndarray): user/item interaction matrix.
             each row correspods to a user's interaction with items.
     """
+
+    X_train_all: sps.csr_matrix
+    config_class: Type[RecommenderConfig]
 
     def __init__(self, X_train_all: InteractionMatrix, **kwargs: Any) -> None:
         self.X_train_all = sps.csr_matrix(X_train_all).astype(np.float64)
@@ -190,8 +193,9 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
 
 
 class BaseSimilarityRecommender(BaseRecommender):
-    W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
     """The computed item-item similarity. Might not be initialized before `learn()` is called."""
+
+    W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -215,8 +219,9 @@ class BaseSimilarityRecommender(BaseRecommender):
 
 
 class BaseUserSimilarityRecommender(BaseRecommender):
-    U_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
     """The computed user-user similarity. Might not be initialized before `learn()` is called."""
+
+    U_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)

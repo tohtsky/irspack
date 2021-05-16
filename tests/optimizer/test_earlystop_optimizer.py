@@ -44,7 +44,7 @@ class MockTrainer(TrainerBase):
         self.epoch += 1
 
 
-class MockRecommender(BaseRecommenderWithEarlyStopping):
+class MockRecommender(BaseRecommenderWithEarlyStopping, register_class=False):
     trainer_class = MockTrainer
 
     def __init__(
