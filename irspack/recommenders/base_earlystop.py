@@ -58,7 +58,6 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
     """
 
     trainer_class: Type[TrainerBase]
-    config_class = BaseEarlyStoppingRecommenderConfig
 
     def __init__(
         self,

@@ -13,7 +13,7 @@ from irspack.recommenders.base import BaseRecommender
 from irspack.split import rowwise_train_test_split
 
 
-class MockRecommender(BaseRecommender):
+class MockRecommender(BaseRecommender, register_class=False):
     def __init__(self, X_all: sps.csr_matrix, scores: np.ndarray) -> None:
         super().__init__(X_all)
         self.scores = scores

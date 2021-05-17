@@ -26,7 +26,6 @@ class TruncatedSVDRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    config_class = TruncatedSVDConfig
     """Use (randomized) SVD to factorize the input matrix into low-rank matrices.
 
     Args:
@@ -40,6 +39,8 @@ class TruncatedSVDRecommender(
         random_seed:
             The random seed to be passed on core TruncSVD.
     """
+
+    config_class = TruncatedSVDConfig
 
     def __init__(
         self,

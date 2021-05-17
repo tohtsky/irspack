@@ -62,8 +62,7 @@ class BPRFMRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    config_class = BPRFMConfig
-    """A `LightFM <https://github.com/lyst/lightfm>`_ wrapper for our interface.
+    r"""A `LightFM <https://github.com/lyst/lightfm>`_ wrapper for our interface.
 
     This will create ``LightFM`` instance by
 
@@ -100,6 +99,8 @@ class BPRFMRecommender(
         max_epoch (int, optional):
             Maximal number of epochs. Defaults to 512.
     """
+
+    config_class = BPRFMConfig
 
     def __init__(
         self,

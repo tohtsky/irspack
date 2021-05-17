@@ -1,13 +1,12 @@
 import pickle
-from typing import List, Type
+from inspect import isabstract
 
 import numpy as np
 import pytest
 import scipy.sparse as sps
 
-from irspack.evaluator import Evaluator
-from irspack.recommenders import BaseRecommender
-from irspack.recommenders.base import get_recommender_class
+from irspack import BaseRecommender, Evaluator, get_recommender_class
+from irspack.recommenders.base import RecommenderMeta
 
 X_train = sps.csr_matrix(
     np.asfarray([[1, 1, 2, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])
@@ -17,35 +16,7 @@ X_test = sps.csr_matrix(
     np.asfarray([[0, 0, 0, 1, 1], [1, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0]])
 )
 
-rec_classes = [
-    "TopPopRecommender",
-    "CosineKNNRecommender",
-    "AsymmetricCosineKNNRecommender",
-    "TverskyIndexKNNRecommender",
-    "JaccardKNNRecommender",
-    "CosineUserKNNRecommender",
-    "AsymmetricCosineUserKNNRecommender",
-    "P3alphaRecommender",
-    "RP3betaRecommender",
-    "TruncatedSVDRecommender",
-    "NMFRecommender",
-    "IALSRecommender",
-    "DenseSLIMRecommender",
-    "SLIMRecommender",
-]
-try:
-    from irspack.recommenders.bpr import BPRFMRecommender
-
-    rec_classes.append("BPRFMRecommender")
-except:
-    pass
-
-try:
-    from irspack.recommenders.multvae import MultVAERecommender
-
-    rec_classes.append("MultVAERecommender")
-except:
-    pass
+rec_classes = list(RecommenderMeta.recommender_name_vs_recommender_class.keys())
 
 
 @pytest.mark.parametrize("class_name", rec_classes)
@@ -56,6 +27,8 @@ def test_recs(class_name: str) -> None:
         class_name (str): The recommender class's name to be tested.
     """
     RecommenderClass = get_recommender_class(class_name)
+    if isabstract(RecommenderClass):
+        pytest.skip()
     rec = RecommenderClass.from_config(X_train, RecommenderClass.config_class())
     rec.learn()
 

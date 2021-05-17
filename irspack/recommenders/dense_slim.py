@@ -12,7 +12,6 @@ class DenseSLIMConfig(RecommenderConfig):
 
 
 class DenseSLIMRecommender(BaseSimilarityRecommender):
-    config_class = DenseSLIMConfig
     """Implementation of DenseSLIM or Embarrassingly Shallow AutoEncoder (EASE ^R).
 
     See:
@@ -27,6 +26,8 @@ class DenseSLIMRecommender(BaseSimilarityRecommender):
         reg (float, optional):
             The regularization parameter for ease. Defaults to 1.0.
     """
+
+    config_class = DenseSLIMConfig
 
     def __init__(self, X_train_all: InteractionMatrix, reg: float = 1):
 
