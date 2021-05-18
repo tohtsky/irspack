@@ -62,7 +62,7 @@ class BPRFMRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    """A `LightFM <https://github.com/lyst/lightfm>`_ wrapper for our interface.
+    r"""A `LightFM <https://github.com/lyst/lightfm>`_ wrapper for our interface.
 
     This will create ``LightFM`` instance by
 

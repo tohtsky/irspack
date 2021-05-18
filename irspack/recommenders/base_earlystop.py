@@ -48,7 +48,6 @@ class BaseEarlyStoppingRecommenderConfig(RecommenderConfig):
 
 
 class BaseRecommenderWithEarlyStopping(BaseRecommender):
-    class_name = BaseEarlyStoppingRecommenderConfig
     """The base class for all the early-stoppable recommenders.
 
     Args:

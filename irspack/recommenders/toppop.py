@@ -20,7 +20,6 @@ class TopPopRecommender(BaseRecommender):
     """
 
     config_class = TopPopConfig
-
     score_: Optional[np.ndarray]
 
     def __init__(self, X_train: InteractionMatrix):

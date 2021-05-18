@@ -28,8 +28,6 @@ class BaseUserKNNConfig(RecommenderConfig):
 
 
 class BaseUserKNNRecommender(BaseUserSimilarityRecommender):
-    class_name = BaseUserKNNConfig
-
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -75,7 +73,7 @@ class BaseUserKNNRecommender(BaseUserSimilarityRecommender):
         )
 
 
-class CosineUserKNNConfig(RecommenderConfig):
+class CosineUserKNNConfig(BaseUserKNNConfig):
     normalize: bool = True
 
 
@@ -116,6 +114,8 @@ class CosineUserKNNRecommender(BaseUserKNNRecommender):
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
     """
 
+    config_class = CosineUserKNNConfig
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -144,7 +144,7 @@ class CosineUserKNNRecommender(BaseUserKNNRecommender):
         )
 
 
-class AsymmetricCosineUserKNNConfig(RecommenderConfig):
+class AsymmetricCosineUserKNNConfig(BaseUserKNNConfig):
     alpha: float = 0.5
 
 
@@ -180,6 +180,8 @@ class AsymmetricCosineUserKNNRecommender(BaseUserKNNRecommender):
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
     """
+
+    config_class = AsymmetricCosineUserKNNConfig
 
     def __init__(
         self,

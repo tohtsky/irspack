@@ -27,7 +27,7 @@ X_large = sps.csr_matrix(
 )
 
 
-class MockRecommender(BaseRecommender):
+class MockRecommender(BaseRecommender, register_class=False):
     def __init__(
         self,
         X: sps.csr_matrix,
