@@ -1,4 +1,4 @@
-import sys
+import os
 import time
 import warnings
 from tempfile import NamedTemporaryFile
@@ -32,7 +32,7 @@ X_answer = sps.csr_matrix(
 
 
 def test_autopilot_external_db() -> None:
-    if sys.platform == "win32":
+    if os.environ.get("CIBUILDWHEEL") is not None:
         pytest.skip()
     evaluator = AutopilotMockEvaluator(X_answer)
     temp_db_file = NamedTemporaryFile()
@@ -68,8 +68,8 @@ def test_autopilot_external_db() -> None:
 
 
 def test_autopilot() -> None:
-    if sys.platform == "win32":
-        pytest.skip("Skip on Windows.")
+    if os.environ.get("CIBUILDWHEEL") is not None:
+        pytest.skip()
 
     evaluator = AutopilotMockEvaluator(X_answer)
     recommender_class, best_param, trial_df = autopilot(
@@ -88,8 +88,8 @@ def test_autopilot() -> None:
 
 
 def test_autopilot_timeout() -> None:
-    if sys.platform == "win32":
-        pytest.skip("Skip on Windows.")
+    if os.environ.get("CIBUILDWHEEL") is not None:
+        pytest.skip()
 
     evaluator = AutopilotMockEvaluator(X_answer)
     wait = 20
@@ -142,8 +142,8 @@ def test_autopilot_timeout() -> None:
 
 
 def test_autopilot_earlystop() -> None:
-    if sys.platform == "win32":
-        pytest.skip("Skip on Windows.")
+    if os.environ.get("CIBUILDWHEEL") is not None:
+        pytest.skip()
 
     evaluator = AutopilotMockEvaluator(X_answer)
     recommender_class, best_param, trial_df = autopilot(
