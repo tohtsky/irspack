@@ -5,7 +5,6 @@ from io import BytesIO
 import numpy as np
 import pytest
 import scipy.sparse as sps
-from sklearn.metrics import average_precision_score, ndcg_score
 
 from irspack.evaluator import Evaluator, EvaluatorWithColdUser
 from irspack.recommenders import P3alphaRecommender, TopPopRecommender
@@ -27,6 +26,11 @@ class MockRecommender(BaseRecommender, register_class=False):
 
 @pytest.mark.parametrize("U, I", [(10, 5), (10, 30), (3000, 5)])
 def test_metrics(U: int, I: int) -> None:
+    try:
+        from sklearn.metrics import average_precision_score, ndcg_score
+    except:
+        pytest.skip()
+
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.7).astype(np.float64)
@@ -81,6 +85,11 @@ def test_metrics(U: int, I: int) -> None:
 
 @pytest.mark.parametrize("U, I, C", [(10, 5, 5), (10, 30, 29)])
 def test_metrics_with_cutoff(U: int, I: int, C: int) -> None:
+    try:
+        from sklearn.metrics import ndcg_score
+    except:
+        pytest.skip()
+
     rns = np.random.RandomState(42)
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)

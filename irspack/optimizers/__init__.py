@@ -8,12 +8,10 @@ from irspack.optimizers._optimizers import (
     DenseSLIMOptimizer,
     IALSOptimizer,
     JaccardKNNOptimizer,
-    NMFOptimizer,
     P3alphaOptimizer,
     RP3betaOptimizer,
     SLIMOptimizer,
     TopPopOptimizer,
-    TruncatedSVDOptimizer,
     TverskyIndexKNNOptimizer,
 )
 from irspack.optimizers.autopilot import autopilot
@@ -34,22 +32,26 @@ __all__ = [
     "AsymmetricCosineUserKNNOptimizer",
     "JaccardKNNOptimizer",
     "TverskyIndexKNNOptimizer",
-    "NMFOptimizer",
-    "TruncatedSVDOptimizer",
     "get_optimizer_class",
     "autopilot",
 ]
+try:
+    from ._optimizers import NMFOptimizer, TruncatedSVDOptimizer
+
+    __all__.extend(["NMFOptimizer", "TruncatedSVDOptimizer"])
+except ImportError:
+    pass  # pragma: no cover
 
 try:
     from ._optimizers import BPRFMOptimizer
 
     __all__.append("BPRFMOptimizer")
 except ImportError:
-    pass
+    pass  # pragma: no cover
 
 try:
     from ._optimizers import MultVAEOptimizer
 
     __all__.append("MultVAEOptimizer")
 except ImportError:
-    pass
+    pass  # pragma: no cover

@@ -4,7 +4,6 @@ from typing import List
 import numpy as np
 import pytest
 import scipy.sparse as sps
-from sklearn.metrics import ndcg_score
 
 from irspack.evaluator import Evaluator
 from irspack.recommenders.base import BaseRecommender
@@ -24,6 +23,10 @@ class MockRecommender(BaseRecommender, register_class=False):
 
 @pytest.mark.parametrize("U, I, R", [(10, 30, 10), (100, 30, 5), (30, 100, 2)])
 def test_restriction_global(U: int, I: int, R: int) -> None:
+    try:
+        from sklearn.metrics import ndcg_score
+    except:
+        pytest.skip()
     rns = np.random.RandomState(42)
     recommendable = rns.choice(np.arange(I), replace=False, size=R)
     scores = rns.randn(U, I)
@@ -52,6 +55,10 @@ def test_restriction_global(U: int, I: int, R: int) -> None:
 
 @pytest.mark.parametrize("U, I", [(10, 30), (100, 30), (30, 100)])
 def test_restriction_local(U: int, I: int) -> None:
+    try:
+        from sklearn.metrics import ndcg_score
+    except:
+        pytest.skip()
     rns = np.random.RandomState(42)
     recommendables: List[np.ndarray] = []
     for _ in range(U):

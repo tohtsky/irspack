@@ -188,11 +188,8 @@ def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
     W_man = P_iu.dot(P_ui)
 
     # p_{ui} ^{RP3} = p_{ui} ^{P3} / popularity_i ^ beta
-    from sklearn.preprocessing import normalize
 
     W_man = W_man / zero_or_1(popularity)[None, :]
-    # W_man = normalize(W_man, axis=1, norm="l1")
-    # print(W_man.sum(axis=1))
     np.testing.assert_allclose(W, W_man)
 
     rec_norm = RP3betaRecommender(
