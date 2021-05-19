@@ -3,12 +3,15 @@ from typing import Dict
 import numpy as np
 import pytest
 import scipy.sparse as sps
-from sklearn.linear_model import ElasticNet
 
 from irspack.recommenders import SLIMRecommender
 
 
 def test_slim_positive(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
+    try:
+        from sklearn.linear_model import ElasticNet
+    except ImportError:
+        pytest.skip()
     alpha = 0.1
     l1_ratio = 0.5
     X = test_interaction_data["X_small"]
@@ -41,6 +44,11 @@ def test_slim_positive(test_interaction_data: Dict[str, sps.csr_matrix]) -> None
 
 
 def test_slim_allow_negative(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
+    try:
+        from sklearn.linear_model import ElasticNet
+    except ImportError:
+        pytest.skip()
+
     ITER = 100
     alpha = 0.1
     l1_ratio = 0.5

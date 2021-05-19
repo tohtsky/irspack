@@ -17,7 +17,6 @@ install_requires = (
         "fastprogress>=0.2",
         "optuna>=2.5.0",
         "pandas>=1.0.0",
-        "scikit-learn>=0.21.0",
         "scipy>=1.0",
         "colorlog>=4",
         "pydantic>=1.8.2",

@@ -49,6 +49,7 @@ pip install lightfm
 
 If you want to use Mult-VAE and CB2CF features in cold-start scenarios, you'll need the following additional (pip-installable) packages:
 
+- [scikit-learn](https://scikit-learn.org/stable/)
 - [jax](https://github.com/google/jax)
 - [jaxlib](https://github.com/google/jax)
   - If you want to use GPU, follow the installation guide [https://github.com/google/jax#installation](https://github.com/google/jax#installation)

@@ -1,10 +1,12 @@
-import warnings
-
-from .base import BaseRecommender, BaseSimilarityRecommender, get_recommender_class
-from .base_earlystop import BaseRecommenderWithEarlyStopping
-from .dense_slim import DenseSLIMConfig, DenseSLIMRecommender
-from .ials import IALSConfig, IALSRecommender
-from .knn import (
+from irspack.recommenders.base import (
+    BaseRecommender,
+    BaseSimilarityRecommender,
+    get_recommender_class,
+)
+from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
+from irspack.recommenders.dense_slim import DenseSLIMConfig, DenseSLIMRecommender
+from irspack.recommenders.ials import IALSConfig, IALSRecommender
+from irspack.recommenders.knn import (
     AsymmetricCosineKNNConfig,
     AsymmetricCosineKNNRecommender,
     CosineKNNConfig,
@@ -14,12 +16,11 @@ from .knn import (
     TverskyIndexKNNConfig,
     TverskyIndexKNNRecommender,
 )
-from .nmf import NMFConfig, NMFRecommender
+
 from .p3 import P3alphaConfig, P3alphaRecommender
 from .rp3 import RP3betaConfig, RP3betaRecommender
 from .slim import SLIMConfig, SLIMRecommender
 from .toppop import TopPopConfig, TopPopRecommender
-from .truncsvd import TruncatedSVDConfig, TruncatedSVDRecommender
 from .user_knn import (
     AsymmetricCosineUserKNNConfig,
     AsymmetricCosineUserKNNRecommender,
@@ -39,12 +40,8 @@ __all__ = [
     "RP3betaRecommender",
     "DenseSLIMConfig",
     "DenseSLIMRecommender",
-    "NMFConfig",
-    "NMFRecommender",
     "SLIMConfig",
     "SLIMRecommender",
-    "TruncatedSVDConfig",
-    "TruncatedSVDRecommender",
     "IALSConfig",
     "IALSRecommender",
     "CosineKNNConfig",
@@ -63,18 +60,33 @@ __all__ = [
 ]
 
 try:
+    from irspack.recommenders.truncsvd import (
+        TruncatedSVDConfig,
+        TruncatedSVDRecommender,
+    )
+
+    __all__.extend(["TruncatedSVDRecommender", "TruncatedSVDConfig"])
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover
+
+try:
+    from irspack.recommenders.nmf import NMFConfig, NMFRecommender
+
+    __all__.extend(["NMFRecommender", "NMFConfig"])
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover
+
+
+try:
     from .multvae import MultVAEConfig, MultVAERecommender
 
     __all__.extend(["MultVAEConfig", "MultVAERecommender"])
-except ModuleNotFoundError:
-    warnings.warn("Failed to import MultVAERecommender")
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover
 
 try:
     from .bpr import BPRFMConfig, BPRFMRecommender
 
     __all__.extend(["BPRFMConfig", "BPRFMRecommender"])
-except:
-    warnings.warn(
-        "Failed to import BPRFMRecommender. To enable this feature, install `lightfm`."
-    )
-    pass
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover

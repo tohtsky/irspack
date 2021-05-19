@@ -1,4 +1,3 @@
-import warnings
 from typing import List, Type
 
 from irspack.definitions import InteractionMatrix
@@ -23,12 +22,10 @@ from ..recommenders import (
     DenseSLIMRecommender,
     IALSRecommender,
     JaccardKNNRecommender,
-    NMFRecommender,
     P3alphaRecommender,
     RP3betaRecommender,
     SLIMRecommender,
     TopPopRecommender,
-    TruncatedSVDRecommender,
     TverskyIndexKNNRecommender,
 )
 
@@ -95,36 +92,42 @@ class DenseSLIMOptimizer(BaseOptimizer):
         return []
 
 
-class TruncatedSVDOptimizer(BaseOptimizer):
-    default_tune_range = [IntegerSuggestion("n_components", 4, 512)]
-    recommender_class = TruncatedSVDRecommender
+try:
+    from irspack.recommenders import NMFRecommender, TruncatedSVDRecommender
 
-    @classmethod
-    def tune_range_given_memory_budget(
-        cls, X: InteractionMatrix, memory_budget: int
-    ) -> List[Suggestion]:
-        n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
-        return [
-            IntegerSuggestion("n_components", 4, n_components),
+    class TruncatedSVDOptimizer(BaseOptimizer):
+        default_tune_range = [IntegerSuggestion("n_components", 4, 512)]
+        recommender_class = TruncatedSVDRecommender
+
+        @classmethod
+        def tune_range_given_memory_budget(
+            cls, X: InteractionMatrix, memory_budget: int
+        ) -> List[Suggestion]:
+            n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
+            return [
+                IntegerSuggestion("n_components", 4, n_components),
+            ]
+
+    class NMFOptimizer(BaseOptimizer):
+        default_tune_range = [
+            IntegerSuggestion("n_components", 4, 512),
+            LogUniformSuggestion("alpha", 1e-10, 1e-1),
+            UniformSuggestion("l1_ratio", 0, 1),
         ]
+        recommender_class = NMFRecommender
+
+        @classmethod
+        def tune_range_given_memory_budget(
+            cls, X: InteractionMatrix, memory_budget: int
+        ) -> List[Suggestion]:
+            n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
+            return [
+                IntegerSuggestion("top_k", 4, n_components),
+            ]
 
 
-class NMFOptimizer(BaseOptimizer):
-    default_tune_range = [
-        IntegerSuggestion("n_components", 4, 512),
-        LogUniformSuggestion("alpha", 1e-10, 1e-1),
-        UniformSuggestion("l1_ratio", 0, 1),
-    ]
-    recommender_class = NMFRecommender
-
-    @classmethod
-    def tune_range_given_memory_budget(
-        cls, X: InteractionMatrix, memory_budget: int
-    ) -> List[Suggestion]:
-        n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
-        return [
-            IntegerSuggestion("top_k", 4, n_components),
-        ]
+except ImportError:  # pragma: no cover
+    pass  # pragma: no cover
 
 
 class SimilarityBasedOptimizerBase(BaseOptimizer):
@@ -277,4 +280,4 @@ try:
 
 
 except:  # pragma: no cover
-    warnings.warn("MultVAEOptimizer is not available.")  # pragma: no cover
+    pass  # pragma: no cover
