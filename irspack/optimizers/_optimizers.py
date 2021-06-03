@@ -122,7 +122,7 @@ try:
         ) -> List[Suggestion]:
             n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
             return [
-                IntegerSuggestion("top_k", 4, n_components),
+                IntegerSuggestion("n_components", 4, n_components),
             ]
 
 
