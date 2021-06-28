@@ -243,15 +243,15 @@ class IALSRecommender(
         return self.get_score_from_user_embedding(user_vector)
 
     def get_user_embedding(self) -> DenseMatrix:
-        return self.core_trainer.user.astype(np.float64)
+        return self.core_trainer.user
 
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return user_embedding.dot(self.get_item_embedding().T).astype(np.float64)
+        return user_embedding.dot(self.get_item_embedding().T)
 
     def get_item_embedding(self) -> DenseMatrix:
-        return self.core_trainer.item.astype(np.float64)
+        return self.core_trainer.item
 
     def compute_user_embedding(self, X: InteractionMatrix) -> DenseMatrix:
         r"""Given an unknown users' interaction with known items,
@@ -291,8 +291,4 @@ class IALSRecommender(
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return (
-            self.core_trainer.user[user_indices]
-            .dot(item_embedding.T)
-            .astype(np.float64)
-        )
+        return self.core_trainer.user[user_indices].dot(item_embedding.T)

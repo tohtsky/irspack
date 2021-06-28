@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 import numpy as np
 from scipy import sparse as sps
 
-from irspack.definitions import InteractionMatrix
+from irspack.definitions import DenseScoreArray, InteractionMatrix
 from irspack.evaluator._core import EvaluatorCore, Metrics
 from irspack.utils.threading import get_n_threads
 
@@ -136,6 +136,28 @@ class Evaluator:
 
         self.recall_with_cutoff = recall_with_cutoff
 
+    def _get_metrics(
+        self, scores: DenseScoreArray, cutoff: int, ground_truth_begin: int
+    ) -> Metrics:
+        if scores.dtype == np.float64:
+            return self.core.get_metrics_f64(
+                scores,
+                cutoff,
+                ground_truth_begin,
+                self.n_threads,
+                self.recall_with_cutoff,
+            )
+        elif scores.dtype == np.float32:
+            return self.core.get_metrics_f32(
+                scores,
+                cutoff,
+                ground_truth_begin,
+                self.n_threads,
+                self.recall_with_cutoff,
+            )
+        else:
+            raise ValueError("score must be either float32 or float64.")
+
     def get_target_score(self, model: "base_recommender.BaseRecommender") -> float:
         r"""Compute the optimization target score (self.target_metric) with the cutoff being ``self.cutoff``.
 
@@ -206,8 +228,6 @@ class Evaluator:
                 # block-by-block
                 scores = model.get_score(np.arange(chunk_start, chunk_end))
 
-            scores = scores.astype(np.float64)
-
             if self.masked_interactions is None:
                 mask = model.X_train_all[chunk_start:chunk_end]
             else:
@@ -216,12 +236,10 @@ class Evaluator:
                 ]
             scores[mask.nonzero()] = -np.inf
             for i, c in enumerate(cutoffs):
-                chunked_metric = self.core.get_metrics(
+                chunked_metric = self._get_metrics(
                     scores,
                     c,
                     chunk_start - self.offset,
-                    self.n_threads,
-                    self.recall_with_cutoff,
                 )
                 metrics[i].merge(chunked_metric)
 
@@ -328,7 +346,6 @@ class EvaluatorWithColdUser(Evaluator):
             scores = model.get_score_cold_user(
                 self.input_interaction[chunk_start:chunk_end]
             )
-            scores = scores.astype(np.float64)
             if self.masked_interactions is None:
                 mask = self.input_interaction[chunk_start:chunk_end]
             else:
@@ -343,9 +360,7 @@ class EvaluatorWithColdUser(Evaluator):
                 scores = np.ascontiguousarray(scores, dtype=np.float64)
 
             for i, c in enumerate(cutoffs):
-                chunked_metric = self.core.get_metrics(
-                    scores, c, chunk_start, self.n_threads, self.recall_with_cutoff
-                )
+                chunked_metric = self._get_metrics(scores, c, chunk_start)
                 metrics[i].merge(chunked_metric)
 
         return [item.as_dict() for item in metrics]

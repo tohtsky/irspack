@@ -87,9 +87,10 @@ struct Metrics {
 struct EvaluatorCore {
   using Real = double;
   using SparseMatrix = Eigen::SparseMatrix<Real, Eigen::RowMajor>;
-  using DenseMatrix =
-      Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-  using DenseVector = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
+
+  template <typename ScoreFloatType>
+  using DenseMatrix = Eigen::Matrix<ScoreFloatType, Eigen::Dynamic,
+                                    Eigen::Dynamic, Eigen::RowMajor>;
 
   EvaluatorCore(const SparseMatrix &X,
                 const std::vector<std::vector<size_t>> &recommendable_items)
@@ -143,10 +144,11 @@ struct EvaluatorCore {
     }
   }
 
-  inline Metrics get_metrics(const Eigen::Ref<DenseMatrix> &scores,
-                             size_t cutoff, size_t offset, size_t n_threads,
-                             bool recall_with_cutoff = false) {
-
+  template <typename ScoreFloatType>
+  inline Metrics
+  get_metrics(const Eigen::Ref<DenseMatrix<ScoreFloatType>> &scores,
+              size_t cutoff, size_t offset, size_t n_threads,
+              bool recall_with_cutoff = false) {
     this->cache_X_map(n_threads);
     Metrics overall(n_items);
     check_arg(n_threads > 0, "n_threads == 0");
@@ -178,16 +180,17 @@ struct EvaluatorCore {
   }
 
 private:
-  inline Metrics get_metrics_local(const Eigen::Ref<DenseMatrix> &scores,
-                                   std::atomic<int64_t> &current_index,
-                                   size_t cutoff, size_t offset,
-                                   bool recall_with_cutoff = false) const {
+  template <typename ScoreFloatType>
+  inline Metrics
+  get_metrics_local(const Eigen::Ref<DenseMatrix<ScoreFloatType>> &scores,
+                    std::atomic<int64_t> &current_index, size_t cutoff,
+                    size_t offset, bool recall_with_cutoff = false) const {
     using StorageIndex = typename SparseMatrix::StorageIndex;
 
     Metrics metrics_local(n_items);
 
-    const Real *score_begin = scores.data();
-    std::vector<std::pair<Real, StorageIndex>> score_and_index;
+    const ScoreFloatType *score_begin = scores.data();
+    std::vector<std::pair<ScoreFloatType, StorageIndex>> score_and_index;
     score_and_index.reserve(n_items);
     std::vector<StorageIndex> intersection(cutoff);
     std::vector<double> dcg_discount(cutoff);
@@ -299,9 +302,18 @@ PYBIND11_MODULE(_core, m) {
       .def(py::init<const typename EvaluatorCore::SparseMatrix &,
                     const std::vector<std::vector<size_t>> &>(),
            py::arg("grount_truth"), py::arg("recommendable"))
-      .def("get_metrics", &EvaluatorCore::get_metrics, py::arg("score_array"),
-           py::arg("cutoff"), py::arg("offset"), py::arg("n_threads"),
-           py::arg("recall_with_cutoff") = false)
+      .def("get_metrics_f64",
+           static_cast<Metrics (EvaluatorCore::*)(
+               const Eigen::Ref<EvaluatorCore::DenseMatrix<double>> &, size_t,
+               size_t, size_t, bool)>(&EvaluatorCore::get_metrics<double>),
+           py::arg("score_array"), py::arg("cutoff"), py::arg("offset"),
+           py::arg("n_threads"), py::arg("recall_with_cutoff") = false)
+      .def("get_metrics_f32",
+           static_cast<Metrics (EvaluatorCore::*)(
+               const Eigen::Ref<EvaluatorCore::DenseMatrix<float>> &, size_t,
+               size_t, size_t, bool)>(&EvaluatorCore::get_metrics<float>),
+           py::arg("score_array"), py::arg("cutoff"), py::arg("offset"),
+           py::arg("n_threads"), py::arg("recall_with_cutoff") = false)
       .def("get_ground_truth", &EvaluatorCore::get_ground_truth)
       .def("cache_X_as_set", &EvaluatorCore::cache_X_map)
       .def(py::pickle(

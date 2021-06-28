@@ -34,7 +34,7 @@ class UserColdStartEvaluator:
         for start in range(0, self.n_users, self.mb_size):
             end = min(start + self.mb_size, self.n_users)
             score_mb = model.get_score(self.profiles[start:end])
-            metric = self.core.get_metrics(
+            metric = self.core.get_metrics_f64(
                 score_mb, self.cutoff, start, self.n_threads, False
             )
             metric_base.merge(metric)
@@ -65,7 +65,7 @@ class UserColdStartEvaluator:
             chunk_end = min(chunk_start + mb_size, block_end)
             score_mb = model.get_score(self.profiles[chunk_start:chunk_end])
             for i, cutoff in enumerate(cutoffs):
-                chunked_metric = self.core.get_metrics(
+                chunked_metric = self.core.get_metrics_f64(
                     score_mb, cutoff, chunk_start, self.n_threads, False
                 )
                 metrics[i].merge(chunked_metric)
