@@ -40,18 +40,17 @@ def test_check_descending_1() -> None:
         check_descending([("1", 100), ("2", 99), ("3", -1000), ("", -999)])
 
 
-RNS = np.random.RandomState(0)
-n_users = 31
-n_items = 42
-user_ids = [str(uuid.uuid4()) for _ in range(n_users)]
-item_ids = [str(uuid.uuid4()) for _ in range(n_items)]
-item_id_set = set(item_ids)
-score = RNS.randn(n_users, n_items)
-X = sps.csr_matrix((score + RNS.randn(*score.shape)) > 0).astype(np.float64)
-rec = MockRecommender(X, score).learn()
-
-
-def test_basic_usecase() -> None:
+@pytest.mark.parametrize("dtype", ["float32", "float64", "float16"])
+def test_basic_usecase(dtype: str) -> None:
+    RNS = np.random.RandomState(0)
+    n_users = 31
+    n_items = 42
+    user_ids = [str(uuid.uuid4()) for _ in range(n_users)]
+    item_ids = [str(uuid.uuid4()) for _ in range(n_items)]
+    item_id_set = set(item_ids)
+    score = RNS.randn(n_users, n_items).astype(dtype)
+    X = sps.csr_matrix((score + RNS.randn(*score.shape)) > 0).astype(np.float64)
+    rec = MockRecommender(X, score).learn()
 
     with pytest.raises(ValueError):
         mapped_rec = IDMappedRecommender(rec, user_ids, item_ids + [str(uuid.uuid4())])
@@ -127,6 +126,14 @@ def test_basic_usecase() -> None:
         assert len(coldstart_rec_results.intersection(nonzero_items)) == 0
         assert len(coldstart_rec_results.union(nonzero_items)) == n_items
 
+    if dtype == "float16":
+        with pytest.raises(ValueError):
+            known_user_results_batch = (
+                mapped_rec.get_recommendation_for_known_user_batch(
+                    user_ids, cutoff=n_items
+                )
+            )
+        return
     known_user_results_batch = mapped_rec.get_recommendation_for_known_user_batch(
         user_ids, cutoff=n_items
     )

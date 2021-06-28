@@ -12,7 +12,8 @@ _Shape = typing.Tuple[int, ...]
 __all__ = [
     "okapi_BM_25_weight",
     "remove_diagonal",
-    "retrieve_recommend_from_score",
+    "retrieve_recommend_from_score_f32",
+    "retrieve_recommend_from_score_f64",
     "rowwise_train_test_split_by_fixed_n",
     "rowwise_train_test_split_by_ratio",
     "slim_weight_allow_negative",
@@ -31,7 +32,15 @@ def remove_diagonal(
 ) -> scipy.sparse.csr_matrix[numpy.float64]:
     pass
 
-def retrieve_recommend_from_score(
+def retrieve_recommend_from_score_f32(
+    score: numpy.ndarray[numpy.float32, _Shape[m, n]],
+    allowed_indices: typing.List[typing.List[int]],
+    cutoff: int,
+    n_threads: int = 1,
+) -> typing.List[typing.List[typing.Tuple[int, float]]]:
+    pass
+
+def retrieve_recommend_from_score_f64(
     score: numpy.ndarray[numpy.float64, _Shape[m, n]],
     allowed_indices: typing.List[typing.List[int]],
     cutoff: int,
