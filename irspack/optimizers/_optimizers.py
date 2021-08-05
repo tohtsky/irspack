@@ -20,6 +20,7 @@ from ..recommenders import (
     CosineKNNRecommender,
     CosineUserKNNRecommender,
     DenseSLIMRecommender,
+    EDLAERecommender,
     IALSRecommender,
     JaccardKNNRecommender,
     P3alphaRecommender,
@@ -88,6 +89,25 @@ class DenseSLIMOptimizer(BaseOptimizer):
         if (1e6 * memory_budget) < (4 * 2 * n_items ** 2):
             raise LowMemoryError(
                 f"Memory budget {memory_budget} too small for DenseSLIM to work."
+            )
+        return []
+
+
+class EDLAEOptimizer(BaseOptimizer):
+    default_tune_range: List[Suggestion] = [
+        LogUniformSuggestion("reg", 1, 1e4),
+        UniformSuggestion("dropout_p", 0.05, 0.40),
+    ]
+    recommender_class = EDLAERecommender
+
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        n_items: int = X.shape[1]
+        if (1e6 * memory_budget) < (4 * 2 * n_items ** 2):
+            raise LowMemoryError(
+                f"Memory budget {memory_budget} too small for EDLAE to work."
             )
         return []
 
