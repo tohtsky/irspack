@@ -96,7 +96,7 @@ class DenseSLIMOptimizer(BaseOptimizer):
 class EDLAEOptimizer(BaseOptimizer):
     default_tune_range: List[Suggestion] = [
         LogUniformSuggestion("reg", 1, 1e4),
-        UniformSuggestion("dropout_p", 0.01, 0.99),
+        UniformSuggestion("dropout_p", 0.0, 0.99),
     ]
     recommender_class = EDLAERecommender
 
