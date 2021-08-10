@@ -24,18 +24,27 @@ class MockRecommender(BaseRecommender, register_class=False):
         pass
 
 
-@pytest.mark.parametrize("U, I", [(10, 5), (10, 30), (3000, 5)])
-def test_metrics(U: int, I: int) -> None:
+@pytest.mark.parametrize(
+    "U, I, dtype", [(10, 5, "float32"), (10, 30, "float64"), (3000, 5, "float32")]
+)
+def test_metrics(U: int, I: int, dtype: str) -> None:
     try:
         from sklearn.metrics import average_precision_score, ndcg_score
     except:
         pytest.skip()
 
     rns = np.random.RandomState(42)
-    scores = rns.randn(U, I)
+    scores = rns.randn(U, I).astype(dtype)
     X_gt = (rns.rand(U, I) >= 0.7).astype(np.float64)
     eval = Evaluator(sps.csr_matrix(X_gt), offset=0, cutoff=I, n_threads=4)
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
+
+    # float 16 not supported
+    mock_rec_invalid = MockRecommender(
+        sps.csr_matrix(X_gt.shape), scores.astype(np.float16)
+    )
+    with pytest.raises(ValueError):
+        eval.get_score(mock_rec_invalid)
     my_score = eval.get_score(mock_rec)
     sklearn_metrics = defaultdict(list)
     for i in range(scores.shape[0]):

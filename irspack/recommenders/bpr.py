@@ -158,7 +158,7 @@ class BPRFMRecommender(
         )
 
     def get_user_embedding(self) -> DenseMatrix:
-        return self.fm.user_embeddings.astype(np.float64)
+        return self.fm.user_embeddings
 
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
@@ -169,14 +169,10 @@ class BPRFMRecommender(
         )
 
     def get_item_embedding(self) -> DenseMatrix:
-        return self.fm.item_embeddings.astype(np.float64)
+        return self.fm.item_embeddings
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
         # ignore bias
-        return (
-            self.fm.user_embeddings[user_indices]
-            .dot(item_embedding.T)
-            .astype(np.float64)
-        )
+        return self.fm.user_embeddings[user_indices].dot(item_embedding.T)

@@ -30,9 +30,7 @@ class CB2CFUserColdStartRecommender(BaseUserColdStartRecommender):
         user_embedding: DenseMatrix = self.mlp.predict(
             profile.astype(np.float32).toarray()
         )
-        return self.cf_rec.get_score_from_user_embedding(user_embedding).astype(
-            np.float64
-        )
+        return self.cf_rec.get_score_from_user_embedding(user_embedding)
 
 
 class CB2CFUserOptimizerBase(object):

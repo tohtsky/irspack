@@ -14,12 +14,33 @@ import numpy as np
 import scipy.sparse as sps
 
 from irspack.definitions import DenseScoreArray, UserIndexArray
-from irspack.utils._util_cpp import retrieve_recommend_from_score
+from irspack.utils._util_cpp import (
+    retrieve_recommend_from_score_f32,
+    retrieve_recommend_from_score_f64,
+)
 from irspack.utils.threading import get_n_threads
 
 if TYPE_CHECKING:
     # We should move this module out of "utils".
     from irspack.recommenders import BaseRecommender
+
+
+def retrieve_recommend_from_score(
+    score: DenseScoreArray,
+    allowed_item_indices: List[List[int]],
+    cutoff: int,
+    n_threads: int,
+) -> List[List[Tuple[int, float]]]:
+    if score.dtype == np.float32:
+        return retrieve_recommend_from_score_f32(
+            score, allowed_item_indices, cutoff, n_threads
+        )
+    elif score.dtype == np.float64:
+        return retrieve_recommend_from_score_f64(
+            score, allowed_item_indices, cutoff, n_threads
+        )
+    else:
+        raise ValueError("Only float32 or float64 are allowed.")
 
 
 class IDMappedRecommender:
