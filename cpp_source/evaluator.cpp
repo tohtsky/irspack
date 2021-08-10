@@ -162,7 +162,7 @@ struct EvaluatorCore {
     std::vector<std::future<Metrics>> workers;
     for (size_t th = 0; th < n_threads; th++) {
       workers.emplace_back(std::async(
-          std::launch::async, [th, this, &current_index, &scores, cutoff,
+          std::launch::async, [this, &current_index, &scores, cutoff,
                                offset, recall_with_cutoff]() {
             return this->get_metrics_local(scores, current_index, cutoff,
                                            offset, recall_with_cutoff);
