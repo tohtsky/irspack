@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import re
 from typing import List, Tuple
 
@@ -9,7 +9,7 @@ from .base import BaseMovieLenstDataLoader
 
 class MovieLens100KDataManager(BaseMovieLenstDataLoader):
     DOWNLOAD_URL = "http://files.grouplens.org/datasets/movielens/ml-100k.zip"
-    DEFAULT_PATH = os.path.expanduser("~/.ml-100k.zip")
+    DEFAULT_PATH = Path.expanduser("~/.ml-100k.zip")
     INTERACTION_PATH = "ml-100k/u.data"
 
     USER_INFO_PATH = "ml-100k/u.user"

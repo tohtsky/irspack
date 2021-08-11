@@ -1,13 +1,17 @@
-from .downloader import BaseZipDownloader
+from .downloader import SingleZipDownloader
 import pandas as pd
-import os
+
+from pathlib import Path
 
 
-class CiteULikeADataManager(BaseZipDownloader):
+class CiteULikeADataManager(SingleZipDownloader):
+    r"""Data manager for CiteULike-a dataset, which has been originally used
+    in the paper "Collaborative Topic Regression with Social Regularization".
+    """
     DOWNLOAD_URL = (
         "https://github.com/tohtsky/citeulike-a/archive/refs/heads/master.zip"
     )
-    DEFAULT_PATH = os.path.expanduser("~/.citeulike-a.zip")
+    DEFAULT_PATH = Path.expanduser("~/.citeulike-a.zip")
 
     def read_interaction(self) -> pd.DataFrame:
         ifs = self._read_as_istream("citeulike-a-master/users.dat")

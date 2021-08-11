@@ -3,10 +3,10 @@ from io import BytesIO
 
 import pandas as pd
 
-from irspack.dataset.downloader import BaseZipDownloader
+from irspack.dataset.downloader import SingleZipDownloader
 
 
-class BaseMovieLenstDataLoader(BaseZipDownloader, metaclass=ABCMeta):
+class BaseMovieLenstDataLoader(SingleZipDownloader):
     def _read_as_istream(self, path: str) -> BytesIO:
         bytes_array = self.zf.read(path)
         return BytesIO(bytes_array)
