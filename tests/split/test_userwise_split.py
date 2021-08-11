@@ -127,18 +127,8 @@ def test_user_level_split(
         for i in index:
             nnz_learn = X_learn[i].nonzero()[1].shape[0]
             nnz_predict = X_predict[i].nonzero()[1].shape[0]
-            if ceil:
-                # ceil(ratio * tot) = n_test
-                # ratio * tot > n_test - 1 #exact
-                # or ration * tot <= n_test
-                assert ratio > (nnz_predict - 1) / (nnz_learn + nnz_predict)
-                assert ratio <= (nnz_predict) / (nnz_learn + nnz_predict)
-            else:
-                # floor(ratio * tot) = n_test
-                # ratio * tot >= n_test #exact
-                # or ratio * tot < (n_test + 1)
-                assert ratio >= (nnz_predict) / (nnz_learn + nnz_predict)
-                assert ratio < (nnz_predict + 1) / (nnz_learn + nnz_predict)
+            assert ratio >= (nnz_predict - 1) / (nnz_learn + nnz_predict)
+            assert ratio <= (nnz_predict + 1) / (nnz_learn + nnz_predict)
 
 
 def test_user_level_split_val_fixed_n() -> None:
