@@ -24,10 +24,17 @@ test_configs_with_time = [
     config + (tsc,) for tsc in ["timestamp", None] for config in test_configs
 ]
 
+test_configs_with_time_and_ceil_flg = []
+
+for ceil_ in [True, False]:
+    test_configs_with_time_and_ceil_flg.extend(
+        [x + (ceil_,) for x in test_configs_with_time]
+    )
+
 
 @pytest.mark.parametrize(
-    "n_val_user, n_test_user, val_user_ratio, test_user_ratio, time_colname",
-    test_configs_with_time,
+    "n_val_user, n_test_user, val_user_ratio, test_user_ratio, time_colname, ceil",
+    test_configs_with_time_and_ceil_flg,
 )
 def test_user_level_split(
     n_val_user: Optional[int],
@@ -35,6 +42,7 @@ def test_user_level_split(
     val_user_ratio: float,
     test_user_ratio: float,
     time_colname: Optional[str],
+    ceil: bool,
 ) -> None:
     n_users_all = len(set(df.userId))
     dataset, mid_list = split_dataframe_partial_user_holdout(
@@ -48,6 +56,7 @@ def test_user_level_split(
         n_test_user=n_test_user,
         heldout_ratio_val=0.3,
         heldout_ratio_test=0.5,
+        ceil_n_heldout=ceil,
     )
     assert len(mid_list) == len(set(df.movieId))
     train = dataset["train"]
@@ -114,11 +123,22 @@ def test_user_level_split(
         intersect = X_learn.multiply(X_predict)
         assert intersect.count_nonzero() == 0
         index = RNS.choice(np.arange(user_data.n_users), size=10)
+
         for i in index:
             nnz_learn = X_learn[i].nonzero()[1].shape[0]
             nnz_predict = X_predict[i].nonzero()[1].shape[0]
-            assert ratio >= (nnz_predict - 1) / (nnz_learn + nnz_predict)
-            assert ratio <= (nnz_predict + 1) / (nnz_learn + nnz_predict)
+            if ceil:
+                # ceil(ratio * tot) = n_test
+                # ratio * tot > n_test - 1 #exact
+                # or ration * tot <= n_test
+                assert ratio > (nnz_predict - 1) / (nnz_learn + nnz_predict)
+                assert ratio <= (nnz_predict) / (nnz_learn + nnz_predict)
+            else:
+                # floor(ratio * tot) = n_test
+                # ratio * tot >= n_test #exact
+                # or ratio * tot < (n_test + 1)
+                assert ratio >= (nnz_predict) / (nnz_learn + nnz_predict)
+                assert ratio < (nnz_predict + 1) / (nnz_learn + nnz_predict)
 
 
 def test_user_level_split_val_fixed_n() -> None:
