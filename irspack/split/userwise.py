@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -53,10 +53,10 @@ class UserTrainTestInteractionPair:
 
     def __init__(
         self,
-        user_ids: List[Any],
+        user_ids: Union[List[Any], np.ndarray],
         X_train: InteractionMatrix,
         X_test: Optional[InteractionMatrix],
-        item_ids: Optional[List[Any]] = None,
+        item_ids: Optional[Union[List[Any], np.ndarray]] = None,
     ):
 
         if len(user_ids) != X_train.shape[0]:
@@ -124,15 +124,16 @@ def split_train_test_userwise_random(
     df_: pd.DataFrame,
     user_colname: str,
     item_colname: str,
-    item_ids: List[Any],
+    item_ids: Union[List[Any], np.ndarray],
     heldout_ratio: float,
     n_heldout: Optional[int],
     rns: np.random.RandomState,
     rating_column: Optional[str] = None,
+    ceil_n_heldout: bool = False,
 ) -> UserTrainTestInteractionPair:
-    """Split the user x item data frame into a pair of sparse matrix (represented as a UserDataSet).
+    r"""Split the user x item data frame into a pair of sparse matrix (represented as a UserDataSet).
 
-    Parameters
+    Args
     ----------
     df_:
         user x item interaction matrix.
@@ -150,6 +151,11 @@ def split_train_test_userwise_random(
         The random state
     rating_column:
         The column for the rating values. If None, the rating values will be all equal (1), by default None
+    ceil_n_heldout:
+        If this is `True` and `n_heldout` is `None`, the number of test interaction for a given user `u` will be
+        `ceil(N_u * heldout_ratio)` where `N_u` is the number of interactions fo `u`.
+        If this is `False`, `floor(N_u * heldout_ratio)` will be used instead. Defaults to `False`.
+
     Returns
     -------
     UserDataSet
@@ -164,10 +170,7 @@ def split_train_test_userwise_random(
     )
 
     X_learn, X_predict = rowwise_train_test_split(
-        X_all,
-        heldout_ratio,
-        n_heldout,
-        random_state=rns,
+        X_all, heldout_ratio, n_heldout, random_state=rns, ceil_n_heldout=ceil_n_heldout
     )
 
     return UserTrainTestInteractionPair(
@@ -184,6 +187,7 @@ def split_train_test_userwise_time(
     heldout_ratio: float,
     n_heldout: Optional[int],
     rating_column: Optional[str] = None,
+    ceil_n_heldout: bool = False,
 ) -> UserTrainTestInteractionPair:
     unique_user_ids = np.asarray(list(set(df_[user_colname])))
     df_train, df_test = split_last_n_interaction_df(
@@ -192,6 +196,7 @@ def split_train_test_userwise_time(
         time_colname,
         n_heldout=n_heldout,
         heldout_ratio=heldout_ratio,
+        ceil_n_heldout=ceil_n_heldout,
     )
     X_train, _, __ = df_to_sparse(
         df_train,
@@ -227,6 +232,7 @@ def split_dataframe_partial_user_holdout(
     n_heldout_val: Optional[int] = None,
     heldout_ratio_test: float = 0.5,
     n_heldout_test: Optional[int] = None,
+    ceil_n_heldout: bool = False,
     random_state: OptionalRandomState = None,
 ) -> Tuple[Dict[str, UserTrainTestInteractionPair], List[Any]]:
     """Splits the DataFrame and build an interaction matrix,
@@ -267,6 +273,11 @@ def split_dataframe_partial_user_holdout(
             Ignored if ``n_heldout_test`` is specified. Defaults to 0.5.
         n_heldout_val:
             The maximal number of held-out interactions for "test users".
+        ceil_n_heldout:
+            If `True`, the number of held-out interactions of user `u` will be
+            `ceil(heldout_ratio_val * N_u)` and `ceil(heldout_ratio_test * N_u)`.
+            If `False`, `floor` function will be used instead. Defaults to `False`.
+
         random_state:
             The random state for this procedure. Defaults to `None`.
 
@@ -314,7 +325,7 @@ def split_dataframe_partial_user_holdout(
         )
     else:
         val_uids = val_test_uids
-        test_uids = np.asarray([])
+        test_uids = []
     df_train = df_all[df_all[user_column].isin(train_uids)].copy()
     df_val = df_all[df_all[user_column].isin(val_uids)].copy()
     df_test = df_all[df_all[user_column].isin(test_uids)].copy()
@@ -342,6 +353,7 @@ def split_dataframe_partial_user_holdout(
                 n_heldout,
                 rns,
                 rating_column=rating_column,
+                ceil_n_heldout=ceil_n_heldout,
             )
         else:
             valid_data[dataset_name] = split_train_test_userwise_time(
@@ -353,5 +365,6 @@ def split_dataframe_partial_user_holdout(
                 heldout_ratio,
                 n_heldout,
                 rating_column=rating_column,
+                ceil_n_heldout=ceil_n_heldout,
             )
     return valid_data, item_all

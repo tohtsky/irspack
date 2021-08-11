@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ def rowwise_train_test_split(
     X: InteractionMatrix,
     test_ratio: float = 0.5,
     n_test: Optional[int] = None,
-    ceil_n_test: bool = False,
+    ceil_n_heldout: bool = False,
     random_state: OptionalRandomState = None,
 ) -> Tuple[InteractionMatrix, InteractionMatrix]:
     """Splits the non-zero elements of a sparse matrix into two (train & test interactions).
@@ -59,7 +59,7 @@ def rowwise_train_test_split(
     X_double = X.astype(np.float64)
     if n_test is None:
         X_train_double, X_test_double = rowwise_train_test_split_by_ratio(
-            X_double, random_seed, test_ratio, ceil_n_test
+            X_double, random_seed, test_ratio, ceil_n_heldout
         )
     else:
         X_train_double, X_test_double = rowwise_train_test_split_by_fixed_n(
@@ -75,8 +75,8 @@ def df_to_sparse(
     df: pd.DataFrame,
     user_colname: str,
     item_colname: str,
-    user_ids: Optional[List[Any]] = None,
-    item_ids: Optional[List[Any]] = None,
+    user_ids: Optional[Union[List[Any], np.ndarray]] = None,
+    item_ids: Optional[Union[List[Any], np.ndarray]] = None,
     rating_colname: Optional[str] = None,
 ) -> Tuple[sps.csr_matrix, np.ndarray, np.ndarray]:
     r"""Convert pandas dataframe into sparse matrix.

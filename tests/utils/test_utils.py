@@ -39,7 +39,7 @@ def test_split() -> None:
 
 def test_split_ceil() -> None:
     X_1, X_2 = rowwise_train_test_split(
-        X, test_ratio=0.5, random_state=1, ceil_n_test=True
+        X, test_ratio=0.5, random_state=1, ceil_n_heldout=True
     )
     np.testing.assert_allclose(X.toarray(), (X_1 + X_2).toarray())
 
