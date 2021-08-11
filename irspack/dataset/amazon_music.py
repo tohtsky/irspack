@@ -1,17 +1,18 @@
-from .downloader import BaseDownloader
-import os
-from pathlib import Path
 import urllib.request
-from tempfile import NamedTemporaryFile
-from zipfile import ZipFile, ZIP_DEFLATED
-import pandas as pd
 from gzip import GzipFile
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from zipfile import ZIP_DEFLATED, ZipFile
+
+import pandas as pd
+
+from .downloader import BaseDownloader
 
 
 class AmazonMusicDataManager(BaseDownloader):
-    DEFAULT_PATH = Path.expanduser("~/.amazon-music.zip")
+    DEFAULT_PATH = Path("~/.amazon-music.zip").expanduser()
 
-    def _save_to_zippath(self, path: os.PathLike) -> None:
+    def _save_to_zippath(self, path: Path) -> None:
         ratings_url = "http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/ratings_Digital_Music.csv"
         meta_url = "http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/meta_Digital_Music.json.gz"
         with ZipFile(path, "w", compression=ZIP_DEFLATED) as zf:

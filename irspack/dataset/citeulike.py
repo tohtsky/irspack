@@ -1,7 +1,8 @@
-from .downloader import SingleZipDownloader
+from pathlib import Path
+
 import pandas as pd
 
-from pathlib import Path
+from .downloader import SingleZipDownloader
 
 
 class CiteULikeADataManager(SingleZipDownloader):
@@ -11,7 +12,7 @@ class CiteULikeADataManager(SingleZipDownloader):
     DOWNLOAD_URL = (
         "https://github.com/tohtsky/citeulike-a/archive/refs/heads/master.zip"
     )
-    DEFAULT_PATH = Path.expanduser("~/.citeulike-a.zip")
+    DEFAULT_PATH = Path("~/.citeulike-a.zip").expanduser()
 
     def read_interaction(self) -> pd.DataFrame:
         ifs = self._read_as_istream("citeulike-a-master/users.dat")

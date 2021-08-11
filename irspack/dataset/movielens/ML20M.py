@@ -7,7 +7,7 @@ from .base import BaseMovieLenstDataLoader
 
 class MovieLens20MDataManager(BaseMovieLenstDataLoader):
     DOWNLOAD_URL = "http://files.grouplens.org/datasets/movielens/ml-20m.zip"
-    DEFAULT_PATH = Path.expanduser("~/.ml-20m.zip")
+    DEFAULT_PATH = Path("~/.ml-20m.zip").expanduser()
     INTERACTION_PATH = "ml-20m/ratings.csv"
 
     def read_interaction(self) -> pd.DataFrame:

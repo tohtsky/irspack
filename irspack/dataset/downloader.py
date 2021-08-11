@@ -1,10 +1,10 @@
 import os
-from typing import Optional
-from abc import ABCMeta, abstractmethod
-from zipfile import ZipFile
 import urllib.request
+from abc import ABCMeta, abstractmethod
 from io import BytesIO
 from pathlib import Path
+from typing import Optional, Union
+from zipfile import ZipFile
 
 
 class BaseDownloader(metaclass=ABCMeta):
@@ -12,15 +12,15 @@ class BaseDownloader(metaclass=ABCMeta):
     _zf: Optional[ZipFile]
 
     @abstractmethod
-    def _save_to_zippath(self, path: os.PathLike) -> None:
+    def _save_to_zippath(self, path: Path) -> None:
         raise NotImplementedError()
 
     def __init__(
-        self, zippath: Optional[os.PathLike] = None, force_download: bool = False
+        self, zippath: Optional[Union[Path, str]] = None, force_download: bool = False
     ):
         if zippath is None:
             zippath = self.DEFAULT_PATH
-            if not os.path.exists(zippath):
+            if not zippath.exists():
                 if not force_download:
                     download = (
                         input(
@@ -49,5 +49,5 @@ class BaseDownloader(metaclass=ABCMeta):
 class SingleZipDownloader(BaseDownloader):
     DOWNLOAD_URL: str
 
-    def _save_to_zippath(self, path: os.PathLike) -> None:
+    def _save_to_zippath(self, path: Path) -> None:
         urllib.request.urlretrieve(self.DOWNLOAD_URL, path)

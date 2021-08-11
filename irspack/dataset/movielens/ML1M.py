@@ -7,7 +7,7 @@ from .base import BaseMovieLenstDataLoader
 
 class MovieLens1MDataManager(BaseMovieLenstDataLoader):
     DOWNLOAD_URL = "http://files.grouplens.org/datasets/movielens/ml-1m.zip"
-    DEFAULT_PATH = Path.expanduser("~/.ml-1m.zip")
+    DEFAULT_PATH = Path("~/.ml-1m.zip").expanduser()
     INTERACTION_PATH = "ml-1m/ratings.dat"
     ITEM_INFO_PATH = "ml-1m/movies.dat"
     USER_INFO_PATH = "ml-1m/users.dat"
