@@ -1,3 +1,4 @@
+from .citeulike import CiteULikeADataManager
 from .movielens import (
     MovieLens1MDataManager,
     MovieLens20MDataManager,
@@ -8,4 +9,5 @@ __all__ = [
     "MovieLens100KDataManager",
     "MovieLens1MDataManager",
     "MovieLens20MDataManager",
+    "CiteULikeADataManager",
 ]

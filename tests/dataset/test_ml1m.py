@@ -1,5 +1,5 @@
-import os
 import sys
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
@@ -11,7 +11,7 @@ from irspack.dataset.movielens import (
     MovieLens100KDataManager,
 )
 
-ZIPFILE_NAME = os.path.join(os.path.expanduser("~"), "ml.test.zip")
+ZIPFILE_NAME = Path("~").expanduser() / "ml.test.zip"
 
 
 def test_ml100k() -> None:
@@ -74,7 +74,7 @@ def test_ml100k() -> None:
         np.testing.assert_array_equal(user_info.index.values, [1, 2])
         np.testing.assert_array_equal(user_info.gender, ["M", "F"])
     finally:
-        os.remove(ZIPFILE_NAME)
+        ZIPFILE_NAME.unlink()
 
 
 def test_ml1m() -> None:
@@ -127,7 +127,7 @@ def test_ml1m() -> None:
         np.testing.assert_array_equal(user_info.index.values, [1, 2])
         np.testing.assert_array_equal(user_info.gender, ["M", "F"])
     finally:
-        os.remove(ZIPFILE_NAME)
+        ZIPFILE_NAME.unlink()
 
 
 def test_ml20m() -> None:
@@ -158,4 +158,4 @@ def test_ml20m() -> None:
             ),
         )
     finally:
-        os.remove(ZIPFILE_NAME)
+        ZIPFILE_NAME.unlink()

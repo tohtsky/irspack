@@ -1,14 +1,15 @@
 import os
 import sys
+from pathlib import Path
 from typing import Any, Dict, List
 
 import setuptools
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
 
-SETUP_DIRECTORY = os.path.abspath(os.path.dirname(__file__))
+SETUP_DIRECTORY = Path(__file__).resolve().parent
 
-with open(os.path.join(SETUP_DIRECTORY, "Readme.md")) as ifs:
+with (SETUP_DIRECTORY / "Readme.md").open() as ifs:
     LONG_DESCRIPTION = ifs.read()
 
 install_requires = (
@@ -37,25 +38,24 @@ class get_eigen_include(object):
         if eigen_include_dir is not None:
             return eigen_include_dir
 
-        SETUP_DIRECTORY = os.path.dirname(__file__)
-        target_dir = os.path.join(SETUP_DIRECTORY, self.EIGEN3_DIRNAME)
-        if os.path.exists(target_dir):
-            return target_dir
+        target_dir = SETUP_DIRECTORY / self.EIGEN3_DIRNAME
+        if target_dir.exists():
+            return target_dir.name
 
-        download_target_dir = os.path.join(SETUP_DIRECTORY, "eigen3.zip")
+        download_target_dir = SETUP_DIRECTORY / "eigen3.zip"
         import zipfile
 
         import requests
 
         response = requests.get(self.EIGEN3_URL, stream=True)
-        with open(download_target_dir, "wb") as ofs:
+        with download_target_dir.open("wb") as ofs:
             for chunk in response.iter_content(chunk_size=1024):
                 ofs.write(chunk)
 
         with zipfile.ZipFile(download_target_dir) as ifs:
             ifs.extractall()
 
-        return target_dir
+        return target_dir.name
 
 
 class get_pybind_include(object):

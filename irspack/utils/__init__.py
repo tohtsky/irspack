@@ -138,4 +138,5 @@ __all__ = [
     "get_n_threads",
     "IDMappedRecommender",
     "convert_randomstate",
+    "df_to_sparse",
 ]
