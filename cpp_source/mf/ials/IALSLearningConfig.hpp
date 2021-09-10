@@ -1,13 +1,14 @@
 #pragma once
 
-#include "definitions.hpp"
+#include "../definitions.hpp"
 #include <cstddef>
 #include <map>
 #include <vector>
 
-namespace ials11 {
+namespace irspack {
+namespace mf {
+namespace ials {
 using namespace std;
-
 struct IALSLearningConfig {
   inline IALSLearningConfig(size_t K, Real alpha, Real reg, Real init_stdev,
                             int random_seed, size_t n_threads, bool use_cg,
@@ -78,4 +79,6 @@ struct IALSLearningConfig {
     }
   };
 };
-} // namespace ials11
+} // namespace ials
+} // namespace mf
+} // namespace irspack

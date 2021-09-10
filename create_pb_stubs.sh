@@ -1,6 +1,6 @@
 #!/bin/bash
 modules=( \
-"irspack.recommenders._ials" \
+"irspack.recommenders._mf" \
 "irspack.evaluator._core" \
 "irspack.recommenders._knn" \
 "irspack.utils._util_cpp"

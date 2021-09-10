@@ -85,8 +85,8 @@ ext_modules = [
         language="c++",
     ),
     Extension(
-        "irspack.recommenders._ials",
-        ["cpp_source/als/wrapper.cpp"],
+        "irspack.recommenders._mf",
+        ["cpp_source/mf/wrapper.cpp"],
         include_dirs=[
             # Path to pybind11 headers
             get_pybind_include(),

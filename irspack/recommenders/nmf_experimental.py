@@ -13,8 +13,8 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from ._mf import IALSLearningConfigBuilder
-from ._mf import IALSTrainer as CoreTrainer
+from ._mf import NMFLearningConfigBuilder
+from ._mf import NMFTrainer as CoreTrainer
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
 from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,
@@ -23,29 +23,25 @@ from .base_earlystop import (
 )
 
 
-class IALSTrainer(TrainerBase):
+class NMFTrainer(TrainerBase):
     def __init__(
         self,
         X: InteractionMatrix,
         n_components: int,
-        alpha: float,
-        reg: float,
-        init_std: float,
-        use_cg: bool,
-        max_cg_steps: int,
+        l2_reg: float,
+        l1_reg: float,
+        shuffle: bool,
         random_seed: int,
         n_threads: int,
     ):
         X_train_all_f32 = X.astype(np.float32)
         config = (
-            IALSLearningConfigBuilder()
+            NMFLearningConfigBuilder()
             .set_K(n_components)
-            .set_init_stdev(init_std)
-            .set_alpha(alpha)
-            .set_reg(reg)
+            .set_l2_reg(l2_reg)
+            .set_l1_reg(l1_reg)
             .set_n_threads(n_threads)
-            .set_use_cg(use_cg)
-            .set_max_cg_steps(max_cg_steps)
+            .set_shuffle(shuffle)
             .set_random_seed(random_seed)
             .build()
         )
@@ -68,50 +64,29 @@ class IALSTrainer(TrainerBase):
         self.core_trainer.step()
 
 
-class IALSConfigScaling(enum.Enum):
-    none = enum.auto()
-    log = enum.auto()
-
-
-class IALSConfig(BaseEarlyStoppingRecommenderConfig):
+class NMFConfig(BaseEarlyStoppingRecommenderConfig):
     n_components: int = 20
-    alpha: float = 0.0
-    reg: float = 1e-3
-    confidence_scaling: str = "none"
-    epsilon: float = 1.0
-    init_std: float = 0.1
-    use_cg: bool = True
-    max_cg_steps: int = 3
+    l2_reg: float = 0.0
+    l1_reg: float = 0.0
+    shuffle: bool = True
     random_seed: int = 42
     n_threads: Optional[int] = None
 
 
-class IALSRecommender(
+class NMFRecommender(
     BaseRecommenderWithEarlyStopping,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
+    r"""Implementation of non-negative matrix factorization (NMF).
 
     It tries to minimize the following loss:
 
     .. math ::
 
-        \frac{1}{2} \sum _{u, i} c_{ui} (\mathbf{u}_u \cdot \mathbf{v}_i - \mathbb{1}_{r_{ui} > 0}) ^ 2 +
-        \frac{\text{reg}}{2} \left( \sum _u || \mathbf{u}_u || ^2 + \sum _i || \mathbf{v}_i || ^2 \right)
-
-
-    See the seminal paper:
-
-        - `Collaborative filtering for implicit feedback datasets
-          <http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf>`_
-
-
-
-    To speed up the learning procedure, we have also implemented the conjugate gradient descent version following:
-
-        - `Applications of the conjugate gradient method for implicit feedback collaborative filtering
-          <https://dl.acm.org/doi/abs/10.1145/2043932.2043987>`_
+        \frac{1}{2} \sum _{u, i}  (\mathbf{w}_u \cdot \mathbf{h}_i - X_{ui}) ^ 2 +
+        \frac{\text{alpha}(1 - \text{l1\_ratio})}{2} \left( \sum _u || \mathbf{w}_u || ^2 + \sum _i || \mathbf{h}_i || ^2 \right) +
+        \text{alpha}(\text{l1\_ratio}) \left( \sum _u | \mathbf{u}_u | + \sum _i | \mathbf{h}_i | \right)
 
 
     Args:
@@ -120,36 +95,11 @@ class IALSRecommender(
         n_components (int, optional):
             The dimension for latent factor. Defaults to 20.
         alpha (float, optional):
-            The confidence parameter alpha in the original paper. Defaults to 0.0.
-        reg (float, optional) :
-            Regularization coefficient for both user & item factors. Defaults to 1e-3.
-        confidence_scaling (str, optional) :
-            Specifies how to scale confidence scaling :math:`c_{ui}`. Must be either "none" or "log".
-            If "none", the non-zero "rating" :math:`r_{ui}` yields
-
-            .. math ::
-
-                c_{ui} = 1 + \alpha r_{ui}
-
-            If "log",
-
-            .. math ::
-
-                c_{ui} = 1 + \alpha \log (1 + r_{ui} / \epsilon )
-
-            Defaults to "none".
-        epsilon (float, optional):
-            The :math:`\epsilon` parameter for log-scaling described above.
-            Will not have any effect if `confidence_scaling` is "none".
-            Defaults to 1.0f.
-        init_std (float, optional):
-            Standard deviation for initialization normal distribution. Defaults to 0.1.
-        use_cg (bool, optional):
-            Whether to use the conjugate gradient method. Defaults to True.
-        max_cg_steps (int, optional):
-            Maximal number of conjute gradient descent steps. Defaults to 3.
-            Ignored when ``use_cg=False``. By increasing this parameter, the result will be closer to
-            Cholesky decomposition method (i.e., when ``use_cg = False``), but it wll take longer time.
+            Controlls overall regularization magnitude. Defaults to 0.0.
+        l1_ratio (float, optional) :
+            The ratio of L1 regularization coefficient relative to `alpha`. Defaults to 0.
+        shuffle (bool, optional):
+            Whether to shuffle the coordinate descent ordering. Defaults to True.
         validate_epoch (int, optional):
             Frequency of validation score measurement (if any). Defaults to 5.
         score_degradation_max (int, optional):
@@ -162,30 +112,15 @@ class IALSRecommender(
             Maximal number of epochs. Defaults to 512.
     """
 
-    config_class = IALSConfig
-
-    @classmethod
-    def _scale_X(
-        cls, X: sps.csr_matrix, scheme: IALSConfigScaling, epsilon: float
-    ) -> sps.csr_matrix:
-        if scheme is IALSConfigScaling.none:
-            return X
-        else:
-            X_ret: sps.csr_matrix = X.copy()
-            X_ret.data = np.log(1 + X_ret.data / epsilon)
-            return X_ret
+    config_class = NMFConfig
 
     def __init__(
         self,
         X_train_all: InteractionMatrix,
         n_components: int = 20,
         alpha: float = 0.0,
-        reg: float = 1e-3,
-        confidence_scaling: str = "none",
-        epsilon: float = 1.0,
-        init_std: float = 0.1,
-        use_cg: bool = True,
-        max_cg_steps: int = 3,
+        l1_ratio: float = 0,
+        shuffle: bool = True,
         random_seed: int = 42,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
@@ -202,26 +137,20 @@ class IALSRecommender(
 
         self.n_components = n_components
         self.alpha = alpha
-        self.reg = reg
-        self.init_std = init_std
-        self.use_cg = use_cg
-        self.max_cg_steps = max_cg_steps
-        self.confidence_scaling = IALSConfigScaling[confidence_scaling]
-        self.epsilon = epsilon
+        self.l1_ratio = l1_ratio
+        self.shuffle = shuffle
         self.random_seed = random_seed
         self.n_threads = get_n_threads(n_threads)
 
-        self.trainer: Optional[IALSTrainer] = None
+        self.trainer: Optional[NMFTrainer] = None
 
     def _create_trainer(self) -> TrainerBase:
-        return IALSTrainer(
-            self._scale_X(self.X_train_all, self.confidence_scaling, self.epsilon),
+        return NMFTrainer(
+            self.X_train_all,
             self.n_components,
-            self.alpha,
-            self.reg,
-            self.init_std,
-            self.use_cg,
-            self.max_cg_steps,
+            self.alpha * (1 - self.l1_ratio),
+            self.alpha * self.l1_ratio,
+            self.shuffle,
             self.random_seed,
             self.n_threads,
         )
@@ -262,13 +191,7 @@ class IALSRecommender(
                 The interaction history of the new users.
                 ``X.shape[1]`` must be equal to ``self.n_items``.
         """
-        return self.core_trainer.transform_user(
-            self._scale_X(
-                sps.csr_matrix(X).astype(np.float32),
-                self.confidence_scaling,
-                self.epsilon,
-            )
-        )
+        return self.core_trainer.transform_user(X)
 
     def compute_item_embedding(self, X: InteractionMatrix) -> DenseMatrix:
         r"""Given an unknown items' interaction with known user,
@@ -280,13 +203,7 @@ class IALSRecommender(
                 ``X.shape[0]`` must be equal to ``self.n_users``.
         """
 
-        return self.core_trainer.transform_item(
-            self._scale_X(
-                sps.csr_matrix(X).astype(np.float32),
-                self.confidence_scaling,
-                self.epsilon,
-            )
-        )
+        return self.core_trainer.transform_item(X)
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix

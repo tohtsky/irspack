@@ -1,7 +1,7 @@
 #pragma once
-#include "../argcheck.hpp"
+#include "../../argcheck.hpp"
+#include "../definitions.hpp"
 #include "IALSLearningConfig.hpp"
-#include "definitions.hpp"
 #include <Eigen/Cholesky>
 #include <atomic>
 #include <cstddef>
@@ -14,7 +14,9 @@
 #include <thread>
 #include <vector>
 
-namespace ials11 {
+namespace irspack {
+namespace mf {
+namespace ials {
 using namespace std;
 
 struct Solver {
@@ -208,7 +210,7 @@ struct Solver {
   // DenseMatrix &factor;
   DenseMatrix P;
   DenseMatrix Pinv;
-}; // namespace ials11
+}; // namespace ials
 
 struct IALSTrainer {
   inline IALSTrainer(const IALSLearningConfig &config, const SparseMatrix &X)
@@ -292,4 +294,6 @@ public:
 private:
   SparseMatrix X, X_t;
 };
-} // namespace ials11
+} // namespace ials
+} // namespace mf
+} // namespace irspack
