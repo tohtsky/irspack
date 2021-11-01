@@ -170,7 +170,8 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
         self,
         user_ids: List[UserIdType],
         cutoff: int = 20,
-        allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        per_user_allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
         forbidden_item_ids: Optional[List[List[ItemIdType]]] = None,
         n_threads: Optional[int] = None,
     ) -> List[List[Tuple[ItemIdType, float]]]:
@@ -182,9 +183,13 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
             cutoff:
                 Maximal number of recommendations allowed.
             allowed_item_ids:
+                If not ``None``, defines "a list of recommendable item IDs".
+                Ignored if `per_user_allowed_item_ids` is set.
+            per_user_allowed_item_ids:
                 If not ``None``, defines "a list of list of recommendable item IDs"
-                and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``.
+                and ``len(allowed_item_ids)`` must be equal to ``score.shape[0]``.
                 Defaults to ``None``.
+
             forbidden_item_ids:
                 If not ``None``, defines "a list of list of forbidden item IDs"
                 and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``
@@ -207,6 +212,7 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
             score,
             cutoff=cutoff,
             allowed_item_ids=allowed_item_ids,
+            per_user_allowed_item_ids=per_user_allowed_item_ids,
             forbidden_item_ids=forbidden_item_ids,
             n_threads=get_n_threads(n_threads=n_threads),
         )
@@ -252,7 +258,8 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
         self,
         user_profiles: Sequence[Union[List[ItemIdType], Dict[ItemIdType, float]]],
         cutoff: int = 20,
-        allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        per_user_allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
         forbidden_item_ids: Optional[List[List[ItemIdType]]] = None,
         n_threads: Optional[int] = None,
     ) -> List[List[Tuple[ItemIdType, float]]]:
@@ -266,8 +273,11 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
             cutoff:
                 Maximal number of recommendations allowed.
             allowed_item_ids:
+                If not ``None``, defines "a list of recommendable item IDs".
+                Ignored if `per_user_allowed_item_ids` is set.
+            per_user_allowed_item_ids:
                 If not ``None``, defines "a list of list of recommendable item IDs"
-                and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``.
+                and ``len(allowed_item_ids)`` must be equal to ``score.shape[0]``.
                 Defaults to ``None``.
             forbidden_item_ids:
                 If not ``None``, defines "a list of list of forbidden item IDs"
@@ -288,6 +298,7 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
             score,
             cutoff,
             allowed_item_ids=allowed_item_ids,
+            per_user_allowed_item_ids=per_user_allowed_item_ids,
             forbidden_item_ids=forbidden_item_ids,
             n_threads=get_n_threads(n_threads=n_threads),
         )
@@ -327,7 +338,8 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
         self,
         score: DenseScoreArray,
         cutoff: int,
-        allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        per_user_allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
         forbidden_item_ids: Optional[List[List[ItemIdType]]] = None,
         n_threads: Optional[int] = None,
     ) -> List[List[Tuple[ItemIdType, float]]]:
@@ -337,6 +349,13 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
                 1d numpy ndarray for score.
             cutoff:
                 Maximal number of recommendations allowed.
+            allowed_item_ids:
+                If not ``None``, defines "a list of recommendable item IDs".
+                Ignored if `per_user_allowed_item_ids` is set.
+            per_user_allowed_item_ids:
+                If not ``None``, defines "a list of list of recommendable item IDs"
+                and ``len(allowed_item_ids)`` must be equal to ``score.shape[0]``.
+                Defaults to ``None``.
             allowed_item_ids:
                 If not ``None``, defines "a list of list of recommendable item IDs"
                 and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``.
@@ -350,14 +369,16 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
 
         if forbidden_item_ids is not None:
             assert len(forbidden_item_ids) == score.shape[0]
-        if allowed_item_ids is not None:
-            assert len(allowed_item_ids) == score.shape[0]
+        if per_user_allowed_item_ids is not None:
+            assert len(per_user_allowed_item_ids) == score.shape[0]
 
         allowed_item_indices: List[List[int]] = []
-        if allowed_item_ids is not None:
+        if per_user_allowed_item_ids is not None:
             allowed_item_indices = [
-                self._item_id_list_to_index_list(_) for _ in allowed_item_ids
+                self._item_id_list_to_index_list(_) for _ in per_user_allowed_item_ids
             ]
+        elif allowed_item_ids is not None:
+            allowed_item_indices = [self._item_id_list_to_index_list(allowed_item_ids)]
         if forbidden_item_ids is not None:
             for u, forbidden_ids_per_user in enumerate(forbidden_item_ids):
                 score[

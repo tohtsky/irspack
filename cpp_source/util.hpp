@@ -433,7 +433,7 @@ retrieve_recommend_from_score(
   check_arg(n_threads > 0, "n_threads must not be 0.");
   check_arg(
       (score.rows() == static_cast<int64_t>(allowed_indices.size())) ||
-          allowed_indices.empty(),
+          (allowed_indices.size() == 1u) || allowed_indices.empty(),
       "allowed_indices, if not empty, must have a size equal to X.rows()");
   std::vector<std::vector<score_and_index>> result(score.rows());
   std::vector<std::future<void>> workers;
@@ -458,7 +458,16 @@ retrieve_recommend_from_score(
 
             index_holder.clear();
             if (!allowed_indices.empty()) {
-              for (auto item_index : allowed_indices.at(current)) {
+              std::vector<int64_t>::const_iterator begin, end;
+              if (allowed_indices.size() == 1u) {
+                begin = allowed_indices[0].cbegin();
+                end = allowed_indices[0].cend();
+              } else {
+                begin = allowed_indices.at(current).cbegin();
+                end = allowed_indices.at(current).cend();
+              }
+              for (; begin != end; begin++) {
+                auto item_index = *begin;
                 if ((item_index < n_items) && (item_index >= 0)) {
                   index_holder.emplace_back(item_index, score_ptr[item_index]);
                 }
