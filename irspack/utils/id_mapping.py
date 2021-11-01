@@ -1,14 +1,14 @@
 from typing import (
     TYPE_CHECKING,
     Dict,
+    Generic,
     Iterable,
     List,
     Optional,
     Sequence,
     Tuple,
-    Union,
-    Generic,
     TypeVar,
+    Union,
 )
 
 import numpy as np
