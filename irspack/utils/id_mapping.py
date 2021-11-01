@@ -1,12 +1,13 @@
 from typing import (
     TYPE_CHECKING,
-    Any,
     Dict,
+    Generic,
     Iterable,
     List,
     Optional,
     Sequence,
     Tuple,
+    TypeVar,
     Union,
 )
 
@@ -43,7 +44,11 @@ def retrieve_recommend_from_score(
         raise ValueError("Only float32 or float64 are allowed.")
 
 
-class IDMappedRecommender:
+UserIdType = TypeVar("UserIdType")
+ItemIdType = TypeVar("ItemIdType")
+
+
+class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
     """A utility class that helps  mapping user/item ids to index, retrieving recommendation score,
     and making a recommendation.
 
@@ -63,7 +68,10 @@ class IDMappedRecommender:
     """
 
     def __init__(
-        self, recommender: "BaseRecommender", user_ids: List[Any], item_ids: List[Any]
+        self,
+        recommender: "BaseRecommender",
+        user_ids: List[UserIdType],
+        item_ids: List[ItemIdType],
     ):
 
         if (recommender.n_users != len(user_ids)) or (
@@ -79,11 +87,11 @@ class IDMappedRecommender:
         self.user_id_to_index = {user_id: i for i, user_id in enumerate(user_ids)}
         self.item_id_to_index = {item_id: i for i, item_id in enumerate(item_ids)}
 
-    def _item_id_list_to_index_list(self, ids: Iterable[Any]) -> List[int]:
+    def _item_id_list_to_index_list(self, ids: Iterable[ItemIdType]) -> List[int]:
         return [self.item_id_to_index[id] for id in ids if id in self.item_id_to_index]
 
     def _user_profile_to_data_col(
-        self, profile: Union[List[Any], Dict[Any, float]]
+        self, profile: Union[List[ItemIdType], Dict[ItemIdType, float]]
     ) -> Tuple[List[float], List[int]]:
         data: List[float]
         cols: List[int]
@@ -101,7 +109,7 @@ class IDMappedRecommender:
         return data, cols
 
     def _list_of_user_profile_to_matrix(
-        self, users_info: Sequence[Union[List[Any], Dict[Any, float]]]
+        self, users_info: Sequence[Union[List[ItemIdType], Dict[ItemIdType, float]]]
     ) -> sps.csr_matrix:
         data: List[float] = []
         indptr: List[int] = [0]
@@ -120,11 +128,11 @@ class IDMappedRecommender:
 
     def get_recommendation_for_known_user_id(
         self,
-        user_id: Any,
+        user_id: UserIdType,
         cutoff: int = 20,
-        allowed_item_ids: Optional[List[Any]] = None,
-        forbidden_item_ids: Optional[List[Any]] = None,
-    ) -> List[Tuple[Any, float]]:
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        forbidden_item_ids: Optional[List[ItemIdType]] = None,
+    ) -> List[Tuple[ItemIdType, float]]:
         """Retrieve recommendation result for a known user.
         Args:
             user_id:
@@ -151,7 +159,7 @@ class IDMappedRecommender:
         )
 
         score = self.recommender.get_score_remove_seen(user_index)[0, :]
-        return self._score_to_recommended_items(
+        return self.score_to_recommended_items(
             score,
             cutoff=cutoff,
             allowed_item_ids=allowed_item_ids,
@@ -160,12 +168,13 @@ class IDMappedRecommender:
 
     def get_recommendation_for_known_user_batch(
         self,
-        user_ids: List[Any],
+        user_ids: List[UserIdType],
         cutoff: int = 20,
-        allowed_item_ids: Optional[List[List[Any]]] = None,
-        forbidden_item_ids: Optional[List[List[Any]]] = None,
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        per_user_allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
+        forbidden_item_ids: Optional[List[List[ItemIdType]]] = None,
         n_threads: Optional[int] = None,
-    ) -> List[List[Tuple[Any, float]]]:
+    ) -> List[List[Tuple[ItemIdType, float]]]:
         """Retrieve recommendation result for a list of known users.
 
         Args:
@@ -174,13 +183,21 @@ class IDMappedRecommender:
             cutoff:
                 Maximal number of recommendations allowed.
             allowed_item_ids:
+                If not ``None``, defines "a list of recommendable item IDs".
+                Ignored if `per_user_allowed_item_ids` is set.
+            per_user_allowed_item_ids:
                 If not ``None``, defines "a list of list of recommendable item IDs"
-                and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``.
+                and ``len(allowed_item_ids)`` must be equal to ``score.shape[0]``.
                 Defaults to ``None``.
+
             forbidden_item_ids:
                 If not ``None``, defines "a list of list of forbidden item IDs"
                 and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``
                 Defaults to ``None``.
+            n_threads:
+                Specifies the number of threads to use for the computation.
+                If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+                and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
 
         Returns:
             A list of list of tuples consisting of ``(item_id, score)``.
@@ -191,21 +208,22 @@ class IDMappedRecommender:
         )
 
         score = self.recommender.get_score_remove_seen(user_indexes)
-        return self._score_to_recommended_items_batch(
+        return self.score_to_recommended_items_batch(
             score,
             cutoff=cutoff,
             allowed_item_ids=allowed_item_ids,
+            per_user_allowed_item_ids=per_user_allowed_item_ids,
             forbidden_item_ids=forbidden_item_ids,
             n_threads=get_n_threads(n_threads=n_threads),
         )
 
     def get_recommendation_for_new_user(
         self,
-        user_profile: Union[List[Any], Dict[Any, float]],
+        user_profile: Union[List[ItemIdType], Dict[ItemIdType, float]],
         cutoff: int = 20,
-        allowed_item_ids: Optional[List[Any]] = None,
-        forbidden_item_ids: Optional[List[Any]] = None,
-    ) -> List[Tuple[Any, float]]:
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        forbidden_item_ids: Optional[List[ItemIdType]] = None,
+    ) -> List[Tuple[ItemIdType, float]]:
         """Retrieve recommendation result for a previously unseen user using item ids with which he or she interacted.
 
         Args:
@@ -229,7 +247,7 @@ class IDMappedRecommender:
             (data, cols, [0, len(cols)]), shape=(1, len(self.item_ids))
         )
         score = self.recommender.get_score_cold_user_remove_seen(X_input)[0]
-        return self._score_to_recommended_items(
+        return self.score_to_recommended_items(
             score,
             cutoff,
             allowed_item_ids=allowed_item_ids,
@@ -238,12 +256,13 @@ class IDMappedRecommender:
 
     def get_recommendation_for_new_user_batch(
         self,
-        user_profiles: Sequence[Union[List[Any], Dict[Any, float]]],
+        user_profiles: Sequence[Union[List[ItemIdType], Dict[ItemIdType, float]]],
         cutoff: int = 20,
-        allowed_item_ids: Optional[List[List[Any]]] = None,
-        forbidden_item_ids: Optional[List[List[Any]]] = None,
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        per_user_allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
+        forbidden_item_ids: Optional[List[List[ItemIdType]]] = None,
         n_threads: Optional[int] = None,
-    ) -> List[List[Tuple[Any, float]]]:
+    ) -> List[List[Tuple[ItemIdType, float]]]:
         """Retrieve recommendation result for a previously unseen users using item ids with which they have interacted.
 
         Args:
@@ -254,13 +273,20 @@ class IDMappedRecommender:
             cutoff:
                 Maximal number of recommendations allowed.
             allowed_item_ids:
+                If not ``None``, defines "a list of recommendable item IDs".
+                Ignored if `per_user_allowed_item_ids` is set.
+            per_user_allowed_item_ids:
                 If not ``None``, defines "a list of list of recommendable item IDs"
-                and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``.
+                and ``len(allowed_item_ids)`` must be equal to ``score.shape[0]``.
                 Defaults to ``None``.
             forbidden_item_ids:
                 If not ``None``, defines "a list of list of forbidden item IDs"
                 and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``
                 Defaults to ``None``.
+            n_threads:
+                Specifies the number of threads to use for the computation.
+                If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+                and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
 
         Returns:
             A list of list of tuples consisting of ``(item_id, score)``.
@@ -268,21 +294,22 @@ class IDMappedRecommender:
         """
         X_input = self._list_of_user_profile_to_matrix(user_profiles)
         score = self.recommender.get_score_cold_user_remove_seen(X_input)
-        return self._score_to_recommended_items_batch(
+        return self.score_to_recommended_items_batch(
             score,
             cutoff,
             allowed_item_ids=allowed_item_ids,
+            per_user_allowed_item_ids=per_user_allowed_item_ids,
             forbidden_item_ids=forbidden_item_ids,
             n_threads=get_n_threads(n_threads=n_threads),
         )
 
-    def _score_to_recommended_items(
+    def score_to_recommended_items(
         self,
         score: DenseScoreArray,
         cutoff: int,
-        allowed_item_ids: Optional[List[Any]] = None,
-        forbidden_item_ids: Optional[List[Any]] = None,
-    ) -> List[Tuple[Any, float]]:
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        forbidden_item_ids: Optional[List[ItemIdType]] = None,
+    ) -> List[Tuple[ItemIdType, float]]:
         if allowed_item_ids is not None:
             allowed_item_indices = np.asarray(
                 self._item_id_list_to_index_list(allowed_item_ids), dtype=np.int64
@@ -292,7 +319,7 @@ class IDMappedRecommender:
             ]
         else:
             high_score_inds = score.argsort()[::-1]
-        recommendations: List[Tuple[Any, float]] = []
+        recommendations: List[Tuple[ItemIdType, float]] = []
         for i in high_score_inds:
             i_int = int(i)
             score_this = score[i_int]
@@ -307,24 +334,51 @@ class IDMappedRecommender:
                 break
         return recommendations
 
-    def _score_to_recommended_items_batch(
+    def score_to_recommended_items_batch(
         self,
         score: DenseScoreArray,
         cutoff: int,
-        allowed_item_ids: Optional[List[List[Any]]] = None,
-        forbidden_item_ids: Optional[List[List[Any]]] = None,
-        n_threads: int = 1,
-    ) -> List[List[Tuple[Any, float]]]:
+        allowed_item_ids: Optional[List[ItemIdType]] = None,
+        per_user_allowed_item_ids: Optional[List[List[ItemIdType]]] = None,
+        forbidden_item_ids: Optional[List[List[ItemIdType]]] = None,
+        n_threads: Optional[int] = None,
+    ) -> List[List[Tuple[ItemIdType, float]]]:
+        r"""Retrieve recommendation from score array.
+        Args:
+            score:
+                1d numpy ndarray for score.
+            cutoff:
+                Maximal number of recommendations allowed.
+            allowed_item_ids:
+                If not ``None``, defines "a list of recommendable item IDs".
+                Ignored if `per_user_allowed_item_ids` is set.
+            per_user_allowed_item_ids:
+                If not ``None``, defines "a list of list of recommendable item IDs"
+                and ``len(allowed_item_ids)`` must be equal to ``score.shape[0]``.
+                Defaults to ``None``.
+            allowed_item_ids:
+                If not ``None``, defines "a list of list of recommendable item IDs"
+                and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``.
+                Defaults to ``None``.
+            forbidden_item_ids:
+                If not ``None``, defines "a list of list of forbidden item IDs"
+                and ``len(allowed_item_ids)`` must be equal to ``len(item_ids)``
+                Defaults to ``None``.
+
+        """
+
         if forbidden_item_ids is not None:
             assert len(forbidden_item_ids) == score.shape[0]
-        if allowed_item_ids is not None:
-            assert len(allowed_item_ids) == score.shape[0]
+        if per_user_allowed_item_ids is not None:
+            assert len(per_user_allowed_item_ids) == score.shape[0]
 
         allowed_item_indices: List[List[int]] = []
-        if allowed_item_ids is not None:
+        if per_user_allowed_item_ids is not None:
             allowed_item_indices = [
-                self._item_id_list_to_index_list(_) for _ in allowed_item_ids
+                self._item_id_list_to_index_list(_) for _ in per_user_allowed_item_ids
             ]
+        elif allowed_item_ids is not None:
+            allowed_item_indices = [self._item_id_list_to_index_list(allowed_item_ids)]
         if forbidden_item_ids is not None:
             for u, forbidden_ids_per_user in enumerate(forbidden_item_ids):
                 score[
@@ -335,7 +389,7 @@ class IDMappedRecommender:
             score,
             allowed_item_indices,
             cutoff,
-            n_threads=n_threads,
+            n_threads=get_n_threads(n_threads),
         )
         return [
             [
