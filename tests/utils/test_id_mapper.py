@@ -268,7 +268,7 @@ def test_basic_usecase(dtype: str) -> None:
     )
     cnt = 0
     for x in batch_result_masked_uniform_allowed_ids:
-        for rec, score in x:
-            assert rec in allowed_items_uniform
+        for rec_id, score in x:
+            assert rec_id in allowed_items_uniform
             cnt += 1
     assert cnt > 0
