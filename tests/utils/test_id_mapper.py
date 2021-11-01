@@ -220,7 +220,7 @@ def test_basic_usecase(dtype: str) -> None:
         nonzero_batch,
         cutoff=n_items,
         forbidden_item_ids=forbidden_items_batch,
-        allowed_item_ids=allowed_items_batch,
+        per_user_allowed_item_ids=allowed_items_batch,
         n_threads=1,
     )
     assert len(batch_result_masked_restricted) == n_users
@@ -256,3 +256,19 @@ def test_basic_usecase(dtype: str) -> None:
         softmax_denom = X.shape[1] - nnz + np.exp(2) * nnz
         for _, score in result:
             assert score == pytest.approx(1 / softmax_denom)
+
+    allowed_items_uniform = [str(x) for x in RNS.choice(item_ids, size=2)]
+    batch_result_masked_uniform_allowed_ids = (
+        mapped_rec.get_recommendation_for_new_user_batch(
+            nonzero_batch,
+            cutoff=n_items,
+            allowed_item_ids=allowed_items_uniform,
+            n_threads=1,
+        )
+    )
+    cnt = 0
+    for x in batch_result_masked_uniform_allowed_ids:
+        for rec, score in x:
+            assert rec in allowed_items_uniform
+            cnt += 1
+    assert cnt > 0
