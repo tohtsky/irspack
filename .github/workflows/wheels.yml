@@ -56,13 +56,13 @@ jobs:
               build: "cp39* cp310*"
               env: ''
 
-          - os: ubuntu-20.04
-            name: manylinux1
-            cibw:
-              build: "cp36* cp37*"
-              skip: "*musllinux*"
-              manylinux_image: manylinux1
-              env: CFLAGS='-march=core-avx-i'
+#          - os: ubuntu-20.04
+#            name: manylinux1
+#            cibw:
+#              build: "cp36* cp37*"
+#              skip: "*musllinux*"
+#              manylinux_image: manylinux1
+#              env: CFLAGS='-march=core-avx-i'
 
           - os: ubuntu-20.04
             name: manylinux2010
