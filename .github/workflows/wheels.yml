@@ -48,7 +48,9 @@ jobs:
           - os: macos-10.15
             name: mac
             cibw:
+              arch: x86_64
               env: CFLAGS='-march=core-avx-i'
+              build: "cp37* cp38*"
 
           - os: macos-10.15
             name: mac-arm
@@ -60,6 +62,7 @@ jobs:
           - os: ubuntu-20.04
             name: manylinux1
             cibw:
+# include python 3.6 because I want to run it on sagemaker notebook instance.
               build: "cp36* cp37*"
               skip: "*musllinux*"
               manylinux_image: manylinux2010
@@ -69,27 +72,42 @@ jobs:
           - os: ubuntu-20.04
             name: manylinux2014
             cibw:
-              build: "cp38* cp39*"
+              build: "cp38* cp39* cp310"
               skip: "*musllinux*"
               manylinux_image: manylinux2014
               env: CFLAGS='-march=core-avx-i'
               arch: auto64
 
           - os: ubuntu-20.04
-            name: manylinux_aarch64
+            name: manylinux_aarch64_cp37
             cibw:
-              build: "cp37* cp38* cp39* cp310*"
+              build: "cp37*"
               skip: "*musllinux*"
               manylinux_image: manylinux2014
               arch: aarch64
-              env: ''
 
-#          - os: windows-2019
-#            name: win_amd64
-#            architecture: x64
-#            cibw:
-#              build: "cp*win_amd64"
-#              env: "CL='/arch:AVX'"
+          - os: ubuntu-20.04
+            name: manylinux_aarch64_cp38
+            cibw:
+              build: "cp38*"
+              skip: "*musllinux*"
+              manylinux_image: manylinux2014
+              arch: aarch64
+
+          - os: ubuntu-20.04
+            name: manylinux_aarch64_cp39
+            cibw:
+              build: "cp39*"
+              skip: "*musllinux*"
+              manylinux_image: manylinux2014
+              arch: aarch64
+
+          - os: windows-2019
+            name: win_amd64
+            architecture: x64
+            cibw:
+              build: "cp*win_amd64"
+              env: "CL='/arch:AVX'"
 
     steps:
       - uses: actions/checkout@v2
