@@ -49,6 +49,7 @@ jobs:
             name: mac
             cibw:
               env: CFLAGS='-march=core-avx-i'
+
           - os: macos-10.15
             name: mac-arm
             cibw:
@@ -63,6 +64,7 @@ jobs:
               skip: "*musllinux*"
               manylinux_image: manylinux2010
               env: CFLAGS='-march=core-avx-i'
+              arch: auto64
 
           - os: ubuntu-20.04
             name: manylinux2014
@@ -73,21 +75,15 @@ jobs:
               env: CFLAGS='-march=core-avx-i'
               arch: auto64
 
-#          - os: ubuntu-20.04
-#            name: manylinux_aarch64
-#            cibw:
-#              build: "cp36* cp37* cp38* cp39* cp310*"
-#              skip: "*musllinux*"
-#              manylinux_image: manylinux2014
-#              arch: aarch64
-#              env: ''
-#
-#          - os: windows-2019
-#            name: win32
-#            architecture: x86
-#            cibw:
-#              build: "cp*win32"
-#
+          - os: ubuntu-20.04
+            name: manylinux_aarch64
+            cibw:
+              build: "cp37* cp38* cp39* cp310*"
+              skip: "*musllinux*"
+              manylinux_image: manylinux2014
+              arch: aarch64
+              env: ''
+
 #          - os: windows-2019
 #            name: win_amd64
 #            architecture: x64
