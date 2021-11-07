@@ -101,6 +101,14 @@ jobs:
               manylinux_image: manylinux2014
               arch: aarch64
 
+          - os: ubuntu-20.04
+            name: manylinux_aarch64_cp310
+            cibw:
+              build: "cp310*"
+              skip: "*musllinux*"
+              manylinux_image: manylinux2014
+              arch: aarch64
+
           - os: windows-2019
             name: win_amd64
             architecture: x64
