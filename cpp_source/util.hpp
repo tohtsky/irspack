@@ -393,7 +393,7 @@ inline CSCMatrix<Real> SLIM(const CSRMatrix<Real> &X, size_t n_threads,
             int64_t n_taken_coeffs = nnz;
             if (nnz > top_k) {
               std::sort(argsort_buffer.begin(), argsort_buffer.end(),
-                        [](RealAndIndex &val1, RealAndIndex &val2) {
+                        [](RealAndIndex val1, RealAndIndex val2) {
                           return val1.first > val2.first;
                         });
               n_taken_coeffs = top_k;

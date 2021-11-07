@@ -116,7 +116,7 @@ template <typename Real, class SimilarityType> struct KNNComputer {
           buffer[i] = i;
         }
         std::sort(buffer.begin(), buffer.begin() + nz_size,
-                  [&data_start](IndexType &col1, IndexType &col2) {
+                  [&data_start](IndexType col1, IndexType col2) {
                     return data_start[col1] > data_start[col2];
                   });
         std::sort(buffer.begin(), buffer.begin() + col_size);
