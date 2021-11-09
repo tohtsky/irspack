@@ -11,7 +11,7 @@
 #include <vector>
 
 namespace py = pybind11;
-using namespace ials11;
+using namespace irspack::ials;
 using std::vector;
 
 PYBIND11_MODULE(_ials, m) {
@@ -25,32 +25,34 @@ PYBIND11_MODULE(_ials, m) {
       .def(py::init<size_t, Real, Real, Real, int, size_t, bool, size_t>())
       .def(py::pickle(
           [](const IALSLearningConfig &config) {
-            return py::make_tuple(config.K, config.alpha, config.reg,
-                                  config.init_stdev, config.n_threads,
-                                  config.random_seed, config.use_cg,
-                                  config.max_cg_steps);
+            return py::make_tuple(config.K, config.alpha0, config.reg,
+                                  config.nu, config.init_stdev,
+                                  config.n_threads, config.random_seed,
+                                  config.use_cg, config.max_cg_steps);
           },
           [](py::tuple t) {
-            if (t.size() != 8)
+            if (t.size() != 9)
               throw std::runtime_error("invalid state");
 
             size_t K = t[0].cast<size_t>();
-            Real alpha = t[1].cast<Real>();
+            Real alpha0 = t[1].cast<Real>();
             Real reg = t[2].cast<Real>();
-            Real init_stdev = t[3].cast<Real>();
-            size_t n_threads = t[4].cast<size_t>();
-            int random_seed = t[5].cast<int>();
-            bool use_cg = t[6].cast<bool>();
-            size_t max_cg_steps = t[7].cast<size_t>();
-            return IALSLearningConfig(K, alpha, reg, init_stdev, n_threads,
+            Real nu = t[3].cast<Real>();
+            Real init_stdev = t[4].cast<Real>();
+            size_t n_threads = t[5].cast<size_t>();
+            int random_seed = t[6].cast<int>();
+            bool use_cg = t[7].cast<bool>();
+            size_t max_cg_steps = t[8].cast<size_t>();
+            return IALSLearningConfig(K, alpha0, reg, nu, init_stdev, n_threads,
                                       random_seed, use_cg, max_cg_steps);
           }));
   py::class_<IALSLearningConfig::Builder>(m, "IALSLearningConfigBuilder")
       .def(py::init<>())
       .def("build", &IALSLearningConfig::Builder::build)
       .def("set_K", &IALSLearningConfig::Builder::set_K)
-      .def("set_alpha", &IALSLearningConfig::Builder::set_alpha)
+      .def("set_alpha0", &IALSLearningConfig::Builder::set_alpha0)
       .def("set_reg", &IALSLearningConfig::Builder::set_reg)
+      .def("set_nu", &IALSLearningConfig::Builder::set_nu)
       .def("set_init_stdev", &IALSLearningConfig::Builder::set_init_stdev)
       .def("set_random_seed", &IALSLearningConfig::Builder::set_random_seed)
       .def("set_n_threads", &IALSLearningConfig::Builder::set_n_threads)

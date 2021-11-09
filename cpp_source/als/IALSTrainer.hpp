@@ -4,6 +4,7 @@
 #include "definitions.hpp"
 #include <Eigen/Cholesky>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <future>
@@ -14,17 +15,20 @@
 #include <thread>
 #include <vector>
 
-namespace ials11 {
+namespace irspack {
+namespace ials {
 using namespace std;
 
 struct Solver {
-  Solver(size_t K, Real reg) : reg(reg), P(K, K) {}
+  Solver(size_t K, Real reg, Real nu) : reg(reg), nu(nu), P(K, K) {}
 
   inline void initialize(DenseMatrix &factor, Real init_stdev,
                          int random_seed) {
+
     if (init_stdev > 0) {
       std::mt19937 gen(random_seed);
-      std::normal_distribution<Real> dist(0.0, init_stdev);
+      std::normal_distribution<Real> dist(0.0, init_stdev /
+                                                   std::sqrt(factor.cols()));
       for (int i = 0; i < factor.rows(); i++) {
         for (int k = 0; k < factor.cols(); k++) {
           factor(i, k) = dist(gen);
@@ -64,9 +68,12 @@ struct Solver {
     for (auto &w : workers) {
       P.noalias() += w.get();
     }
-    for (int i = 0; i < P.rows(); i++) {
-      P.coeffRef(i, i) += this->reg;
-    }
+    P *= config.alpha0;
+  }
+
+  inline Real compute_reg(const int64_t nnz, const int64_t other_size,
+                          const IALSLearningConfig &config) const {
+    return std::pow(config.alpha0 * other_size + nnz, config.nu);
   }
 
   inline DenseMatrix X_to_vector(const SparseMatrix &X,
@@ -110,19 +117,22 @@ struct Solver {
 
           size_t nnz = 0;
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-            b.noalias() += (1 + config.alpha * it.value()) *
-                           other_factor.row(it.col()).transpose();
+            b.noalias() += it.value() * other_factor.row(it.col()).transpose();
             nnz++;
           }
+
+          const Real regularization_this =
+              this->compute_reg(nnz, other_factor.cols(), config);
           if (nnz == 0u) {
             target_factor.row(cursor_local).array() = 0;
             continue;
           }
           r = b - P * x;
+          r -= regularization_this * x;
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
             Real vdotx = other_factor.row(it.col()) * x;
-            r.noalias() -= (it.value() * config.alpha * vdotx) *
-                           other_factor.row(it.col()).transpose();
+            r.noalias() -=
+                it.value() * vdotx * other_factor.row(it.col()).transpose();
           }
 
           p = r;
@@ -133,10 +143,11 @@ struct Solver {
           for (size_t cg_iter = 0; cg_iter < cg_max_iter; cg_iter++) {
             Real r2 = r.squaredNorm();
             Ap = P * p;
+            Ap += regularization_this * p;
             for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
               Real vdotp = other_factor.row(it.col()) * p;
-              Ap += (it.value() * config.alpha * vdotp) *
-                    other_factor.row(it.col()).transpose();
+              Ap +=
+                  (it.value() * vdotp) * other_factor.row(it.col()).transpose();
             }
 
             Real alpha_denom = p.transpose() * Ap;
@@ -177,14 +188,23 @@ struct Solver {
                 break;
               }
               P_local.noalias() = P;
+
               B.array() = static_cast<Real>(0);
+              int64_t nnz = 0;
               for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
                 int64_t other_index = it.col();
-                Real alphaX = (config.alpha * it.value());
                 vcache = other_factor.row(other_index).transpose();
-                P_local.noalias() += alphaX * vcache * vcache.transpose();
-                B.noalias() += (1 + alphaX) * vcache;
+                P_local.noalias() += it.value() * vcache * vcache.transpose();
+                B.noalias() += it.value() * vcache;
+                nnz++;
               }
+              const Real regularization_this =
+                  this->compute_reg(nnz, other_factor.cols(), config);
+
+              for (int64_t i = 0; i < P.rows(); i++) {
+                P_local(i, i) += regularization_this;
+              }
+
               Eigen::LLT<Eigen::Ref<DenseMatrix>> llt(P_local);
               target_factor.row(cursor_local) = llt.solve(B);
             }
@@ -204,17 +224,18 @@ struct Solver {
       step_cholesky(target_factor, X, other_factor, config);
     }
   }
-  Real reg;
+  Real reg, nu;
   // DenseMatrix &factor;
   DenseMatrix P;
   DenseMatrix Pinv;
-}; // namespace ials11
+}; // namespace irspack
 
 struct IALSTrainer {
   inline IALSTrainer(const IALSLearningConfig &config, const SparseMatrix &X)
       : config_(config), K(config.K), n_users(X.rows()), n_items(X.cols()),
-        user(n_users, K), item(n_items, K), user_solver(K, config.reg),
-        item_solver(K, config.reg), X(X), X_t(X.transpose()) {
+        user(n_users, K), item(n_items, K),
+        user_solver(K, config.reg, config.nu),
+        item_solver(K, config.reg, config.nu), X(X), X_t(X.transpose()) {
     this->X.makeCompressed();
     this->X_t.makeCompressed();
 
@@ -226,7 +247,8 @@ struct IALSTrainer {
                      const DenseMatrix &item_)
       : config_(config), K(user_.cols()), n_users(user_.rows()),
         n_items(item_.rows()), user(user_), item(item_),
-        user_solver(K, config.reg), item_solver(K, config.reg) {
+        user_solver(K, config.reg, config.nu),
+        item_solver(K, config.reg, config.nu) {
     this->user_solver.prepare_p(item, config);
     this->item_solver.prepare_p(user, config);
   }
@@ -292,4 +314,5 @@ public:
 private:
   SparseMatrix X, X_t;
 };
-} // namespace ials11
+} // namespace ials
+} // namespace irspack
