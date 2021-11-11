@@ -6,7 +6,12 @@ from irspack.recommenders.base import (
 from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 from irspack.recommenders.dense_slim import DenseSLIMConfig, DenseSLIMRecommender
 from irspack.recommenders.edlae import EDLAERecommender
-from irspack.recommenders.ials import IALSConfig, IALSRecommender
+from irspack.recommenders.ials import (
+    IALSConfig,
+    IALSppConfig,
+    IALSppRecommender,
+    IALSRecommender,
+)
 from irspack.recommenders.knn import (
     AsymmetricCosineKNNConfig,
     AsymmetricCosineKNNRecommender,

@@ -1,6 +1,6 @@
 import enum
 import pickle
-from typing import IO, Optional
+from typing import IO, Optional, Tuple
 
 import numpy as np
 import scipy.sparse as sps
@@ -15,6 +15,7 @@ from ..definitions import (
 )
 from ._ials import IALSLearningConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
+from ._ials import LossType
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
 from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,
@@ -28,11 +29,13 @@ class IALSTrainer(TrainerBase):
         self,
         X: InteractionMatrix,
         n_components: int,
-        alpha: float,
+        alpha0: float,
         reg: float,
+        nu: float,
         init_std: float,
         use_cg: bool,
         max_cg_steps: int,
+        loss_type: LossType,
         random_seed: int,
         n_threads: int,
     ):
@@ -41,11 +44,13 @@ class IALSTrainer(TrainerBase):
             IALSLearningConfigBuilder()
             .set_K(n_components)
             .set_init_stdev(init_std)
-            .set_alpha(alpha)
+            .set_alpha0(alpha0)
             .set_reg(reg)
+            .set_nu(nu)
             .set_n_threads(n_threads)
             .set_use_cg(use_cg)
             .set_max_cg_steps(max_cg_steps)
+            .set_loss_type(loss_type)
             .set_random_seed(random_seed)
             .build()
         )
@@ -73,12 +78,11 @@ class IALSConfigScaling(enum.Enum):
     log = enum.auto()
 
 
-class IALSConfig(BaseEarlyStoppingRecommenderConfig):
+class IALSppConfig(BaseEarlyStoppingRecommenderConfig):
     n_components: int = 20
-    alpha: float = 0.0
-    reg: float = 1e-3
-    confidence_scaling: str = "none"
-    epsilon: float = 1.0
+    alpha0: float = 1e-1
+    scaled_reg: float = 1e-3
+    nu: float = 1e-3
     init_std: float = 0.1
     use_cg: bool = True
     max_cg_steps: int = 3
@@ -86,7 +90,61 @@ class IALSConfig(BaseEarlyStoppingRecommenderConfig):
     n_threads: Optional[int] = None
 
 
-class IALSRecommender(
+class IALSConfig(BaseEarlyStoppingRecommenderConfig):
+    n_components: int = 20
+    alpha0: float = 1e-1
+    scaled_reg: float = 1e-3
+    nu: float = 1e-3
+    init_std: float = 0.1
+    use_cg: bool = True
+    max_cg_steps: int = 3
+    random_seed: int = 42
+    n_threads: Optional[int] = None
+
+
+def compute_reg_scale(X: sps.csr_matrix, alpha0: float, nu: float) -> float:
+    X_csr: sps.csr_matrix = X.tocsr()
+    X_csr.sort_indices()
+    X_csc = X_csr.tocsc()
+    X_csc.sort_indices()
+    U, I = X.shape
+    nnz_row: np.ndarray = X_csr.indptr[1:] - X_csr.indptr[:-1]
+    nnz_col: np.ndarray = X_csc.indptr[1:] - X_csc.indptr[:-1]
+    return float(((nnz_row + alpha0 * I) ** nu).sum()) + float(
+        ((nnz_col + alpha0 * U) ** nu).sum()
+    )
+
+
+def ials_grad(
+    X: sps.csr_matrix,
+    u: np.ndarray,
+    v: np.ndarray,
+    reg: float,
+    alpha: float,
+    epsilon: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    nu = u.shape[0]
+    ni = v.shape[0]
+
+    uv = u.dot(v.T)
+    result_u = np.zeros_like(u)
+    result_v = np.zeros_like(v)
+    for uind in range(nu):
+        for iind in range(ni):
+            x = X[uind, iind]
+            if x == 0:
+                sc = uv[uind, iind]
+            else:
+                sc = (1 + alpha * np.log(1 + x / epsilon)) * (uv[uind, iind] - 1)
+
+            result_u[uind, :] += v[iind] * sc
+            result_v[iind, :] += u[uind] * sc
+    result_u += reg * u
+    result_v += reg * v
+    return result_u, result_v
+
+
+class IALSppRecommender(
     BaseRecommenderWithEarlyStopping,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
@@ -94,11 +152,6 @@ class IALSRecommender(
     r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
 
     It tries to minimize the following loss:
-
-    .. math ::
-
-        \frac{1}{2} \sum _{u, i} c_{ui} (\mathbf{u}_u \cdot \mathbf{v}_i - \mathbb{1}_{r_{ui} > 0}) ^ 2 +
-        \frac{\text{reg}}{2} \left( \sum _u || \mathbf{u}_u || ^2 + \sum _i || \mathbf{v}_i || ^2 \right)
 
 
     See the seminal paper:
@@ -119,29 +172,12 @@ class IALSRecommender(
             Input interaction matrix.
         n_components (int, optional):
             The dimension for latent factor. Defaults to 20.
-        alpha (float, optional):
-            The confidence parameter alpha in the original paper. Defaults to 0.0.
+        alpha0 (float, optional):
+            The "unovserved" weight
         reg (float, optional) :
             Regularization coefficient for both user & item factors. Defaults to 1e-3.
-        confidence_scaling (str, optional) :
-            Specifies how to scale confidence scaling :math:`c_{ui}`. Must be either "none" or "log".
-            If "none", the non-zero "rating" :math:`r_{ui}` yields
-
-            .. math ::
-
-                c_{ui} = 1 + \alpha r_{ui}
-
-            If "log",
-
-            .. math ::
-
-                c_{ui} = 1 + \alpha \log (1 + r_{ui} / \epsilon )
-
-            Defaults to "none".
-        epsilon (float, optional):
-            The :math:`\epsilon` parameter for log-scaling described above.
-            Will not have any effect if `confidence_scaling` is "none".
-            Defaults to 1.0f.
+        nu (float, optional) :
+            Controlles frequency regularization.
         init_std (float, optional):
             Standard deviation for initialization normal distribution. Defaults to 0.1.
         use_cg (bool, optional):
@@ -150,6 +186,8 @@ class IALSRecommender(
             Maximal number of conjute gradient descent steps. Defaults to 3.
             Ignored when ``use_cg=False``. By increasing this parameter, the result will be closer to
             Cholesky decomposition method (i.e., when ``use_cg = False``), but it wll take longer time.
+        loss_type (irspack.recommenders._ials.LossType, optional):
+            Specifies the subtle difference between iALS++ vs Original Loss.
         validate_epoch (int, optional):
             Frequency of validation score measurement (if any). Defaults to 5.
         score_degradation_max (int, optional):
@@ -162,7 +200,8 @@ class IALSRecommender(
             Maximal number of epochs. Defaults to 512.
     """
 
-    config_class = IALSConfig
+    config_class = IALSppConfig
+    nu_star = 1.0
 
     @classmethod
     def _scale_X(
@@ -179,13 +218,15 @@ class IALSRecommender(
         self,
         X_train_all: InteractionMatrix,
         n_components: int = 20,
-        alpha: float = 0.0,
-        reg: float = 1e-3,
+        alpha0: float = 0.0,
+        scaled_reg: float = 1e-3,
+        nu: float = 1.0,
         confidence_scaling: str = "none",
         epsilon: float = 1.0,
         init_std: float = 0.1,
         use_cg: bool = True,
         max_cg_steps: int = 3,
+        loss_type: LossType = LossType.IALSPP,
         random_seed: int = 42,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
@@ -201,15 +242,24 @@ class IALSRecommender(
         )
 
         self.n_components = n_components
-        self.alpha = alpha
-        self.reg = reg
+        self.alpha0 = alpha0
+        self.scaled_reg = scaled_reg
+        self.reg = (
+            scaled_reg
+            * compute_reg_scale(self.X_train_all, alpha0, self.nu_star)
+            / compute_reg_scale(self.X_train_all, alpha0, nu)
+        )
+        print(f"self.reg is {self.reg}")
+        self.nu = nu
+        self.confidence_scaling = IALSConfigScaling[confidence_scaling]
+        self.epsilon = epsilon
+
         self.init_std = init_std
         self.use_cg = use_cg
         self.max_cg_steps = max_cg_steps
-        self.confidence_scaling = IALSConfigScaling[confidence_scaling]
-        self.epsilon = epsilon
         self.random_seed = random_seed
         self.n_threads = get_n_threads(n_threads)
+        self.loss_type = loss_type
 
         self.trainer: Optional[IALSTrainer] = None
 
@@ -217,11 +267,13 @@ class IALSRecommender(
         return IALSTrainer(
             self._scale_X(self.X_train_all, self.confidence_scaling, self.epsilon),
             self.n_components,
-            self.alpha,
+            self.alpha0,
             self.reg,
+            self.nu,
             self.init_std,
             self.use_cg,
             self.max_cg_steps,
+            self.loss_type,
             self.random_seed,
             self.n_threads,
         )
@@ -292,3 +344,91 @@ class IALSRecommender(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
         return self.core_trainer.user[user_indices].dot(item_embedding.T)
+
+
+class IALSRecommender(IALSppRecommender):
+    r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
+
+    It tries to minimize the following loss:
+
+
+    See the seminal paper:
+
+        - `Collaborative filtering for implicit feedback datasets
+          <http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf>`_
+
+
+
+    To speed up the learning procedure, we have also implemented the conjugate gradient descent version following:
+
+        - `Applications of the conjugate gradient method for implicit feedback collaborative filtering
+          <https://dl.acm.org/doi/abs/10.1145/2043932.2043987>`_
+
+
+    Args:
+        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+            Input interaction matrix.
+        n_components (int, optional):
+            The dimension for latent factor. Defaults to 20.
+        alpha0 (float, optional):
+            The "unovserved" weight
+        reg (float, optional) :
+            Regularization coefficient for both user & item factors. Defaults to 1e-3.
+        init_std (float, optional):
+            Standard deviation for initialization normal distribution. Defaults to 0.1.
+        use_cg (bool, optional):
+            Whether to use the conjugate gradient method. Defaults to True.
+        max_cg_steps (int, optional):
+            Maximal number of conjute gradient descent steps. Defaults to 3.
+            Ignored when ``use_cg=False``. By increasing this parameter, the result will be closer to
+            Cholesky decomposition method (i.e., when ``use_cg = False``), but it wll take longer time.
+        validate_epoch (int, optional):
+            Frequency of validation score measurement (if any). Defaults to 5.
+        score_degradation_max (int, optional):
+            Maximal number of allowed score degradation. Defaults to 5.
+        n_threads (Optional[int], optional):
+            Specifies the number of threads to use for the computation.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
+        max_epoch (int, optional):
+            Maximal number of epochs. Defaults to 512.
+    """
+
+    config_class = IALSConfig
+    nu_star = 0.0
+
+    def __init__(
+        self,
+        X_train_all: InteractionMatrix,
+        n_components: int = 20,
+        alpha: float = 0.0,
+        reg: float = 1e-3,
+        confidence_scaling: str = "none",
+        epsilon: float = 1.0,
+        init_std: float = 0.1,
+        use_cg: bool = True,
+        max_cg_steps: int = 3,
+        random_seed: int = 42,
+        validate_epoch: int = 5,
+        score_degradation_max: int = 5,
+        n_threads: Optional[int] = None,
+        max_epoch: int = 512,
+    ) -> None:
+        super().__init__(
+            X_train_all,
+            n_components=n_components,
+            alpha0=1 / alpha,
+            scaled_reg=reg / alpha,
+            nu=0.0,
+            init_std=init_std * (float(n_components) ** 0.5),
+            confidence_scaling=confidence_scaling,
+            epsilon=epsilon,
+            use_cg=use_cg,
+            max_cg_steps=max_cg_steps,
+            loss_type=LossType.Original,
+            random_seed=random_seed,
+            validate_epoch=validate_epoch,
+            score_degradation_max=score_degradation_max,
+            n_threads=n_threads,
+            max_epoch=max_epoch,
+        )

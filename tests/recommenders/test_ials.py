@@ -15,7 +15,7 @@ def test_ials_overfit_cholesky(
     rec = IALSRecommender(
         X,
         n_components=4,
-        alpha=0,
+        alpha=1e-5,
         reg=0.001,
         use_cg=False,
     )
@@ -32,7 +32,7 @@ def test_ials_overfit_cholesky(
 def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
     X = test_interaction_data["X_small"]
     rec = IALSRecommender(
-        X, n_components=4, alpha=0, reg=1e-2, use_cg=True, max_cg_steps=4
+        X, n_components=4, alpha=1e-5, reg=1e-2, use_cg=True, max_cg_steps=4
     )
     rec.learn()
     assert rec.trainer is not None
@@ -62,7 +62,7 @@ def test_ials_cg_underfit(test_interaction_data: Dict[str, sps.csr_matrix]) -> N
     rec = IALSRecommender(
         X,
         n_components=4,
-        alpha=0,
+        alpha=1e-5,
         reg=1e-2,
         use_cg=True,
         max_cg_steps=1,
