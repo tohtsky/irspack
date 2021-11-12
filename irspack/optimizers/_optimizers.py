@@ -23,6 +23,7 @@ from ..recommenders import (
     CosineUserKNNRecommender,
     DenseSLIMRecommender,
     EDLAERecommender,
+    IALSppRecommender,
     IALSRecommender,
     JaccardKNNRecommender,
     P3alphaRecommender,
@@ -61,13 +62,13 @@ class TopPopOptimizer(BaseOptimizer):
         return []
 
 
-class IALSOptimizer(BaseOptimizerWithEarlyStopping):
+class IALSppOptimizer(BaseOptimizerWithEarlyStopping):
     default_tune_range = [
         IntegerSuggestion("n_components", 4, 300),
         LogUniformSuggestion("alpha0", 3e-3, 1),
         LogUniformSuggestion("scaled_reg", 1e-4, 1e-1),
     ]
-    recommender_class = IALSRecommender
+    recommender_class = IALSppRecommender
 
     def __init__(
         self,
@@ -90,6 +91,24 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping):
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
         )
+
+    @classmethod
+    def tune_range_given_memory_budget(
+        cls, X: InteractionMatrix, memory_budget: int
+    ) -> List[Suggestion]:
+        n_components = _get_maximal_n_components_for_budget(X, memory_budget, 300)
+        return [
+            IntegerSuggestion("n_components", 4, n_components),
+        ]
+
+
+class IALSOptimizer(BaseOptimizerWithEarlyStopping):
+    default_tune_range = [
+        IntegerSuggestion("n_components", 4, 300),
+        LogUniformSuggestion("alpha", 1e-2, 100),
+        LogUniformSuggestion("reg", 1e-10, 1e-3),
+    ]
+    recommender_class = IALSRecommender
 
     @classmethod
     def tune_range_given_memory_budget(
