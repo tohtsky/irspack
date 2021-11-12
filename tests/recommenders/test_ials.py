@@ -3,7 +3,6 @@ from typing import Dict, Tuple
 import numpy as np
 import pytest
 import scipy.sparse as sps
-from scipy.optimize import minimize
 
 from irspack.recommenders import IALSRecommender
 
@@ -15,9 +14,11 @@ def test_ials_overfit_cholesky(
     rec = IALSRecommender(
         X,
         n_components=4,
-        alpha=1e-5,
-        reg=0.001,
+        alpha=0.01,
+        reg=1e-3,
         use_cg=False,
+        max_epoch=100,
+        n_threads=1,
     )
     rec.learn()
     assert rec.trainer is not None
@@ -32,7 +33,7 @@ def test_ials_overfit_cholesky(
 def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
     X = test_interaction_data["X_small"]
     rec = IALSRecommender(
-        X, n_components=4, alpha=1e-5, reg=1e-2, use_cg=True, max_cg_steps=4
+        X, n_components=4, alpha=1e-1, reg=1e-2, use_cg=True, max_cg_steps=4
     )
     rec.learn()
     assert rec.trainer is not None
@@ -62,7 +63,7 @@ def test_ials_cg_underfit(test_interaction_data: Dict[str, sps.csr_matrix]) -> N
     rec = IALSRecommender(
         X,
         n_components=4,
-        alpha=1e-5,
+        alpha=1e-3,
         reg=1e-2,
         use_cg=True,
         max_cg_steps=1,
@@ -75,6 +76,7 @@ def test_ials_cg_underfit(test_interaction_data: Dict[str, sps.csr_matrix]) -> N
     uvec = rec.core_trainer.user
     ivec = rec.core_trainer.item
     X_dense = X.toarray()
+    X_dense[X_dense.nonzero()] = 1.0
     reprod = uvec.dot(ivec.T)
     np.testing.assert_allclose(reprod, X_dense, rtol=1e-2, atol=1e-2)
 
@@ -168,7 +170,6 @@ def test_ials_overfit_cholesky_logscale(
     assert rec_chol.trainer is not None
     uvec_chol = rec_chol.get_user_embedding()
     ivec_chol_cold = rec_chol.compute_item_embedding(X)
-    print(X.shape)
 
     grad_uvec_chol, grad_ivec_chol = ials_grad(
         X, uvec_chol, ivec_chol_cold, REG, ALPHA, EPSILON

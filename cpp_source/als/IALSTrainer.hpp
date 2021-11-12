@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <future>
 #include <iostream>
+#include <ostream>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -104,6 +105,9 @@ struct Solver {
                             &config]() {
         DenseVector b(P.rows()), x(P.rows()), r(P.rows()), p(P.rows()),
             Ap(P.rows());
+        Real observation_bias =
+            config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0;
+
         while (true) {
           int cursor_local = cursor.fetch_add(1);
           if (cursor_local >= target_factor.rows()) {
@@ -117,10 +121,8 @@ struct Solver {
 
           size_t nnz = 0;
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-            b.noalias() +=
-                ((config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0) +
-                 it.value()) *
-                other_factor.row(it.col()).transpose();
+            b.noalias() += (observation_bias + it.value()) *
+                           other_factor.row(it.col()).transpose();
             nnz++;
           }
 
@@ -180,41 +182,40 @@ struct Solver {
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config]() {
-        DenseMatrix P_local(P.rows(), P.cols());
-        DenseVector B(P.rows());
-        DenseVector vcache(P.rows()), r(P.rows());
-        while (true) {
-          int cursor_local = cursor.fetch_add(1);
-          if (cursor_local >= target_factor.rows()) {
-            break;
-          }
-          P_local.noalias() = P;
+      workers.emplace_back(
+          [this, &target_factor, &cursor, &X, &other_factor, &config]() {
+            DenseMatrix P_local(P.rows(), P.cols());
+            DenseVector B(P.rows());
+            DenseVector vcache(P.rows()), r(P.rows());
+            Real observation_bias =
+                config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0;
+            while (true) {
+              int cursor_local = cursor.fetch_add(1);
+              if (cursor_local >= target_factor.rows()) {
+                break;
+              }
+              P_local.noalias() = P;
 
-          B.array() = static_cast<Real>(0);
-          int64_t nnz = 0;
-          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-            int64_t other_index = it.col();
-            vcache = other_factor.row(other_index).transpose();
-            P_local.noalias() += it.value() * vcache * vcache.transpose();
-            B.noalias() +=
-                ((config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0) +
-                 it.value()) *
-                vcache;
-            nnz++;
-          }
-          const Real regularization_this =
-              this->compute_reg(nnz, other_factor.cols(), config);
+              B.array() = static_cast<Real>(0);
+              int64_t nnz = 0;
+              for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+                int64_t other_index = it.col();
+                vcache = other_factor.row(other_index).transpose();
+                P_local.noalias() += it.value() * vcache * vcache.transpose();
+                B.noalias() += (observation_bias + it.value()) * vcache;
+                nnz++;
+              }
+              const Real regularization_this =
+                  this->compute_reg(nnz, other_factor.cols(), config);
 
-          for (int64_t i = 0; i < P.rows(); i++) {
-            P_local(i, i) += regularization_this;
-          }
+              for (int64_t i = 0; i < P.rows(); i++) {
+                P_local(i, i) += regularization_this;
+              }
 
-          Eigen::LLT<Eigen::Ref<DenseMatrix>> llt(P_local);
-          target_factor.row(cursor_local) = llt.solve(B);
-        }
-      });
+              Eigen::LLT<Eigen::Ref<DenseMatrix>> llt(P_local);
+              target_factor.row(cursor_local) = llt.solve(B);
+            }
+          });
     }
     for (auto &w : workers) {
       w.join();
@@ -240,6 +241,7 @@ struct IALSTrainer {
       : config_(config), K(config.K), n_users(X.rows()), n_items(X.cols()),
         user(n_users, K), item(n_items, K), user_solver(K), item_solver(K),
         X(X), X_t(X.transpose()) {
+
     this->X.makeCompressed();
     this->X_t.makeCompressed();
 

@@ -265,17 +265,17 @@ class IALSppRecommender(
 
     def _create_trainer(self) -> TrainerBase:
         return IALSTrainer(
-            self._scale_X(self.X_train_all, self.confidence_scaling, self.epsilon),
-            self.n_components,
-            self.alpha0,
-            self.reg,
-            self.nu,
-            self.init_std,
-            self.use_cg,
-            self.max_cg_steps,
-            self.loss_type,
-            self.random_seed,
-            self.n_threads,
+            X=self._scale_X(self.X_train_all, self.confidence_scaling, self.epsilon),
+            n_components=self.n_components,
+            alpha0=self.alpha0,
+            reg=self.reg,
+            nu=self.nu,
+            init_std=self.init_std,
+            use_cg=self.use_cg,
+            max_cg_steps=self.max_cg_steps,
+            loss_type=self.loss_type,
+            random_seed=self.random_seed,
+            n_threads=self.n_threads,
         )
 
     @property
@@ -309,7 +309,7 @@ class IALSppRecommender(
         r"""Given an unknown users' interaction with known items,
         computes the latent factors of the users by least square (fixing item embeddings).
 
-        Parameters:
+        parameters:
             X:
                 The interaction history of the new users.
                 ``X.shape[1]`` must be equal to ``self.n_items``.
@@ -326,7 +326,7 @@ class IALSppRecommender(
         r"""Given an unknown items' interaction with known user,
         computes the latent factors of the items by least square (fixing user embeddings).
 
-        Parameters:
+        parameters:
             X:
                 The interaction history of the new users.
                 ``X.shape[0]`` must be equal to ``self.n_users``.
@@ -347,26 +347,26 @@ class IALSppRecommender(
 
 
 class IALSRecommender(IALSppRecommender):
-    r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
+    r"""implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
 
-    It tries to minimize the following loss:
+    it tries to minimize the following loss:
 
 
-    See the seminal paper:
+    see the seminal paper:
 
-        - `Collaborative filtering for implicit feedback datasets
+        - `collaborative filtering for implicit feedback datasets
           <http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf>`_
 
 
 
-    To speed up the learning procedure, we have also implemented the conjugate gradient descent version following:
+    to speed up the learning procedure, we have also implemented the conjugate gradient descent version following:
 
-        - `Applications of the conjugate gradient method for implicit feedback collaborative filtering
+        - `applications of the conjugate gradient method for implicit feedback collaborative filtering
           <https://dl.acm.org/doi/abs/10.1145/2043932.2043987>`_
 
 
-    Args:
-        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+    args:
+        x_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
             Input interaction matrix.
         n_components (int, optional):
             The dimension for latent factor. Defaults to 20.
@@ -415,12 +415,12 @@ class IALSRecommender(IALSppRecommender):
         max_epoch: int = 512,
     ) -> None:
         super().__init__(
-            X_train_all,
+            X_train_all=X_train_all,
             n_components=n_components,
             alpha0=1 / alpha,
             scaled_reg=reg / alpha,
             nu=0.0,
-            init_std=init_std * (float(n_components) ** 0.5),
+            init_std=init_std,
             confidence_scaling=confidence_scaling,
             epsilon=epsilon,
             use_cg=use_cg,
