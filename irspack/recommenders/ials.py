@@ -92,9 +92,11 @@ class IALSppConfig(BaseEarlyStoppingRecommenderConfig):
 
 class IALSConfig(BaseEarlyStoppingRecommenderConfig):
     n_components: int = 20
-    alpha0: float = 1e-1
-    scaled_reg: float = 1e-3
-    nu: float = 1e-3
+    alpha: float = 1.0
+    reg: float = 1e-3
+    confidence_scaling: str = "none"
+    epsilon: float = 1.0
+
     init_std: float = 0.1
     use_cg: bool = True
     max_cg_steps: int = 3
@@ -113,35 +115,6 @@ def compute_reg_scale(X: sps.csr_matrix, alpha0: float, nu: float) -> float:
     return float(((nnz_row + alpha0 * I) ** nu).sum()) + float(
         ((nnz_col + alpha0 * U) ** nu).sum()
     )
-
-
-def ials_grad(
-    X: sps.csr_matrix,
-    u: np.ndarray,
-    v: np.ndarray,
-    reg: float,
-    alpha: float,
-    epsilon: float,
-) -> Tuple[np.ndarray, np.ndarray]:
-    nu = u.shape[0]
-    ni = v.shape[0]
-
-    uv = u.dot(v.T)
-    result_u = np.zeros_like(u)
-    result_v = np.zeros_like(v)
-    for uind in range(nu):
-        for iind in range(ni):
-            x = X[uind, iind]
-            if x == 0:
-                sc = uv[uind, iind]
-            else:
-                sc = (1 + alpha * np.log(1 + x / epsilon)) * (uv[uind, iind] - 1)
-
-            result_u[uind, :] += v[iind] * sc
-            result_v[iind, :] += u[uind] * sc
-    result_u += reg * u
-    result_v += reg * v
-    return result_u, result_v
 
 
 class IALSppRecommender(
@@ -401,7 +374,7 @@ class IALSRecommender(IALSppRecommender):
         self,
         X_train_all: InteractionMatrix,
         n_components: int = 20,
-        alpha: float = 0.0,
+        alpha: float = 1.0,
         reg: float = 1e-3,
         confidence_scaling: str = "none",
         epsilon: float = 1.0,
