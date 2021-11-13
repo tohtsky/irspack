@@ -21,14 +21,14 @@ namespace ials {
 using namespace std;
 
 struct Solver {
-  Solver(size_t K) : P(K, K) {}
+  Solver(const IALSModelConfig &config)
+      : P(config.K, config.K), p_initialized(false) {}
 
-  inline void initialize(DenseMatrix &factor, Real init_stdev,
-                         int random_seed) {
+  inline void initialize(DenseMatrix &factor, const IALSModelConfig &config) {
 
-    if (init_stdev > 0) {
-      std::mt19937 gen(random_seed);
-      std::normal_distribution<Real> dist(0.0, init_stdev /
+    if (config.init_stdev > 0) {
+      std::mt19937 gen(config.random_seed);
+      std::normal_distribution<Real> dist(0.0, config.init_stdev /
                                                    std::sqrt(factor.cols()));
       for (int i = 0; i < factor.rows(); i++) {
         for (int k = 0; k < factor.cols(); k++) {
@@ -39,14 +39,15 @@ struct Solver {
   }
 
   inline void prepare_p(const DenseMatrix &other_factor,
-                        const IALSLearningConfig &config) {
+                        const IALSModelConfig &model_config,
+                        const SolverConfig &solver_config) {
     const int64_t mb_size = 16;
     P = DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
 
     std::atomic<int64_t> cursor{static_cast<size_t>(0)};
 
     std::vector<std::future<DenseMatrix>> workers;
-    for (size_t i = 0; i < config.n_threads; i++) {
+    for (size_t i = 0; i < solver_config.n_threads; i++) {
       workers.emplace_back(std::async(std::launch::async, [&other_factor,
                                                            &cursor, mb_size]() {
         DenseMatrix P_local =
@@ -69,17 +70,19 @@ struct Solver {
     for (auto &w : workers) {
       P.noalias() += w.get();
     }
-    P *= config.alpha0;
+    P *= model_config.alpha0;
+    p_initialized = true;
   }
 
   inline Real compute_reg(const int64_t nnz, const int64_t other_size,
-                          const IALSLearningConfig &config) const {
+                          const IALSModelConfig &config) const {
     return config.reg * std::pow(config.alpha0 * other_size + nnz, config.nu);
   }
 
   inline DenseMatrix X_to_vector(const SparseMatrix &X,
                                  const DenseMatrix &other_factor,
-                                 const IALSLearningConfig &config) const {
+                                 const IALSModelConfig &config,
+                                 const SolverConfig &solver_config) const {
     if (X.cols() != other_factor.rows()) {
       std::cout << this << std::endl;
       std::stringstream ss;
@@ -88,21 +91,22 @@ struct Solver {
       throw std::invalid_argument(ss.str());
     }
     DenseMatrix result = DenseMatrix::Zero(X.rows(), P.rows());
-    this->step(result, X, other_factor, config);
+    this->step(result, X, other_factor, config, solver_config);
 
     return result;
   }
 
   inline void step_cg(DenseMatrix &target_factor, const SparseMatrix &X,
                       const DenseMatrix &other_factor,
-                      const IALSLearningConfig &config) const {
+                      const IALSModelConfig &config,
+                      const SolverConfig &solver_config) const {
 
     std::vector<std::thread> workers;
 
     std::atomic<int> cursor(0);
-    for (size_t ind = 0; ind < config.n_threads; ind++) {
+    for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
       workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config]() {
+                            &config, &solver_config]() {
         DenseVector b(P.rows()), x(P.rows()), r(P.rows()), p(P.rows()),
             Ap(P.rows());
         Real observation_bias =
@@ -142,8 +146,9 @@ struct Solver {
 
           p = r;
 
-          size_t cg_max_iter =
-              config.max_cg_steps == 0u ? P.rows() : config.max_cg_steps;
+          size_t cg_max_iter = solver_config.max_cg_steps == 0u
+                                   ? P.rows()
+                                   : solver_config.max_cg_steps;
 
           for (size_t cg_iter = 0; cg_iter < cg_max_iter; cg_iter++) {
             Real r2 = r.squaredNorm();
@@ -176,12 +181,13 @@ struct Solver {
 
   inline void step_cholesky(DenseMatrix &target_factor, const SparseMatrix &X,
                             const DenseMatrix &other_factor,
-                            const IALSLearningConfig &config) const {
+                            const IALSModelConfig &config,
+                            const SolverConfig &solver_config) const {
 
     std::vector<std::thread> workers;
 
     std::atomic<int> cursor(0);
-    for (size_t ind = 0; ind < config.n_threads; ind++) {
+    for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
       workers.emplace_back(
           [this, &target_factor, &cursor, &X, &other_factor, &config]() {
             DenseMatrix P_local(P.rows(), P.cols());
@@ -224,57 +230,67 @@ struct Solver {
 
   inline void step(DenseMatrix &target_factor, const SparseMatrix &X,
                    const DenseMatrix &other_factor,
-                   const IALSLearningConfig &config) const {
-    if (config.use_cg) {
-      step_cg(target_factor, X, other_factor, config);
+                   const IALSModelConfig &config,
+                   const SolverConfig &solver_config) const {
+    if (solver_config.use_cg) {
+      step_cg(target_factor, X, other_factor, config, solver_config);
     } else {
-      step_cholesky(target_factor, X, other_factor, config);
+      step_cholesky(target_factor, X, other_factor, config, solver_config);
     }
   }
   // DenseMatrix &factor;
   DenseMatrix P;
   DenseMatrix Pinv;
+  bool p_initialized;
 }; // namespace irspack
 
 struct IALSTrainer {
-  inline IALSTrainer(const IALSLearningConfig &config, const SparseMatrix &X)
+  inline IALSTrainer(const IALSModelConfig &config, const SparseMatrix &X)
       : config_(config), K(config.K), n_users(X.rows()), n_items(X.cols()),
-        user(n_users, K), item(n_items, K), user_solver(K), item_solver(K),
-        X(X), X_t(X.transpose()) {
+        user(n_users, K), item(n_items, K), user_solver(config),
+        item_solver(config), X(X), X_t(X.transpose()) {
 
     this->X.makeCompressed();
     this->X_t.makeCompressed();
 
-    user_solver.initialize(user, config.init_stdev, config.random_seed);
-    item_solver.initialize(item, config.init_stdev, config.random_seed);
+    user_solver.initialize(user, config);
+    item_solver.initialize(item, config);
   }
 
-  inline IALSTrainer(const IALSLearningConfig &config, const DenseMatrix &user_,
+  // used when deserialize
+  inline IALSTrainer(const IALSModelConfig &config, const DenseMatrix &user_,
                      const DenseMatrix &item_)
       : config_(config), K(user_.cols()), n_users(user_.rows()),
-        n_items(item_.rows()), user(user_), item(item_), user_solver(K),
-        item_solver(K) {
-    this->user_solver.prepare_p(item, config);
-    this->item_solver.prepare_p(user, config);
+        n_items(item_.rows()), user(user_), item(item_), user_solver(config),
+        item_solver(config) {
+    const size_t processor_count = std::thread::hardware_concurrency();
+    auto solver_config =
+        SolverConfig::Builder{}.set_n_threads(processor_count).build();
+    this->user_solver.prepare_p(item, config, solver_config);
+    this->item_solver.prepare_p(user, config, solver_config);
   }
 
-  inline void step() {
+  inline void step(const SolverConfig &solver_config) {
 
-    user_solver.prepare_p(item, config_);
-    user_solver.step(user, X, item, config_);
-    item_solver.prepare_p(user, config_);
-    item_solver.step(item, X_t, user, config_);
+    user_solver.prepare_p(item, config_, solver_config);
+    user_solver.step(user, X, item, config_, solver_config);
+    item_solver.prepare_p(user, config_, solver_config);
+    item_solver.step(item, X_t, user, config_, solver_config);
   };
 
-  inline DenseMatrix transform_user(const SparseMatrix &X) const {
-    return this->user_solver.X_to_vector(X, item, config_);
+  inline DenseMatrix transform_user(const SparseMatrix &X,
+                                    const SolverConfig &solver_config) const {
+    return this->user_solver.X_to_vector(X, item, config_, solver_config);
   }
 
-  inline DenseMatrix transform_item(const SparseMatrix &X) const {
-    return this->item_solver.X_to_vector(X.transpose(), user, config_);
+  inline DenseMatrix transform_item(const SparseMatrix &X,
+                                    const SolverConfig &solver_config) const {
+    return this->item_solver.X_to_vector(X.transpose(), user, config_,
+                                         solver_config);
   }
 
-  DenseMatrix user_scores(size_t userblock_begin, size_t userblock_end) {
+  DenseMatrix user_scores(size_t userblock_begin, size_t userblock_end,
+                          const SolverConfig &solver_config) {
     irspack::check_arg(
         userblock_end >= userblock_begin,
         "userblock_end must be greater than or equal to userblock_begin");
@@ -286,7 +302,7 @@ struct IALSTrainer {
     DenseMatrix result(result_size, n_items);
     std::vector<std::thread> workers;
     std::atomic<int64_t> cursor(0);
-    for (size_t ind = 0; ind < config_.n_threads; ind++) {
+    for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
       workers.emplace_back([this, userblock_begin, &cursor, result_size,
                             &result]() {
         const int64_t chunk_size = 16;
@@ -310,7 +326,7 @@ struct IALSTrainer {
   }
 
 public:
-  const IALSLearningConfig config_;
+  const IALSModelConfig config_;
   const size_t K;
   const size_t n_users, n_items;
   DenseMatrix user, item;

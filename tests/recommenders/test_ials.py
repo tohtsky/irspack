@@ -37,8 +37,8 @@ def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> No
     )
     rec.learn()
     assert rec.trainer is not None
-    uvec = rec.trainer.core_trainer.transform_user(X.tocsr().astype(np.float32))
-    ivec = rec.trainer.core_trainer.transform_item(X.tocsr().astype(np.float32))
+    uvec = rec.compute_user_embedding(X.tocsr().astype(np.float32))
+    ivec = rec.compute_item_embedding(X.tocsr().astype(np.float32))
     X_dense = X.toarray()
     X_dense[X_dense.nonzero()] = 1.0
     reproduced_user_vector = uvec.dot(ivec.T)
@@ -70,11 +70,11 @@ def test_ials_cg_underfit(test_interaction_data: Dict[str, sps.csr_matrix]) -> N
         max_epoch=10,
     )
     with pytest.raises(RuntimeError):
-        _ = rec.core_trainer.user
+        _ = rec.trainer_as_ials.core_trainer.user
     rec.learn()
     assert rec.trainer is not None
-    uvec = rec.core_trainer.user
-    ivec = rec.core_trainer.item
+    uvec = rec.trainer.core_trainer.user
+    ivec = rec.trainer.core_trainer.item
     X_dense = X.toarray()
     X_dense[X_dense.nonzero()] = 1.0
     reprod = uvec.dot(ivec.T)
@@ -92,12 +92,8 @@ def test_ials_overfit_nonzero_alpha(
     )
     rec_chol.learn()
     assert rec_chol.trainer is not None
-    uvec_chol = rec_chol.trainer.core_trainer.transform_user(
-        X.tocsr().astype(np.float32)
-    )
-    ivec_chol = rec_chol.trainer.core_trainer.transform_item(
-        X.tocsr().astype(np.float32)
-    )
+    uvec_chol = rec_chol.compute_user_embedding(X.tocsr().astype(np.float32))
+    ivec_chol = rec_chol.compute_item_embedding(X.tocsr().astype(np.float32))
 
     rec_cg = IALSRecommender(
         X,
@@ -110,8 +106,8 @@ def test_ials_overfit_nonzero_alpha(
     )
     rec_cg.learn()
     assert rec_cg.trainer is not None
-    uvec_cg = rec_cg.trainer.core_trainer.transform_user(X.tocsr())
-    ivec_cg = rec_cg.trainer.core_trainer.transform_item(X.tocsr())
+    uvec_cg = rec_cg.compute_user_embedding(X.tocsr())
+    ivec_cg = rec_cg.compute_item_embedding(X.tocsr())
 
     np.testing.assert_allclose(uvec_chol, uvec_cg, atol=1e-3, rtol=1e-4)
     np.testing.assert_allclose(ivec_chol, ivec_cg, atol=1e-3, rtol=1e-4)

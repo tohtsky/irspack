@@ -13,7 +13,7 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from ._ials import IALSLearningConfigBuilder
+from ._ials import IALSModelConfigBuilder, IALSSolverConfig, IALSSolverConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
 from ._ials import LossType
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
@@ -38,24 +38,32 @@ class IALSTrainer(TrainerBase):
         loss_type: LossType,
         random_seed: int,
         n_threads: int,
+        prediction_time_solver_config: Optional[IALSSolverConfig] = None,
     ):
         X_train_all_f32 = X.astype(np.float32)
         config = (
-            IALSLearningConfigBuilder()
+            IALSModelConfigBuilder()
             .set_K(n_components)
             .set_init_stdev(init_std)
             .set_alpha0(alpha0)
             .set_reg(reg)
             .set_nu(nu)
-            .set_n_threads(n_threads)
-            .set_use_cg(use_cg)
-            .set_max_cg_steps(max_cg_steps)
             .set_loss_type(loss_type)
             .set_random_seed(random_seed)
             .build()
         )
-
+        solver_config = (
+            IALSSolverConfigBuilder()
+            .set_n_threads(n_threads)
+            .set_use_cg(use_cg)
+            .set_max_cg_steps(max_cg_steps)
+            .build()
+        )
         self.core_trainer = CoreTrainer(config, X_train_all_f32)
+        self.solver_config = solver_config
+        self.prediction_time_solver_config = (
+            prediction_time_solver_config or solver_config
+        )
 
     def load_state(self, ifs: IO) -> None:
         params = pickle.load(ifs)
@@ -70,7 +78,16 @@ class IALSTrainer(TrainerBase):
         )
 
     def run_epoch(self) -> None:
-        self.core_trainer.step()
+        self.core_trainer.step(self.solver_config)
+
+    def user_scores(self, begin: int, end: int) -> DenseScoreArray:
+        return self.core_trainer.user_scores(begin, end, self.solver_config)
+
+    def transform_user(self, X: InteractionMatrix) -> DenseMatrix:
+        return self.core_trainer.transform_user(X, self.prediction_time_solver_config)
+
+    def transform_item(self, X: InteractionMatrix) -> DenseMatrix:
+        return self.core_trainer.transform_item(X, self.prediction_time_solver_config)
 
 
 class IALSConfigScaling(enum.Enum):
@@ -171,6 +188,9 @@ class IALSppRecommender(
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
         max_epoch (int, optional):
             Maximal number of epochs. Defaults to 512.
+        prediction_time_solver_config (Optional[IALSSolver], optional):
+            When not `None`, use this solver setting for predicting embeddings for user/items unseen during the traiinng time.
+            Defaults to `None`.
     """
 
     config_class = IALSppConfig
@@ -205,6 +225,7 @@ class IALSppRecommender(
         score_degradation_max: int = 5,
         n_threads: Optional[int] = None,
         max_epoch: int = 512,
+        prediction_time_solver_config: Optional[IALSSolverConfig] = None,
     ) -> None:
 
         super().__init__(
@@ -235,6 +256,7 @@ class IALSppRecommender(
         self.loss_type = loss_type
 
         self.trainer: Optional[IALSTrainer] = None
+        self.prediction_time_solver_config = prediction_time_solver_config
 
     def _create_trainer(self) -> TrainerBase:
         return IALSTrainer(
@@ -249,26 +271,29 @@ class IALSppRecommender(
             loss_type=self.loss_type,
             random_seed=self.random_seed,
             n_threads=self.n_threads,
+            prediction_time_solver_config=self.prediction_time_solver_config,
         )
 
     @property
-    def core_trainer(self) -> CoreTrainer:
+    def trainer_as_ials(self) -> IALSTrainer:
         if self.trainer is None:
-            raise RuntimeError("tried to fetch core_trainer before the training.")
-        return self.trainer.core_trainer
+            raise RuntimeError("tried to fetch trainer before the training.")
+        return self.trainer
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        return self.core_trainer.user[user_indices].dot(self.get_item_embedding().T)
+        return self.trainer_as_ials.core_trainer.user[user_indices].dot(
+            self.get_item_embedding().T
+        )
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
-        return self.core_trainer.user_scores(begin, end)
+        return self.trainer_as_ials.user_scores(begin, end)
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         user_vector = self.compute_user_embedding(X)
         return self.get_score_from_user_embedding(user_vector)
 
     def get_user_embedding(self) -> DenseMatrix:
-        return self.core_trainer.user
+        return self.trainer_as_ials.core_trainer.user
 
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
@@ -276,7 +301,7 @@ class IALSppRecommender(
         return user_embedding.dot(self.get_item_embedding().T)
 
     def get_item_embedding(self) -> DenseMatrix:
-        return self.core_trainer.item
+        return self.trainer_as_ials.core_trainer.item
 
     def compute_user_embedding(self, X: InteractionMatrix) -> DenseMatrix:
         r"""Given an unknown users' interaction with known items,
@@ -287,7 +312,7 @@ class IALSppRecommender(
                 The interaction history of the new users.
                 ``X.shape[1]`` must be equal to ``self.n_items``.
         """
-        return self.core_trainer.transform_user(
+        return self.trainer_as_ials.transform_user(
             self._scale_X(
                 sps.csr_matrix(X).astype(np.float32),
                 self.confidence_scaling,
@@ -305,7 +330,7 @@ class IALSppRecommender(
                 ``X.shape[0]`` must be equal to ``self.n_users``.
         """
 
-        return self.core_trainer.transform_item(
+        return self.trainer_as_ials.transform_item(
             self._scale_X(
                 sps.csr_matrix(X).astype(np.float32),
                 self.confidence_scaling,
@@ -316,7 +341,9 @@ class IALSppRecommender(
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return self.core_trainer.user[user_indices].dot(item_embedding.T)
+        return self.trainer_as_ials.core_trainer.user[user_indices].dot(
+            item_embedding.T
+        )
 
 
 class IALSRecommender(IALSppRecommender):

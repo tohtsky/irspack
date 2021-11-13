@@ -11,24 +11,14 @@ namespace ials {
 enum class LossType { Original, IALSPP };
 using namespace std;
 
-struct IALSLearningConfig {
-
-  inline IALSLearningConfig(size_t K, Real alpha0, Real reg, Real nu,
-                            Real init_stdev, int random_seed, size_t n_threads,
-                            bool use_cg, size_t max_cg_steps,
-                            LossType loss_type)
+struct IALSModelConfig {
+  inline IALSModelConfig(size_t K, Real alpha0, Real reg, Real nu,
+                         Real init_stdev, int random_seed, LossType loss_type)
       : K(K), alpha0(alpha0), reg(reg), nu(nu), init_stdev(init_stdev),
-        random_seed(random_seed), n_threads(n_threads), use_cg(use_cg),
-        max_cg_steps(max_cg_steps), loss_type(loss_type) {}
-
-  IALSLearningConfig(const IALSLearningConfig &other) = default;
-
+        random_seed(random_seed), loss_type(loss_type) {}
   const size_t K;
   const Real alpha0, reg, nu, init_stdev;
   int random_seed;
-  size_t n_threads;
-  bool use_cg;
-  size_t max_cg_steps;
   LossType loss_type;
 
   struct Builder {
@@ -38,14 +28,11 @@ struct IALSLearningConfig {
     Real init_stdev = .1;
     size_t K = 16;
     int random_seed = 42;
-    size_t n_threads = 1;
-    bool use_cg = true;
-    size_t max_cg_steps = 0;
     LossType loss_type = LossType::IALSPP;
     inline Builder() {}
-    inline IALSLearningConfig build() {
-      return IALSLearningConfig(K, alpha0, reg, nu, init_stdev, random_seed,
-                                n_threads, use_cg, max_cg_steps, loss_type);
+    inline IALSModelConfig build() {
+      return IALSModelConfig(K, alpha0, reg, nu, init_stdev, random_seed,
+                             loss_type);
     }
 
     Builder &set_alpha0(Real alpha0) {
@@ -75,6 +62,32 @@ struct IALSLearningConfig {
       this->random_seed = random_seed;
       return *this;
     }
+    Builder &set_loss_type(LossType loss_type) {
+      this->loss_type = loss_type;
+      return *this;
+    }
+  };
+};
+
+struct SolverConfig {
+
+  inline SolverConfig(size_t n_threads, bool use_cg, size_t max_cg_steps)
+      : n_threads(n_threads), use_cg(use_cg), max_cg_steps(max_cg_steps) {}
+
+  SolverConfig(const SolverConfig &other) = default;
+
+  size_t n_threads;
+  bool use_cg;
+  size_t max_cg_steps;
+  struct Builder {
+    size_t n_threads = 1;
+    bool use_cg = true;
+    size_t max_cg_steps = 0;
+
+    inline Builder() {}
+    inline SolverConfig build() {
+      return SolverConfig(n_threads, use_cg, max_cg_steps);
+    }
 
     Builder &set_n_threads(size_t n_threads) {
       this->n_threads = n_threads;
@@ -86,10 +99,6 @@ struct IALSLearningConfig {
     }
     Builder &set_max_cg_steps(size_t max_cg_steps) {
       this->max_cg_steps = max_cg_steps;
-      return *this;
-    }
-    Builder &set_loss_type(LossType loss_type) {
-      this->loss_type = loss_type;
       return *this;
     }
   };
