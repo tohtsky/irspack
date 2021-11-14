@@ -38,7 +38,8 @@ class IALSTrainer(TrainerBase):
         loss_type: LossType,
         random_seed: int,
         n_threads: int,
-        prediction_time_solver_config: Optional[IALSSolverConfig] = None,
+        prediction_time_use_cg: bool,
+        prediction_time_max_cg_steps: int,
     ):
         X_train_all_f32 = X.astype(np.float32)
         config = (
@@ -62,7 +63,11 @@ class IALSTrainer(TrainerBase):
         self.core_trainer = CoreTrainer(config, X_train_all_f32)
         self.solver_config = solver_config
         self.prediction_time_solver_config = (
-            prediction_time_solver_config or solver_config
+            IALSSolverConfigBuilder()
+            .set_n_threads(n_threads)
+            .set_use_cg(prediction_time_use_cg)
+            .set_max_cg_steps(prediction_time_max_cg_steps)
+            .build()
         )
 
     def load_state(self, ifs: IO) -> None:
@@ -225,7 +230,8 @@ class IALSppRecommender(
         score_degradation_max: int = 5,
         n_threads: Optional[int] = None,
         max_epoch: int = 512,
-        prediction_time_solver_config: Optional[IALSSolverConfig] = None,
+        prediction_time_use_cg: bool = True,
+        prediction_time_max_cg_steps: int = 5,
     ) -> None:
 
         super().__init__(
@@ -243,7 +249,6 @@ class IALSppRecommender(
             * compute_reg_scale(self.X_train_all, alpha0, self.nu_star)
             / compute_reg_scale(self.X_train_all, alpha0, nu)
         )
-        print(f"self.reg is {self.reg}")
         self.nu = nu
         self.confidence_scaling = IALSConfigScaling[confidence_scaling]
         self.epsilon = epsilon
@@ -255,8 +260,10 @@ class IALSppRecommender(
         self.n_threads = get_n_threads(n_threads)
         self.loss_type = loss_type
 
+        self.prediction_time_use_cg = prediction_time_use_cg
+        self.prediction_time_max_cg_steps = prediction_time_max_cg_steps
+
         self.trainer: Optional[IALSTrainer] = None
-        self.prediction_time_solver_config = prediction_time_solver_config
 
     def _create_trainer(self) -> TrainerBase:
         return IALSTrainer(
@@ -271,7 +278,8 @@ class IALSppRecommender(
             loss_type=self.loss_type,
             random_seed=self.random_seed,
             n_threads=self.n_threads,
-            prediction_time_solver_config=self.prediction_time_solver_config,
+            prediction_time_use_cg=self.prediction_time_use_cg,
+            prediction_time_max_cg_steps=self.prediction_time_max_cg_steps,
         )
 
     @property

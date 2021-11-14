@@ -302,6 +302,7 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
                 if is_valid_param_name(key)
             },
         )
+        best_params.update(self.fixed_params)
 
         return best_params, study_to_dataframe(study)
 
