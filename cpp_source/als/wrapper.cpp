@@ -28,6 +28,12 @@ PYBIND11_MODULE(_ials, m) {
       .value("IALSPP", LossType::IALSPP)
       .export_values();
 
+  py::enum_<SolverType>(m, "SolverType")
+      .value("CHOLESKY", SolverType::Cholesky)
+      .value("CG", SolverType::CG)
+      .value("IALSPP", SolverType::IALSPP)
+      .export_values();
+
   auto model_config =
       py::class_<IALSModelConfig>(m, "IALSModelConfig")
           .def(py::init<size_t, Real, Real, Real, Real, int, LossType>())
@@ -64,28 +70,37 @@ PYBIND11_MODULE(_ials, m) {
 
   auto solver_config =
       py::class_<SolverConfig>(m, "IALSSolverConfig")
-          .def(py::init<size_t, bool, size_t>())
+          .def(py::init<size_t, SolverType, size_t, size_t, size_t>())
           .def(py::pickle(
               [](const SolverConfig &config) {
-                return py::make_tuple(config.n_threads, config.use_cg,
-                                      config.max_cg_steps);
+                return py::make_tuple(
+                    config.n_threads, config.solver_type, config.max_cg_steps,
+                    config.ialspp_subspace_dimension, config.ialspp_iteration);
               },
               [](py::tuple t) {
-                if (t.size() != 3)
+                if (t.size() != 5)
                   throw std::runtime_error("invalid state");
 
                 size_t n_threads = t[0].cast<size_t>();
-                bool use_cg = t[1].cast<bool>();
+                SolverType solver_type = t[1].cast<SolverType>();
                 size_t max_cg_steps = t[2].cast<size_t>();
-                return SolverConfig(n_threads, use_cg, max_cg_steps);
+                size_t ialspp_subspace_dimension = t[3].cast<size_t>();
+                size_t ialspp_iteration = t[4].cast<size_t>();
+                return SolverConfig(n_threads, solver_type, max_cg_steps,
+                                    ialspp_subspace_dimension,
+                                    ialspp_iteration);
               }));
 
   py::class_<SolverConfig::Builder>(m, "IALSSolverConfigBuilder")
       .def(py::init<>())
       .def("build", &SolverConfig::Builder::build)
       .def("set_n_threads", &SolverConfig::Builder::set_n_threads)
-      .def("set_use_cg", &SolverConfig::Builder::set_use_cg)
-      .def("set_max_cg_steps", &SolverConfig::Builder::set_max_cg_steps);
+      .def("set_solver_type", &SolverConfig::Builder::set_solver_type)
+      .def("set_max_cg_steps", &SolverConfig::Builder::set_max_cg_steps)
+      .def("set_ialspp_subspace_dimension",
+           &SolverConfig::Builder::set_ialspp_subspace_dimension)
+      .def("set_ialspp_iteration",
+           &SolverConfig::Builder::set_ialspp_iteration);
 
   py::class_<IALSTrainer>(m, "IALSTrainer")
       .def(py::init<IALSModelConfig, const SparseMatrix &>())

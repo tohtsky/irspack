@@ -15,13 +15,19 @@ from ..definitions import (
 )
 from ._ials import IALSModelConfigBuilder, IALSSolverConfig, IALSSolverConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
-from ._ials import LossType
+from ._ials import LossType, SolverType
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
 from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
 )
+
+
+def str_to_solver_type(t: str) -> SolverType:
+    result: SolverType = getattr(SolverType, t.upper())
+    assert result in {SolverType.CG, SolverType.CHOLESKY, SolverType.IALSPP}
+    return result
 
 
 class IALSTrainer(TrainerBase):
@@ -33,13 +39,14 @@ class IALSTrainer(TrainerBase):
         reg: float,
         nu: float,
         init_std: float,
-        use_cg: bool,
+        solver_type: SolverType,
         max_cg_steps: int,
+        ialspp_subspace_dimension: int,
         loss_type: LossType,
         random_seed: int,
         n_threads: int,
-        prediction_time_use_cg: bool,
         prediction_time_max_cg_steps: int,
+        prediction_time_ialspp_iteration: int,
     ):
         X_train_all_f32 = X.astype(np.float32)
         config = (
@@ -56,8 +63,10 @@ class IALSTrainer(TrainerBase):
         solver_config = (
             IALSSolverConfigBuilder()
             .set_n_threads(n_threads)
-            .set_use_cg(use_cg)
+            .set_solver_type(solver_type)
             .set_max_cg_steps(max_cg_steps)
+            .set_ialspp_iteration(1)
+            .set_ialspp_subspace_dimension(ialspp_subspace_dimension)
             .build()
         )
         self.core_trainer = CoreTrainer(config, X_train_all_f32)
@@ -65,8 +74,10 @@ class IALSTrainer(TrainerBase):
         self.prediction_time_solver_config = (
             IALSSolverConfigBuilder()
             .set_n_threads(n_threads)
-            .set_use_cg(prediction_time_use_cg)
+            .set_solver_type(solver_type)
             .set_max_cg_steps(prediction_time_max_cg_steps)
+            .set_ialspp_subspace_dimension(ialspp_subspace_dimension)
+            .set_ialspp_iteration(prediction_time_ialspp_iteration)
             .build()
         )
 
@@ -222,16 +233,17 @@ class IALSppRecommender(
         confidence_scaling: str = "none",
         epsilon: float = 1.0,
         init_std: float = 0.1,
-        use_cg: bool = True,
+        solver_type: str = "CG",
         max_cg_steps: int = 3,
+        ialspp_subspace_dimension: int = 64,
         loss_type: LossType = LossType.IALSPP,
         random_seed: int = 42,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
         n_threads: Optional[int] = None,
         max_epoch: int = 512,
-        prediction_time_use_cg: bool = True,
         prediction_time_max_cg_steps: int = 5,
+        prediction_time_ialspp_iteration: int = 7,
     ) -> None:
 
         super().__init__(
@@ -254,14 +266,15 @@ class IALSppRecommender(
         self.epsilon = epsilon
 
         self.init_std = init_std
-        self.use_cg = use_cg
+        self.solver_type = str_to_solver_type(solver_type)
         self.max_cg_steps = max_cg_steps
+        self.ialspp_subspace_dimension = ialspp_subspace_dimension
         self.random_seed = random_seed
         self.n_threads = get_n_threads(n_threads)
         self.loss_type = loss_type
 
-        self.prediction_time_use_cg = prediction_time_use_cg
         self.prediction_time_max_cg_steps = prediction_time_max_cg_steps
+        self.prediction_time_ialspp_iteration = prediction_time_ialspp_iteration
 
         self.trainer: Optional[IALSTrainer] = None
 
@@ -273,13 +286,14 @@ class IALSppRecommender(
             reg=self.reg,
             nu=self.nu,
             init_std=self.init_std,
-            use_cg=self.use_cg,
+            solver_type=self.solver_type,
             max_cg_steps=self.max_cg_steps,
+            ialspp_subspace_dimension=self.ialspp_subspace_dimension,
             loss_type=self.loss_type,
             random_seed=self.random_seed,
             n_threads=self.n_threads,
-            prediction_time_use_cg=self.prediction_time_use_cg,
             prediction_time_max_cg_steps=self.prediction_time_max_cg_steps,
+            prediction_time_ialspp_iteration=self.prediction_time_ialspp_iteration,
         )
 
     @property
@@ -414,8 +428,9 @@ class IALSRecommender(IALSppRecommender):
         confidence_scaling: str = "none",
         epsilon: float = 1.0,
         init_std: float = 0.1,
-        use_cg: bool = True,
+        solver_type: str = "CG",
         max_cg_steps: int = 3,
+        ialspp_subspace_dimension: int = 64,
         random_seed: int = 42,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
@@ -431,8 +446,9 @@ class IALSRecommender(IALSppRecommender):
             init_std=init_std,
             confidence_scaling=confidence_scaling,
             epsilon=epsilon,
-            use_cg=use_cg,
+            solver_type=solver_type,
             max_cg_steps=max_cg_steps,
+            ialspp_subspace_dimension=ialspp_subspace_dimension,
             loss_type=LossType.Original,
             random_seed=random_seed,
             validate_epoch=validate_epoch,

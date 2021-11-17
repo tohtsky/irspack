@@ -19,6 +19,31 @@
 namespace irspack {
 namespace ials {
 using namespace std;
+// using SymmetricMatrix = Eigen::SelfAdjointView<DenseMatrix &, Eigen::Upper>;
+using SymmetricMatrix =
+    decltype(DenseMatrix{0, 0}.selfadjointView<Eigen::Upper>());
+template <size_t n_batch_max = 64> struct BatchedRankUpdater {
+  inline BatchedRankUpdater(size_t dim)
+      : n_batch(0u), buffer(n_batch_max, dim) {}
+  inline void add_row(SymmetricMatrix &target, DenseVector &row, Real c) {
+    buffer.row(n_batch++).noalias() = std::sqrt(c) * row.transpose();
+    if (n_batch >= n_batch_max) {
+      consume(target);
+    }
+  }
+  inline void consume(SymmetricMatrix &target) {
+    if (n_batch > 0u) {
+      target.rankUpdate(buffer.middleRows(0, n_batch).adjoint(),
+                        static_cast<Real>(1.0));
+      this->clear();
+    }
+  }
+  inline void clear() { n_batch = 0; }
+
+private:
+  size_t n_batch;
+  DenseMatrix buffer;
+};
 
 struct Solver {
   Solver(const IALSModelConfig &config)
@@ -84,18 +109,23 @@ struct Solver {
                                  const IALSModelConfig &config,
                                  const SolverConfig &solver_config) const {
     if (X.cols() != other_factor.rows()) {
-      std::cout << this << std::endl;
       std::stringstream ss;
       ss << "Shape mismatch: X.cols() = " << X.cols()
          << " but other.factor.rows() = " << other_factor.rows() << ".";
       throw std::invalid_argument(ss.str());
     }
     DenseMatrix result = DenseMatrix::Zero(X.rows(), P.rows());
-    this->step(result, X, other_factor, config, solver_config);
-
+    if (X.isCompressed()) {
+      this->step(result, X, other_factor, config, solver_config);
+    } else {
+      SparseMatrix X_compressed = X;
+      X_compressed.makeCompressed();
+      this->step(result, X_compressed, other_factor, config, solver_config);
+    }
     return result;
   }
 
+private:
   inline void step_cg(DenseMatrix &target_factor, const SparseMatrix &X,
                       const DenseMatrix &other_factor,
                       const IALSModelConfig &config,
@@ -131,7 +161,7 @@ struct Solver {
           }
 
           const Real regularization_this =
-              this->compute_reg(nnz, other_factor.cols(), config);
+              this->compute_reg(nnz, other_factor.rows(), config);
           if (nnz == 0u) {
             target_factor.row(cursor_local).array() = 0;
             continue;
@@ -188,61 +218,217 @@ struct Solver {
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
-      workers.emplace_back(
-          [this, &target_factor, &cursor, &X, &other_factor, &config]() {
-            DenseMatrix P_local(P.rows(), P.cols());
-            DenseVector B(P.rows());
-            DenseVector vcache(P.rows()), r(P.rows());
-            Real observation_bias =
-                config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0;
-            while (true) {
-              int cursor_local = cursor.fetch_add(1);
-              if (cursor_local >= target_factor.rows()) {
-                break;
-              }
-              P_local.noalias() = P;
+      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
+                            &config]() {
+        BatchedRankUpdater<> bupdater(P.rows());
+        DenseMatrix P_local(P.rows(), P.cols());
+        DenseVector B(P.rows());
+        DenseVector vcache(P.rows()), r(P.rows());
+        Real observation_bias =
+            config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0;
+        while (true) {
+          int cursor_local = cursor.fetch_add(1);
+          if (cursor_local >= target_factor.rows()) {
+            break;
+          }
+          P_local.noalias() = P;
+          SymmetricMatrix P_adjoint = P_local.selfadjointView<Eigen::Upper>();
 
-              B.array() = static_cast<Real>(0);
-              int64_t nnz = 0;
-              for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
-                int64_t other_index = it.col();
-                vcache = other_factor.row(other_index).transpose();
-                P_local.noalias() += it.value() * vcache * vcache.transpose();
-                B.noalias() += (observation_bias + it.value()) * vcache;
-                nnz++;
-              }
-              const Real regularization_this =
-                  this->compute_reg(nnz, other_factor.cols(), config);
+          B.array() = static_cast<Real>(0);
+          int64_t nnz = 0;
+          for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
+            int64_t other_index = it.col();
+            vcache = other_factor.row(other_index).transpose();
+            bupdater.add_row(P_adjoint, vcache, it.value());
+            B.noalias() += (observation_bias + it.value()) * vcache;
+            nnz++;
+          }
+          bupdater.consume(P_adjoint);
+          const Real regularization_this =
+              this->compute_reg(nnz, other_factor.rows(), config);
 
-              for (int64_t i = 0; i < P.rows(); i++) {
-                P_local(i, i) += regularization_this;
-              }
+          for (int64_t i = 0; i < P.rows(); i++) {
+            P_local(i, i) += regularization_this;
+          }
 
-              Eigen::LLT<Eigen::Ref<DenseMatrix>> llt(P_local);
-              target_factor.row(cursor_local) = llt.solve(B);
-            }
-          });
+          Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> llt(P_local);
+          target_factor.row(cursor_local) = llt.solve(B);
+        }
+      });
     }
     for (auto &w : workers) {
       w.join();
     }
   }
 
+  inline DenseVector _prediction(const SparseMatrix &X_compressed,
+                                 const DenseMatrix &target_factor,
+                                 const DenseMatrix &other_factor,
+                                 const SolverConfig &solver_config) const {
+    size_t NNZ = X_compressed.nonZeros();
+    DenseVector predictions(NNZ);
+    std::vector<std::thread> workers;
+    std::atomic<int> cursor(0);
+    for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
+      workers.emplace_back([this, &target_factor, &cursor, &X_compressed,
+                            &other_factor, &solver_config, &predictions]() {
+        while (true) {
+          int cursor_local = cursor.fetch_add(1);
+          if (cursor_local >= target_factor.rows()) {
+            break;
+          }
+          auto start = X_compressed.outerIndexPtr()[cursor_local];
+          auto end = X_compressed.outerIndexPtr()[cursor_local + 1];
+          auto inner_index_ptr = X_compressed.innerIndexPtr() + start;
+          for (int inner_cursor = start; inner_cursor < end; inner_cursor++) {
+            predictions(inner_cursor) =
+                target_factor.row(cursor_local)
+                    .dot(other_factor.row(*inner_index_ptr));
+            inner_index_ptr++;
+          }
+        }
+      });
+    }
+
+    for (auto &worker : workers) {
+      worker.join();
+    }
+
+    return predictions;
+  }
+
+  inline void _step_dimrange(const int dim_start, const int dim_end,
+                             DenseVector &predictions,
+                             DenseMatrix &target_factor,
+                             const SparseMatrix &X_compressed,
+                             const DenseMatrix &other_factor,
+                             const IALSModelConfig &config,
+                             const SolverConfig &solver_config) const {
+
+    int subspace_dim = dim_end - dim_start;
+    std::vector<std::thread> workers;
+    std::atomic<int> cursor(0);
+    DenseMatrix target_factor_subspaced =
+        target_factor.middleCols(dim_start, subspace_dim);
+    const DenseMatrix other_factor_subspaced =
+        other_factor.middleCols(dim_start, subspace_dim);
+
+    const DenseMatrix P_quadratic =
+        P.block(dim_start, dim_start, subspace_dim, subspace_dim);
+    const DenseMatrix P_subspaced = P.middleRows(dim_start, subspace_dim);
+
+    for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
+      workers.emplace_back([this, subspace_dim, dim_start, dim_end, P_quadratic,
+                            P_subspaced, &target_factor_subspaced,
+                            &target_factor, &other_factor_subspaced, &cursor,
+                            &X_compressed, &config, solver_config,
+                            &predictions]() {
+        DenseMatrix P_local(subspace_dim, subspace_dim);
+        DenseVector vcache(subspace_dim);
+        DenseVector B(subspace_dim);
+        BatchedRankUpdater<> bupdater(subspace_dim);
+        Real observation_bias =
+            config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0;
+
+        while (true) {
+          int cursor_local = cursor.fetch_add(1);
+          if (cursor_local >= target_factor_subspaced.rows()) {
+            break;
+          }
+
+          P_local = P_quadratic;
+          SymmetricMatrix P_adjoint = P_local.selfadjointView<Eigen::Upper>();
+
+          const auto inner_cursor_start =
+              X_compressed.outerIndexPtr()[cursor_local];
+          auto inner_cursor_end =
+              X_compressed.outerIndexPtr()[cursor_local + 1];
+          auto nnz = inner_cursor_end - inner_cursor_start;
+          auto reg =
+              this->compute_reg(nnz, other_factor_subspaced.rows(), config);
+
+          B.noalias() =
+              P_subspaced * target_factor.row(cursor_local).transpose();
+
+          B.noalias() +=
+              reg * target_factor_subspaced.row(cursor_local).transpose();
+
+          int64_t inner_cursor = inner_cursor_start;
+
+          for (SparseMatrix::InnerIterator it(X_compressed, cursor_local); it;
+               ++it) {
+            int64_t other_index = it.col();
+            vcache = other_factor_subspaced.row(other_index).transpose();
+            Real residual = (it.value() * (predictions(inner_cursor++) - 1) -
+                             observation_bias);
+            bupdater.add_row(P_adjoint, vcache, it.value());
+            B.noalias() += residual * vcache;
+          }
+          bupdater.consume(P_adjoint);
+          for (int64_t i = 0; i < P_local.rows(); i++) {
+            P_local(i, i) += reg;
+          }
+
+          Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> llt(P_local);
+          // difference. Current - vcache = newvector
+          vcache = llt.solve(B);
+          target_factor_subspaced.row(cursor_local) -= vcache;
+
+          inner_cursor = inner_cursor_start;
+          for (SparseMatrix::InnerIterator it(X_compressed, cursor_local); it;
+               ++it) {
+            int64_t other_index = it.col();
+            predictions.coeffRef(inner_cursor++) -=
+                vcache.dot(other_factor_subspaced.row(other_index).transpose());
+          }
+        }
+      });
+    }
+    for (auto &worker : workers) {
+      worker.join();
+    }
+    target_factor.middleCols(dim_start, subspace_dim) = target_factor_subspaced;
+  }
+
+  inline void step_ialspp(DenseMatrix &target_factor,
+                          const SparseMatrix &X_compressed,
+                          const DenseMatrix &other_factor,
+                          const IALSModelConfig &config,
+                          const SolverConfig &solver_config) const {
+    for (size_t iter = 0; iter < solver_config.ialspp_iteration; iter++) {
+
+      auto predictions = this->_prediction(X_compressed, target_factor,
+                                           other_factor, solver_config);
+
+      const size_t dim_all = target_factor.cols();
+      for (size_t cursor = 0; cursor < dim_all;
+           cursor += solver_config.ialspp_subspace_dimension) {
+        size_t cursor_end =
+            std::min(cursor + solver_config.ialspp_subspace_dimension, dim_all);
+        this->_step_dimrange(cursor, cursor_end, predictions, target_factor,
+                             X_compressed, other_factor, config, solver_config);
+      }
+    }
+  }
+
+public:
   inline void step(DenseMatrix &target_factor, const SparseMatrix &X,
                    const DenseMatrix &other_factor,
                    const IALSModelConfig &config,
                    const SolverConfig &solver_config) const {
-    if (solver_config.use_cg) {
+    if (solver_config.solver_type == SolverType::CG) {
       step_cg(target_factor, X, other_factor, config, solver_config);
-    } else {
+    } else if (solver_config.solver_type == SolverType::Cholesky) {
       step_cholesky(target_factor, X, other_factor, config, solver_config);
+    } else {
+      step_ialspp(target_factor, X, other_factor, config, solver_config);
     }
   }
   // DenseMatrix &factor;
   DenseMatrix P;
   DenseMatrix Pinv;
   bool p_initialized;
-}; // namespace irspack
+}; // namespace ials
 
 struct IALSTrainer {
   inline IALSTrainer(const IALSModelConfig &config, const SparseMatrix &X)

@@ -13,6 +13,8 @@ import scipy.sparse
 _Shape = typing.Tuple[int, ...]
 
 __all__ = [
+    "CG",
+    "CHOLESKY",
     "IALSModelConfig",
     "IALSModelConfigBuilder",
     "IALSPP",
@@ -21,6 +23,7 @@ __all__ = [
     "IALSTrainer",
     "LossType",
     "Original",
+    "SolverType",
 ]
 
 class IALSModelConfig:
@@ -52,16 +55,20 @@ class IALSModelConfigBuilder:
 
 class IALSSolverConfig:
     def __getstate__(self) -> tuple: ...
-    def __init__(self, arg0: int, arg1: bool, arg2: int) -> None: ...
+    def __init__(
+        self, arg0: int, arg1: SolverType, arg2: int, arg3: int, arg4: int
+    ) -> None: ...
     def __setstate__(self, arg0: tuple) -> None: ...
     pass
 
 class IALSSolverConfigBuilder:
     def __init__(self) -> None: ...
     def build(self) -> IALSSolverConfig: ...
+    def set_ialspp_iteration(self, arg0: int) -> IALSSolverConfigBuilder: ...
+    def set_ialspp_subspace_dimension(self, arg0: int) -> IALSSolverConfigBuilder: ...
     def set_max_cg_steps(self, arg0: int) -> IALSSolverConfigBuilder: ...
     def set_n_threads(self, arg0: int) -> IALSSolverConfigBuilder: ...
-    def set_use_cg(self, arg0: bool) -> IALSSolverConfigBuilder: ...
+    def set_solver_type(self, arg0: SolverType) -> IALSSolverConfigBuilder: ...
     pass
 
 class IALSTrainer:
@@ -131,5 +138,43 @@ class LossType:
     __members__: dict  # value = {'Original': <LossType.Original: 0>, 'IALSPP': <LossType.IALSPP: 1>}
     pass
 
-IALSPP: irspack.recommenders._ials.LossType  # value = <LossType.IALSPP: 1>
+class SolverType:
+    """
+    Members:
+
+      CHOLESKY
+
+      CG
+
+      IALSPP
+    """
+
+    def __eq__(self, other: object) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __init__(self, value: int) -> None: ...
+    def __int__(self) -> int: ...
+    def __ne__(self, other: object) -> bool: ...
+    def __repr__(self) -> str: ...
+    def __setstate__(self, state: int) -> None: ...
+    @property
+    def name(self) -> str:
+        """
+        :type: str
+        """
+    @property
+    def value(self) -> int:
+        """
+        :type: int
+        """
+    CG: irspack.recommenders._ials.SolverType  # value = <SolverType.CG: 1>
+    CHOLESKY: irspack.recommenders._ials.SolverType  # value = <SolverType.CHOLESKY: 0>
+    IALSPP: irspack.recommenders._ials.SolverType  # value = <SolverType.IALSPP: 2>
+    __members__: dict  # value = {'CHOLESKY': <SolverType.CHOLESKY: 0>, 'CG': <SolverType.CG: 1>, 'IALSPP': <SolverType.IALSPP: 2>}
+    pass
+
+CG: irspack.recommenders._ials.SolverType  # value = <SolverType.CG: 1>
+CHOLESKY: irspack.recommenders._ials.SolverType  # value = <SolverType.CHOLESKY: 0>
+IALSPP: irspack.recommenders._ials.SolverType  # value = <SolverType.IALSPP: 2>
 Original: irspack.recommenders._ials.LossType  # value = <LossType.Original: 0>

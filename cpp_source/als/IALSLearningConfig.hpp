@@ -9,6 +9,7 @@ namespace irspack {
 namespace ials {
 
 enum class LossType { Original, IALSPP };
+enum class SolverType { Cholesky, CG, IALSPP };
 using namespace std;
 
 struct IALSModelConfig {
@@ -71,34 +72,52 @@ struct IALSModelConfig {
 
 struct SolverConfig {
 
-  inline SolverConfig(size_t n_threads, bool use_cg, size_t max_cg_steps)
-      : n_threads(n_threads), use_cg(use_cg), max_cg_steps(max_cg_steps) {}
+  inline SolverConfig(size_t n_threads, SolverType solver_type,
+                      size_t max_cg_steps, size_t ialspp_subspace_dimension,
+                      size_t ialspp_iteration)
+      : n_threads(n_threads), solver_type(solver_type),
+        max_cg_steps(max_cg_steps),
+        ialspp_subspace_dimension(ialspp_subspace_dimension),
+        ialspp_iteration(ialspp_iteration) {}
 
   SolverConfig(const SolverConfig &other) = default;
 
   size_t n_threads;
-  bool use_cg;
+  SolverType solver_type;
   size_t max_cg_steps;
+  size_t ialspp_subspace_dimension, ialspp_iteration;
+
   struct Builder {
     size_t n_threads = 1;
-    bool use_cg = true;
-    size_t max_cg_steps = 0;
+    SolverType solver_type = SolverType::CG;
+    size_t max_cg_steps = 3;
 
+    size_t ialspp_subspace_dimension = 64;
+    size_t ialspp_iteration = 1;
     inline Builder() {}
     inline SolverConfig build() {
-      return SolverConfig(n_threads, use_cg, max_cg_steps);
+      return SolverConfig(n_threads, solver_type, max_cg_steps,
+                          ialspp_subspace_dimension, ialspp_iteration);
     }
 
     Builder &set_n_threads(size_t n_threads) {
       this->n_threads = n_threads;
       return *this;
     }
-    Builder &set_use_cg(bool use_cg) {
-      this->use_cg = use_cg;
+    Builder &set_solver_type(SolverType solver_type) {
+      this->solver_type = solver_type;
       return *this;
     }
     Builder &set_max_cg_steps(size_t max_cg_steps) {
       this->max_cg_steps = max_cg_steps;
+      return *this;
+    }
+    Builder &set_ialspp_subspace_dimension(size_t ialspp_subspace_dimension) {
+      this->ialspp_subspace_dimension = ialspp_subspace_dimension;
+      return *this;
+    }
+    Builder &set_ialspp_iteration(size_t ialspp_iteration) {
+      this->ialspp_iteration = ialspp_iteration;
       return *this;
     }
   };
