@@ -41,7 +41,7 @@ def test_cb2cf(X: InteractionMatrix, profile: ProfileMatrix) -> None:
     )
     cb2cfrec, t, mlp_config = optim.search_all(
         20,
-        cf_fixed_params=dict(n_components=5, alpha=0.1, reg=1e-3, max_cg_steps=30),
+        cf_fixed_params=dict(n_components=5, alpha0=10, reg=1e-3, max_cg_steps=30),
         random_seed=0,
     )
     vec_reconstruction = cb2cfrec.mlp.predict(profile.astype(np.float32).toarray())
