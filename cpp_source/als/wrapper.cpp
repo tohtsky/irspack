@@ -24,7 +24,7 @@ PYBIND11_MODULE(_ials, m) {
   m.doc() = doc_stream.str();
 
   py::enum_<LossType>(m, "LossType")
-      .value("Original", LossType::Original)
+      .value("ORIGINAL", LossType::ORIGINAL)
       .value("IALSPP", LossType::IALSPP)
       .export_values();
 

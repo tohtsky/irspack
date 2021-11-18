@@ -8,7 +8,7 @@
 namespace irspack {
 namespace ials {
 
-enum class LossType { Original, IALSPP };
+enum class LossType { ORIGINAL, IALSPP };
 enum class SolverType { Cholesky, CG, IALSPP };
 using namespace std;
 

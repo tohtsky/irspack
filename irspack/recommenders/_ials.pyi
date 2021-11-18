@@ -22,7 +22,7 @@ __all__ = [
     "IALSSolverConfigBuilder",
     "IALSTrainer",
     "LossType",
-    "Original",
+    "ORIGINAL",
     "SolverType",
 ]
 
@@ -109,7 +109,7 @@ class LossType:
     """
     Members:
 
-      Original
+      ORIGINAL
 
       IALSPP
     """
@@ -134,8 +134,8 @@ class LossType:
         :type: int
         """
     IALSPP: irspack.recommenders._ials.LossType  # value = <LossType.IALSPP: 1>
-    Original: irspack.recommenders._ials.LossType  # value = <LossType.Original: 0>
-    __members__: dict  # value = {'Original': <LossType.Original: 0>, 'IALSPP': <LossType.IALSPP: 1>}
+    ORIGINAL: irspack.recommenders._ials.LossType  # value = <LossType.ORIGINAL: 0>
+    __members__: dict  # value = {'ORIGINAL': <LossType.ORIGINAL: 0>, 'IALSPP': <LossType.IALSPP: 1>}
     pass
 
 class SolverType:
@@ -177,4 +177,4 @@ class SolverType:
 CG: irspack.recommenders._ials.SolverType  # value = <SolverType.CG: 1>
 CHOLESKY: irspack.recommenders._ials.SolverType  # value = <SolverType.CHOLESKY: 0>
 IALSPP: irspack.recommenders._ials.SolverType  # value = <SolverType.IALSPP: 2>
-Original: irspack.recommenders._ials.LossType  # value = <LossType.Original: 0>
+ORIGINAL: irspack.recommenders._ials.LossType  # value = <LossType.ORIGINAL: 0>

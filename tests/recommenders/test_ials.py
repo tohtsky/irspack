@@ -7,7 +7,6 @@ import scipy.sparse as sps
 from irspack.recommenders import IALSRecommender
 
 
-@pytest.mark.skip
 def test_ials_overfit_cholesky(
     test_interaction_data: Dict[str, sps.csr_matrix]
 ) -> None:
@@ -15,11 +14,13 @@ def test_ials_overfit_cholesky(
     rec = IALSRecommender(
         X,
         n_components=4,
-        alpha=0.01,
-        reg=1e-3,
-        solver_type="cholesky",
+        alpha0=100,
+        reg=1e-1,
+        solver_type="CHOLESKY",
+        loss_type="ORIGINAL",
         max_epoch=100,
         n_threads=1,
+        nu=0,
     )
     rec.learn()
     assert rec.trainer is not None
@@ -31,47 +32,18 @@ def test_ials_overfit_cholesky(
     np.testing.assert_allclose(reprod, X, rtol=1e-2, atol=1e-2)
 
 
-@pytest.mark.skip
 def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
-    X = test_interaction_data["X_small"]
-    rec = IALSRecommender(
-        X, n_components=4, alpha=1e-1, reg=1e-2, solver_type="cg", max_cg_steps=4
-    )
-    rec.learn()
-    assert rec.trainer is not None
-    uvec = rec.compute_user_embedding(X.tocsr().astype(np.float32))
-    ivec = rec.compute_item_embedding(X.tocsr().astype(np.float32))
-    X_dense = X.toarray()
-    X_dense[X_dense.nonzero()] = 1.0
-    reproduced_user_vector = uvec.dot(ivec.T)
-    np.testing.assert_allclose(reproduced_user_vector, X_dense, rtol=1e-2, atol=1e-2)
-
-    X_reproduced = rec.get_score_cold_user(X)
-    np.testing.assert_allclose(X_reproduced, X_dense, rtol=1e-2, atol=1e-2)
-
-    with pytest.raises(ValueError):
-        _ = rec.compute_item_embedding(X.T)
-
-    reproduced_item_vector = rec.compute_item_embedding(X)
-    X_reproduced_item = rec.get_score_from_item_embedding(
-        np.arange(X.shape[0]), reproduced_item_vector
-    )
-    np.testing.assert_allclose(X_reproduced_item, X_dense, rtol=1e-2, atol=1e-2)
-
-
-@pytest.mark.parametrize(["spdim"], [(1,), (2,), (4,)])
-def test_ials_overfit_ialspp(
-    spdim: int, test_interaction_data: Dict[str, sps.csr_matrix]
-) -> None:
     X = test_interaction_data["X_small"]
     rec = IALSRecommender(
         X,
         n_components=4,
-        alpha=1e-1,
-        reg=1e-5,
-        solver_type="ialspp",
-        ialspp_subspace_dimension=spdim,
+        alpha0=100,
+        loss_type="ORIGINAL",
+        reg=1e-4,
+        solver_type="CG",
+        max_cg_steps=4,
         max_epoch=100,
+        nu=0,
     )
     rec.learn()
     assert rec.trainer is not None
@@ -95,18 +67,18 @@ def test_ials_overfit_ialspp(
     np.testing.assert_allclose(X_reproduced_item, X_dense, rtol=1e-2, atol=1e-2)
 
 
-# @pytest.mark.xfail
-@pytest.mark.skip
+@pytest.mark.xfail
 def test_ials_cg_underfit(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
     X = test_interaction_data["X_small"]
     rec = IALSRecommender(
         X,
         n_components=4,
-        alpha=1e-3,
-        reg=1e-2,
+        alpha0=1e3,
+        reg=1e-3,
         solver_type="CG",
         max_cg_steps=1,
         max_epoch=10,
+        nu=0,
     )
     with pytest.raises(RuntimeError):
         _ = rec.trainer_as_ials.core_trainer.user
@@ -120,7 +92,6 @@ def test_ials_cg_underfit(test_interaction_data: Dict[str, sps.csr_matrix]) -> N
     np.testing.assert_allclose(reprod, X_dense, rtol=1e-2, atol=1e-2)
 
 
-@pytest.mark.skip
 def test_ials_overfit_nonzero_alpha(
     test_interaction_data: Dict[str, sps.csr_matrix]
 ) -> None:
@@ -128,7 +99,12 @@ def test_ials_overfit_nonzero_alpha(
     REG = 3
     X = test_interaction_data["X_small"]
     rec_chol = IALSRecommender(
-        X, n_components=4, alpha=ALPHA, reg=REG, solver_type="cholesky", max_epoch=5
+        X,
+        n_components=4,
+        alpha0=1 / ALPHA,
+        reg=REG,
+        solver_type="CHOLESKY",
+        max_epoch=5,
     )
     rec_chol.learn()
     assert rec_chol.trainer is not None
@@ -138,10 +114,10 @@ def test_ials_overfit_nonzero_alpha(
     rec_cg = IALSRecommender(
         X,
         n_components=4,
-        alpha=ALPHA,
+        alpha0=1 / ALPHA,
         reg=REG,
         solver_type="CG",
-        max_cg_steps=4,
+        max_cg_steps=5,
         max_epoch=5,
     )
     rec_cg.learn()
@@ -158,7 +134,7 @@ def ials_grad(
     u: np.ndarray,
     v: np.ndarray,
     reg: float,
-    alpha: float,
+    alpha0: float,
     epsilon: float,
 ) -> Tuple[np.ndarray, np.ndarray]:
     nu = u.shape[0]
@@ -173,7 +149,7 @@ def ials_grad(
             if x == 0:
                 sc = uv[uind, iind]
             else:
-                sc = (1 + alpha * np.log(1 + x / epsilon)) * (uv[uind, iind] - 1)
+                sc = (1 + 1 / alpha0 * np.log(1 + x / epsilon)) * (uv[uind, iind] - 1)
 
             result_u[uind, :] += v[iind] * sc
             result_v[iind, :] += u[uind] * sc
@@ -182,7 +158,6 @@ def ials_grad(
     return result_u, result_v
 
 
-@pytest.mark.skip
 def test_ials_overfit_cholesky_logscale(
     test_interaction_data: Dict[str, sps.csr_matrix]
 ) -> None:
@@ -195,9 +170,11 @@ def test_ials_overfit_cholesky_logscale(
     rec_chol = IALSRecommender(
         X,
         n_components=N_COMPONENTS,
-        alpha=ALPHA,
+        alpha0=ALPHA,
         reg=REG,
-        solver_type="cholesky",
+        nu=0,
+        solver_type="CHOLESKY",
+        loss_type="ORIGINAL",
         epsilon=EPSILON,
         confidence_scaling="log",
         max_epoch=200,
