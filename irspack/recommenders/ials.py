@@ -120,16 +120,22 @@ class IALSConfigScaling(enum.Enum):
 
 class IALSConfig(BaseEarlyStoppingRecommenderConfig):
     n_components: int = 20
-    alpha: float = 1.0
+    alpha0: float = 1.0
     reg: float = 1e-3
+    nu: float = 1.0
     confidence_scaling: str = "none"
     epsilon: float = 1.0
-
     init_std: float = 0.1
-    use_cg: bool = True
+    solver_type: Literal["CG", "CHOLESKY"] = "CG"
     max_cg_steps: int = 3
+    loss_type: Literal["IALSPP", "ORIGINAL"] = "IALSPP"
+    nu_star: Optional[float] = None
     random_seed: int = 42
+    validate_epoch: int = 1
+    score_degradation_max: int = 5
     n_threads: Optional[int] = None
+    max_epoch: int = 16
+    prediction_time_max_cg_steps: int = 5
 
 
 def compute_reg_scale(X: sps.csr_matrix, alpha0: float, nu: float) -> float:

@@ -21,7 +21,7 @@ install_requires = (
         "scipy>=1.0",
         "colorlog>=4",
         "pydantic>=1.8.2",
-        "typing_extension",
+        "typing_extensions>=3.10",
     ],
 )
 
