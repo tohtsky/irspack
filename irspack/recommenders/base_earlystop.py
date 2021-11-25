@@ -71,8 +71,6 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         super().__init__(X_train_all, **kwargs)
         self.max_epoch = max_epoch
         self.validate_epoch = validate_epoch
-        if max_epoch < validate_epoch:
-            raise ValueError("max_epoch must be greater than validate_epoch.")
         self.score_degradation_max = score_degradation_max
         self.trainer: Optional[TrainerBase] = None
         self.best_state: Optional[bytes] = None

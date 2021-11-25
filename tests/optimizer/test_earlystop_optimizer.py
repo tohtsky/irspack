@@ -106,7 +106,7 @@ def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
     with redirect_stdout(open(os.devnull, "w")):
         with redirect_stderr(open(os.devnull, "w")):
             config, history = optimizer.optimize(n_trials=20, random_seed=42)
-    assert len(config) == 2
+    assert len(config) == 3
     assert config["max_epoch"] == target_epoch
     best_index = np.nanargmax(-history.value.values)
     best_target_score_inferred = history.target_score.iloc[best_index]

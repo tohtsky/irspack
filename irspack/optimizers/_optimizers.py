@@ -1,7 +1,9 @@
-from typing import List, Type
+import logging
+from typing import Any, Dict, List, Optional, Type
 
 from irspack.definitions import InteractionMatrix
 
+from ..evaluator import Evaluator
 from ..optimizers.base_optimizer import (
     BaseOptimizer,
     BaseOptimizerWithEarlyStopping,
@@ -62,10 +64,32 @@ class TopPopOptimizer(BaseOptimizer):
 class IALSOptimizer(BaseOptimizerWithEarlyStopping):
     default_tune_range = [
         IntegerSuggestion("n_components", 4, 300),
-        LogUniformSuggestion("alpha", 1, 100),
-        LogUniformSuggestion("reg", 1e-10, 1e-2),
+        LogUniformSuggestion("alpha0", 3e-3, 1),
+        LogUniformSuggestion("reg", 1e-4, 1e-1),
     ]
     recommender_class = IALSRecommender
+
+    def __init__(
+        self,
+        data: InteractionMatrix,
+        val_evaluator: Evaluator,
+        logger: Optional[logging.Logger] = None,
+        suggest_overwrite: List[Suggestion] = [],
+        fixed_params: Dict[str, Any] = {},
+        max_epoch: int = 16,
+        validate_epoch: int = 1,
+        score_degradation_max: int = 5,
+    ):
+        super().__init__(
+            data,
+            val_evaluator,
+            logger=logger,
+            suggest_overwrite=suggest_overwrite,
+            fixed_params=fixed_params,
+            max_epoch=max_epoch,
+            validate_epoch=validate_epoch,
+            score_degradation_max=score_degradation_max,
+        )
 
     @classmethod
     def tune_range_given_memory_budget(

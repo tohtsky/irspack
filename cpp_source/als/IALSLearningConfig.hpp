@@ -5,43 +5,39 @@
 #include <map>
 #include <vector>
 
-namespace ials11 {
+namespace irspack {
+namespace ials {
+
+enum class LossType { ORIGINAL, IALSPP };
+enum class SolverType { Cholesky, CG, IALSPP };
 using namespace std;
 
-struct IALSLearningConfig {
-  inline IALSLearningConfig(size_t K, Real alpha, Real reg, Real init_stdev,
-                            int random_seed, size_t n_threads, bool use_cg,
-                            size_t max_cg_steps)
-      : K(K), alpha(alpha), reg(reg), init_stdev(init_stdev),
-        random_seed(random_seed), n_threads(n_threads), use_cg(use_cg),
-        max_cg_steps(max_cg_steps) {}
-
-  IALSLearningConfig(const IALSLearningConfig &other) = default;
-
+struct IALSModelConfig {
+  inline IALSModelConfig(size_t K, Real alpha0, Real reg, Real nu,
+                         Real init_stdev, int random_seed, LossType loss_type)
+      : K(K), alpha0(alpha0), reg(reg), nu(nu), init_stdev(init_stdev),
+        random_seed(random_seed), loss_type(loss_type) {}
   const size_t K;
-  const Real alpha, reg, init_stdev;
+  const Real alpha0, reg, nu, init_stdev;
   int random_seed;
-  size_t n_threads;
-  bool use_cg;
-  size_t max_cg_steps;
+  LossType loss_type;
 
   struct Builder {
     Real reg = .1;
-    Real alpha = 10;
+    Real alpha0 = 0.1;
+    Real nu = 1.0;
     Real init_stdev = .1;
     size_t K = 16;
     int random_seed = 42;
-    size_t n_threads = 1;
-    bool use_cg = true;
-    size_t max_cg_steps = 0;
+    LossType loss_type = LossType::IALSPP;
     inline Builder() {}
-    inline IALSLearningConfig build() {
-      return IALSLearningConfig(K, alpha, reg, init_stdev, random_seed,
-                                n_threads, use_cg, max_cg_steps);
+    inline IALSModelConfig build() {
+      return IALSModelConfig(K, alpha0, reg, nu, init_stdev, random_seed,
+                             loss_type);
     }
 
-    Builder &set_alpha(Real alpha) {
-      this->alpha = alpha;
+    Builder &set_alpha0(Real alpha0) {
+      this->alpha0 = alpha0;
       return *this;
     }
 
@@ -51,6 +47,10 @@ struct IALSLearningConfig {
     }
     Builder &set_reg(Real reg) {
       this->reg = reg;
+      return *this;
+    }
+    Builder &set_nu(Real nu) {
+      this->nu = nu;
       return *this;
     }
 
@@ -63,19 +63,64 @@ struct IALSLearningConfig {
       this->random_seed = random_seed;
       return *this;
     }
+    Builder &set_loss_type(LossType loss_type) {
+      this->loss_type = loss_type;
+      return *this;
+    }
+  };
+};
+
+struct SolverConfig {
+
+  inline SolverConfig(size_t n_threads, SolverType solver_type,
+                      size_t max_cg_steps, size_t ialspp_subspace_dimension,
+                      size_t ialspp_iteration)
+      : n_threads(n_threads), solver_type(solver_type),
+        max_cg_steps(max_cg_steps),
+        ialspp_subspace_dimension(ialspp_subspace_dimension),
+        ialspp_iteration(ialspp_iteration) {}
+
+  SolverConfig(const SolverConfig &other) = default;
+
+  size_t n_threads;
+  SolverType solver_type;
+  size_t max_cg_steps;
+  size_t ialspp_subspace_dimension, ialspp_iteration;
+
+  struct Builder {
+    size_t n_threads = 1;
+    SolverType solver_type = SolverType::CG;
+    size_t max_cg_steps = 3;
+
+    size_t ialspp_subspace_dimension = 64;
+    size_t ialspp_iteration = 1;
+    inline Builder() {}
+    inline SolverConfig build() {
+      return SolverConfig(n_threads, solver_type, max_cg_steps,
+                          ialspp_subspace_dimension, ialspp_iteration);
+    }
 
     Builder &set_n_threads(size_t n_threads) {
       this->n_threads = n_threads;
       return *this;
     }
-    Builder &set_use_cg(bool use_cg) {
-      this->use_cg = use_cg;
+    Builder &set_solver_type(SolverType solver_type) {
+      this->solver_type = solver_type;
       return *this;
     }
     Builder &set_max_cg_steps(size_t max_cg_steps) {
       this->max_cg_steps = max_cg_steps;
       return *this;
     }
+    Builder &set_ialspp_subspace_dimension(size_t ialspp_subspace_dimension) {
+      this->ialspp_subspace_dimension = ialspp_subspace_dimension;
+      return *this;
+    }
+    Builder &set_ialspp_iteration(size_t ialspp_iteration) {
+      this->ialspp_iteration = ialspp_iteration;
+      return *this;
+    }
   };
 };
-} // namespace ials11
+} // namespace ials
+} // namespace irspack
