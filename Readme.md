@@ -94,7 +94,7 @@ from irspack.evaluator import Evaluator
 
 # Random split
 X_train, X_val = rowwise_train_test_split(
-    X_interaction, test_ratio=0.2, random_seed=0
+    X_interaction, test_ratio=0.2, random_state=0
 )
 
 evaluator = Evaluator(ground_truth=X_val)
