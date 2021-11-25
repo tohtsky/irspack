@@ -72,12 +72,12 @@ def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> No
     X = test_interaction_data["X_small"]
     rec = IALSRecommender(
         X,
-        n_components=4,
+        n_components=3,
         alpha0=100,
         loss_type="ORIGINAL",
-        reg=1e-4,
+        reg=1e-1,
         solver_type="CG",
-        max_cg_steps=4,
+        max_cg_steps=3,
         max_epoch=100,
         nu=0,
     )
