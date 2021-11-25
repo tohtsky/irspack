@@ -1,8 +1,6 @@
 name: Build
 on:
   push:
-    branches:
-      - main
   release:
     types:
       - created
@@ -61,8 +59,7 @@ jobs:
           - os: ubuntu-20.04
             name: manylinux1
             cibw:
-# include python 3.6 because I want to run it on sagemaker notebook instance.
-              build: "cp36* cp37*"
+              build: "cp37*"
               skip: "*musllinux*"
               manylinux_image: manylinux2010
               env: CFLAGS='-march=core-avx-i'
