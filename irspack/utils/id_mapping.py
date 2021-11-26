@@ -134,6 +134,7 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
         forbidden_item_ids: Optional[List[ItemIdType]] = None,
     ) -> List[Tuple[ItemIdType, float]]:
         """Retrieve recommendation result for a known user.
+
         Args:
             user_id:
                 The target user ID.
@@ -344,6 +345,7 @@ class IDMappedRecommender(Generic[UserIdType, ItemIdType]):
         n_threads: Optional[int] = None,
     ) -> List[List[Tuple[ItemIdType, float]]]:
         r"""Retrieve recommendation from score array.
+
         Args:
             score:
                 1d numpy ndarray for score.

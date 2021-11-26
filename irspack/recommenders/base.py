@@ -60,11 +60,14 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
             each row correspods to a user's interaction with items.
     """
 
-    X_train_all: sps.csr_matrix
     config_class: Type[RecommenderConfig]
 
     def __init__(self, X_train_all: InteractionMatrix, **kwargs: Any) -> None:
-        self.X_train_all = sps.csr_matrix(X_train_all).astype(np.float64)
+        self.X_train_all: sps.csr_matrix = sps.csr_matrix(X_train_all).astype(
+            np.float64
+        )
+        """The matrix to feed into recommender."""
+
         self.n_users: int = self.X_train_all.shape[0]
         self.n_items: int = self.X_train_all.shape[1]
         self.X_train_all.sort_indices()

@@ -156,15 +156,17 @@ class IALSRecommender(
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):
-    r"""Implementation of Implicit Alternating Least Squares(IALS) or Weighted Matrix Factorization(WMF).
+    r"""Implementation of implicit Alternating Least Squares (iALS) or Weighted Matrix Factorization (WMF).
 
     By default, it tries to minimize the following loss:
 
     .. math ::
 
-        \frac{1}{2} \sum _{u, i \in S} X_{ui} (\mathbf{u}_u \cdot \mathbf{v}_i - 1) ^ 2
-        + \frac{\alpha_0}{2} \sum_{u, i}  X_{ui} (\mathbf{u}_u \cdot \mathbf{v}_i) ^ 2 +
+        \frac{1}{2} \sum _{u, i \in S}  c_{ui} (\mathbf{u}_u \cdot \mathbf{v}_i - 1) ^ 2
+        + \frac{\alpha_0}{2} \sum_{u, i} (\mathbf{u}_u \cdot \mathbf{v}_i) ^ 2 +
         \frac{\text{reg}}{2} \left( \sum_u (\alpha_0 I + N_u) ^ \nu || \mathbf{u}_u || ^2 +                            \sum_i (\alpha_0 U + N_i) ^ \nu || \mathbf{v}_i || ^2 \right)
+
+    where :math:`S` denotes the set of all pairs wher :math:`X_{ui}` is non-zero.
 
     See the seminal paper:
 
@@ -172,7 +174,7 @@ class IALSRecommender(
           <http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5120&rep=rep1&type=pdf>`_
 
 
-    To speed up the learning procedure, we have also implemented the conjugate gradient descent version following:
+    By default it uses a conjugate gradient descent version:
 
         - `Applications of the conjugate gradient method for implicit feedback collaborative filtering
           <https://dl.acm.org/doi/abs/10.1145/2043932.2043987>`_
@@ -188,7 +190,7 @@ class IALSRecommender(
         n_components (int, optional):
             The dimension for latent factor. Defaults to 20.
         alpha0 (float, optional):
-            The "unovserved" weight
+            The "unobserved" weight.
         reg (float, optional) :
             Regularization coefficient for both user & item factors. Defaults to 1e-3.
         nu (float, optional) :
@@ -196,12 +198,18 @@ class IALSRecommender(
             "Revisiting the Performance of iALS on Item Recommendation Benchmarks".
         confidence_scaling (str, optional) :
             Specifies how to scale confidence scaling :math:`c_{ui}`. Must be either "none" or "log".
-            If "none", the non-zero "rating" :math:`r_{ui}` yields
+            If "none", the non-zero (not-necessarily 1) :math:`X_{ui}` yields
+
             .. math ::
-                c_{ui} = 1 + \alpha r_{ui}
+                c_{ui} = A + X_{ui}
+
             If "log",
+
             .. math ::
-                c_{ui} = 1 + \alpha \log (1 + r_{ui} / \epsilon )
+                c_{ui} = A + \log (1 + X_{ui} / \epsilon )
+
+            The constant :math:`A` above will be 0 if ``loss_type`` is ``"IALSPP"``, :math:`\alpha_0` if ``loss_type`` is ``"ORIGINAL"``.
+
             Defaults to "none".
         epsilon (float, optional):
             The :math:`\epsilon` parameter for log-scaling described above.
@@ -240,6 +248,18 @@ class IALSRecommender(
             Maximal number of conjute gradient descent steps during the prediction time,
             i.e., the case when a user unseen at the training time is given as a history matrix.
             Defaults to 5.
+
+    Examples:
+
+        >>> from irspack import IALSRecommender, rowwise_train_test_split, Evaluator
+        >>> from irspack.utils.sample_data import mf_example_data
+        >>> X = mf_example_data(100, 30, random_state=1)
+        >>> X_train, X_test = rowwise_train_test_split(X, random_state=0)
+        >>> rec = IALSRecommender(X_train)
+        >>> rec.learn()
+        >>> evaluator=Evaluator(X_test)
+        >>> print(evaluator.get_scores(rec, [20]))
+        OrderedDict([('hit@20', 1.0), ('recall@20', 0.9003412698412698), ('ndcg@20', 0.6175493479217139), ('map@20', 0.3848785870622406), ('precision@20', 0.3385), ('gini_index@20', 0.0814), ('entropy@20', 3.382497875272383), ('appeared_item@20', 30.0)])
     """
 
     config_class = IALSConfig
