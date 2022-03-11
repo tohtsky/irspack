@@ -1,5 +1,14 @@
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union, no_type_check
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    no_type_check,
+)
 
 import numpy as np
 from optuna.trial import Trial
@@ -15,6 +24,8 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
+
+R = TypeVar("R", bound="BaseRecommender")
 
 
 def _sparse_to_array(U: Any) -> np.ndarray:
@@ -78,15 +89,17 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
 
     @classmethod
     def from_config(
-        cls, X_train_all: InteractionMatrix, config: RecommenderConfig
-    ) -> "BaseRecommender":
+        cls: Type[R],
+        X_train_all: InteractionMatrix,
+        config: RecommenderConfig,
+    ) -> R:
         if not isinstance(config, cls.config_class):
             raise ValueError(
                 f"Different config has been given. config must be {cls.config_class}"
             )
         return cls(X_train_all, **config.dict())
 
-    def learn(self) -> "BaseRecommender":
+    def learn(self: R) -> R:
         """Learns and returns itself.
 
         Returns:
@@ -245,7 +258,7 @@ class BaseUserSimilarityRecommender(BaseRecommender):
         return _sparse_to_array(self.U[begin:end].dot(self._X_csc))
 
 
-class BaseRecommenderWithUserEmbedding(BaseRecommender):
+class BaseRecommenderWithUserEmbedding:
     """Defines a recommender with user embedding (e.g., matrix factorization.).
     These class can be a base CF estimator for CB2CF (with user profile -> user embedding NN).
     """
@@ -276,7 +289,7 @@ class BaseRecommenderWithUserEmbedding(BaseRecommender):
         raise NotImplementedError("get_score_from_item_embedding must be implemtented.")
 
 
-class BaseRecommenderWithItemEmbedding(BaseRecommender):
+class BaseRecommenderWithItemEmbedding:
     """Defines a recommender with item embedding (e.g., matrix factorization.).
     These class can be a base CF estimator for CB2CF (with item profile -> item embedding NN).
     """

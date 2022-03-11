@@ -1,4 +1,3 @@
-import os
 import urllib.request
 from abc import ABCMeta, abstractmethod
 from io import BytesIO

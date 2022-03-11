@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from io import BytesIO
 
 import pandas as pd

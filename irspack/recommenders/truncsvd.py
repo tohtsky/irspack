@@ -1,7 +1,6 @@
 import warnings
 from typing import Optional
 
-from numpy import random
 from sklearn.decomposition import TruncatedSVD
 
 from ..definitions import (
@@ -11,6 +10,7 @@ from ..definitions import (
     UserIndexArray,
 )
 from .base import (
+    BaseRecommender,
     BaseRecommenderWithItemEmbedding,
     BaseRecommenderWithUserEmbedding,
     RecommenderConfig,
@@ -23,6 +23,7 @@ class TruncatedSVDConfig(RecommenderConfig):
 
 
 class TruncatedSVDRecommender(
+    BaseRecommender,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 from irspack.definitions import InteractionMatrix
 
