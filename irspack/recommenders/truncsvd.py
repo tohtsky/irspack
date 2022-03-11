@@ -10,6 +10,7 @@ from ..definitions import (
     UserIndexArray,
 )
 from .base import (
+    BaseRecommender,
     BaseRecommenderWithItemEmbedding,
     BaseRecommenderWithUserEmbedding,
     RecommenderConfig,
@@ -22,6 +23,7 @@ class TruncatedSVDConfig(RecommenderConfig):
 
 
 class TruncatedSVDRecommender(
+    BaseRecommender,
     BaseRecommenderWithUserEmbedding,
     BaseRecommenderWithItemEmbedding,
 ):

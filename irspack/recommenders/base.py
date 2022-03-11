@@ -258,7 +258,7 @@ class BaseUserSimilarityRecommender(BaseRecommender):
         return _sparse_to_array(self.U[begin:end].dot(self._X_csc))
 
 
-class BaseRecommenderWithUserEmbedding(BaseRecommender):
+class BaseRecommenderWithUserEmbedding:
     """Defines a recommender with user embedding (e.g., matrix factorization.).
     These class can be a base CF estimator for CB2CF (with user profile -> user embedding NN).
     """
@@ -289,7 +289,7 @@ class BaseRecommenderWithUserEmbedding(BaseRecommender):
         raise NotImplementedError("get_score_from_item_embedding must be implemtented.")
 
 
-class BaseRecommenderWithItemEmbedding(BaseRecommender):
+class BaseRecommenderWithItemEmbedding:
     """Defines a recommender with item embedding (e.g., matrix factorization.).
     These class can be a base CF estimator for CB2CF (with item profile -> item embedding NN).
     """
