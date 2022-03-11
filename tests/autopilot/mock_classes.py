@@ -1,6 +1,6 @@
 import pickle
 import time
-from typing import IO, Any, Dict, List, Optional
+from typing import IO, Any, Dict, List
 
 import numpy as np
 import scipy.sparse as sps

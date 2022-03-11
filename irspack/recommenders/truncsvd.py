@@ -1,7 +1,6 @@
 import warnings
 from typing import Optional
 
-from numpy import random
 from sklearn.decomposition import TruncatedSVD
 
 from ..definitions import (

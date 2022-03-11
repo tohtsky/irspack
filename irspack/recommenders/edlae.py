@@ -1,7 +1,7 @@
 import gc
 
 import numpy as np
-from scipy import linalg, sparse
+from scipy import linalg
 
 from ..definitions import InteractionMatrix
 from .base import BaseSimilarityRecommender, RecommenderConfig
