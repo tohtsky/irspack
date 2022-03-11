@@ -1,5 +1,14 @@
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union, no_type_check
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    no_type_check,
+)
 
 import numpy as np
 from optuna.trial import Trial
@@ -15,6 +24,8 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
+
+R = TypeVar("R", bound="BaseRecommender")
 
 
 def _sparse_to_array(U: Any) -> np.ndarray:
@@ -78,15 +89,17 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
 
     @classmethod
     def from_config(
-        cls, X_train_all: InteractionMatrix, config: RecommenderConfig
-    ) -> "BaseRecommender":
+        cls: Type[R],
+        X_train_all: InteractionMatrix,
+        config: RecommenderConfig,
+    ) -> R:
         if not isinstance(config, cls.config_class):
             raise ValueError(
                 f"Different config has been given. config must be {cls.config_class}"
             )
         return cls(X_train_all, **config.dict())
 
-    def learn(self) -> "BaseRecommender":
+    def learn(self: R) -> R:
         """Learns and returns itself.
 
         Returns:
