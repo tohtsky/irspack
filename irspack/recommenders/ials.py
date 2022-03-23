@@ -93,6 +93,9 @@ class IALSTrainer(TrainerBase):
         self.core_trainer.user = params["user"]
         self.core_trainer.item = params["item"]
 
+    def compute_loss(self) -> float:
+        return self.core_trainer.compute_loss(self.solver_config)
+
     def save_state(self, ofs: IO) -> None:
         pickle.dump(
             dict(user=self.core_trainer.user, item=self.core_trainer.item),

@@ -108,6 +108,7 @@ PYBIND11_MODULE(_ials, m) {
       .def("user_scores", &IALSTrainer::user_scores)
       .def("transform_user", &IALSTrainer::transform_user)
       .def("transform_item", &IALSTrainer::transform_item)
+      .def("compute_loss", &IALSTrainer::compute_loss)
       .def_readwrite("user", &IALSTrainer::user)
       .def_readwrite("item", &IALSTrainer::item)
       .def(py::pickle(

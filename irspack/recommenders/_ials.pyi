@@ -5,6 +5,7 @@ from numpy import float32
 """irspack's core module for "IALSRecommender".
 Built to use
 	SSE, SSE2"""
+from __future__ import annotations
 import irspack.recommenders._ials
 import typing
 import numpy
@@ -77,6 +78,7 @@ class IALSTrainer:
         self, arg0: IALSModelConfig, arg1: scipy.sparse.csr_matrix[numpy.float32]
     ) -> None: ...
     def __setstate__(self, arg0: tuple) -> None: ...
+    def compute_loss(self, arg0: IALSSolverConfig) -> float: ...
     def step(self, arg0: IALSSolverConfig) -> None: ...
     def transform_item(
         self, arg0: scipy.sparse.csr_matrix[numpy.float32], arg1: IALSSolverConfig
