@@ -222,14 +222,18 @@ class IALSRecommender(
             Standard deviation for initialization normal distribution.
             The actual std for each user/item vector components are scaled by `1 / n_components ** .5`.
             Defaults to 0.1.
-        solver_type ( "CHOLESKY" | "CG", optional):
-            Which solver to  Defaults to "CG".
+        solver_type ( "CHOLESKY" | "CG" | "IALSPP", optional):
+            Which solver to use. Defaults to "CG".
         max_cg_steps (int, optional):
             Maximal number of conjute gradient descent steps during the training time.
             Defaults to 3.
             Used only when ``solver_type=="CG"``.
             By increasing this parameter, the result will be closer to
             Cholesky decomposition method (i.e., when ``solver_type == "CHOLESKY"``), but it wll take longer time.
+        ialspp_subspace_dimension (int, optional):
+            The subspace dimension of iALS++ (ignored if the ``solver_type`` is not "IALSPP").
+            If this value is 1, specialized implementation described in `Fast Matrix Factorization for Online Recommendation with Implicit Feedback <https://arxiv.org/abs/1708.05024>`_ will be used instead.
+            Defaults to 64.
         loss_type ( Literal["IALSPP", "ORIGINAL"], optional):
             Specifies the subtle difference between iALS++ vs Original Loss.
         nu_star (Optional[float], optional):
