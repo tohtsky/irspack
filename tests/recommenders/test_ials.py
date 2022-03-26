@@ -68,6 +68,63 @@ def test_ials_overfit_cholesky(
     np.testing.assert_allclose(reprod, X, rtol=1e-2, atol=1e-2)
 
 
+def test_ials_loss_original(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
+    X = test_interaction_data["X_small"]
+
+    rec = IALSRecommender(
+        X,
+        n_components=2,
+        alpha0=0.1,
+        reg=1e-1,
+        solver_type="CHOLESKY",
+        loss_type="ORIGINAL",
+        max_epoch=2,
+        n_threads=1,
+        nu=0,
+    ).learn()
+    assert rec.trainer is not None
+    uvec = rec.get_user_embedding()
+    ivec = rec.get_item_embedding()
+    ui = uvec.dot(ivec.T)
+    row, col = X.nonzero()
+
+    # bruteforce computation of iALS loss
+    loss_manual = (X.data + rec.alpha0).dot((ui[row, col] - 1) ** 2)
+    ui[row, col] = 0.0
+    loss_manual += rec.alpha0 * ui.ravel().dot(ui.ravel())
+    loss_manual += rec.reg * ((uvec ** 2).sum() + (ivec ** 2).sum())
+    loss_manual /= 2
+    assert rec.trainer.compute_loss() == pytest.approx(loss_manual)
+
+
+def test_ials_loss_ialspp(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
+    X = test_interaction_data["X_small"]
+
+    rec = IALSRecommender(
+        X,
+        n_components=2,
+        alpha0=0.1,
+        reg=1e-1,
+        solver_type="CHOLESKY",
+        loss_type="IALSPP",
+        max_epoch=2,
+        n_threads=1,
+        nu=0,
+    ).learn()
+    assert rec.trainer is not None
+    uvec = rec.get_user_embedding()
+    ivec = rec.get_item_embedding()
+    ui = uvec.dot(ivec.T)
+    row, col = X.nonzero()
+
+    # bruteforce computation of iALS loss
+    loss_manual = (X.data).dot((ui[row, col] - 1) ** 2)
+    loss_manual += rec.alpha0 * ui.ravel().dot(ui.ravel())
+    loss_manual += rec.reg * ((uvec ** 2).sum() + (ivec ** 2).sum())
+    loss_manual /= 2
+    assert rec.trainer.compute_loss() == pytest.approx(loss_manual)
+
+
 def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
     X = test_interaction_data["X_small"]
     rec = IALSRecommender(

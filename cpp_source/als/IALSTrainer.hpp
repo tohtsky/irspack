@@ -411,6 +411,101 @@ private:
     }
   }
 
+  inline void step_icd(DenseMatrix &target_factor,
+                       const SparseMatrix &X_compressed,
+                       const DenseMatrix &other_factor,
+                       const IALSModelConfig &config,
+                       const SolverConfig &solver_config) const {
+    for (size_t iter = 0; iter < solver_config.ialspp_iteration; iter++) {
+
+      auto predictions = this->_prediction(X_compressed, target_factor,
+                                           other_factor, solver_config);
+
+      const size_t dim_all = target_factor.cols();
+      for (size_t cursor = 0; cursor < dim_all; cursor++) {
+        this->_step_icd(cursor, predictions, target_factor, X_compressed,
+                        other_factor, config, solver_config);
+      }
+    }
+  }
+  inline void _step_icd(const int dim_start, DenseVector &predictions,
+                        DenseMatrix &target_factor,
+                        const SparseMatrix &X_compressed,
+                        const DenseMatrix &other_factor,
+                        const IALSModelConfig &config,
+                        const SolverConfig &solver_config) const {
+
+    std::vector<std::thread> workers;
+    std::atomic<int> cursor(0);
+    DenseVector target_factor_subspaced = target_factor.col(dim_start);
+    const DenseVector other_factor_subspaced = other_factor.col(dim_start);
+
+    const Real P_quadratic = P(dim_start, dim_start);
+    const DenseVector P_subspaced = P.row(dim_start);
+
+    for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
+      workers.emplace_back([this, dim_start, P_quadratic, P_subspaced,
+                            &target_factor_subspaced, &target_factor,
+                            &other_factor_subspaced, &cursor, &X_compressed,
+                            &config, solver_config, &predictions]() {
+        Real P_local;
+        Real vcache;
+        Real B;
+        Real observation_bias =
+            config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0;
+
+        while (true) {
+          int cursor_local = cursor.fetch_add(1);
+          if (cursor_local >= target_factor_subspaced.rows()) {
+            break;
+          }
+
+          P_local = P_quadratic;
+
+          const auto inner_cursor_start =
+              X_compressed.outerIndexPtr()[cursor_local];
+          auto inner_cursor_end =
+              X_compressed.outerIndexPtr()[cursor_local + 1];
+          auto nnz = inner_cursor_end - inner_cursor_start;
+          auto reg =
+              this->compute_reg(nnz, other_factor_subspaced.rows(), config);
+
+          B = P_subspaced.dot(target_factor.row(cursor_local));
+          B += reg * target_factor_subspaced(cursor_local);
+
+          int64_t inner_cursor = inner_cursor_start;
+
+          for (SparseMatrix::InnerIterator it(X_compressed, cursor_local); it;
+               ++it) {
+            int64_t other_index = it.col();
+            vcache = other_factor_subspaced(other_index);
+            Real residual = (it.value() * (predictions(inner_cursor++) - 1) -
+                             observation_bias);
+            P_local += it.value() * vcache * vcache;
+            B += residual * vcache;
+          }
+          P_local += reg;
+
+          // difference. Current - vcache = newvector
+          vcache = B / P_local;
+          target_factor_subspaced(cursor_local) -= vcache;
+
+          inner_cursor = inner_cursor_start;
+          for (SparseMatrix::InnerIterator it(X_compressed, cursor_local); it;
+               ++it) {
+            int64_t other_index = it.col();
+            predictions.coeffRef(inner_cursor++) -=
+                vcache * (other_factor_subspaced(other_index));
+          }
+        }
+      });
+    }
+    for (auto &worker : workers) {
+      worker.join();
+    }
+    target_factor.col(dim_start) = target_factor_subspaced;
+  }
+
 public:
   inline void step(DenseMatrix &target_factor, const SparseMatrix &X,
                    const DenseMatrix &other_factor,
@@ -421,7 +516,11 @@ public:
     } else if (solver_config.solver_type == SolverType::Cholesky) {
       step_cholesky(target_factor, X, other_factor, config, solver_config);
     } else {
-      step_ialspp(target_factor, X, other_factor, config, solver_config);
+      if (solver_config.ialspp_subspace_dimension > 1u) {
+        step_ialspp(target_factor, X, other_factor, config, solver_config);
+      } else {
+        step_icd(target_factor, X, other_factor, config, solver_config);
+      }
     }
   }
   // DenseMatrix &factor;
@@ -473,6 +572,82 @@ struct IALSTrainer {
                                     const SolverConfig &solver_config) const {
     return this->item_solver.X_to_vector(X.transpose(), user, config_,
                                          solver_config);
+  }
+
+  inline Real compute_loss(const SolverConfig &solver_config) {
+    this->user_solver.prepare_p(item, config_, solver_config);
+    this->item_solver.prepare_p(user, config_, solver_config);
+    Real loss =
+        (this->user_solver.P.array() * this->item_solver.P.array()).sum() /
+        this->config_.alpha0;
+    {
+      std::atomic<uint64_t> cursor(0);
+      std::vector<std::future<Real>> workers;
+      for (size_t i = 0; i < solver_config.n_threads; i++) {
+
+        workers.emplace_back(std::async(std::launch::async, [&cursor, this]() {
+          Real loss_local = 0;
+          Real observation_bias = this->config_.loss_type == LossType::IALSPP
+                                      ? 0.0
+                                      : this->config_.alpha0;
+
+          while (true) {
+            int cursor_local = cursor.fetch_add(1);
+            if (cursor_local >= this->user.rows()) {
+              break;
+            }
+            size_t nnz = 0;
+            for (SparseMatrix::InnerIterator it(this->X, cursor_local); it;
+                 ++it) {
+              nnz++;
+              Real prediction =
+                  this->user.row(cursor_local).dot(this->item.row(it.col()));
+              loss_local += it.value() * prediction * prediction -
+                            2 * (it.value() + observation_bias) * prediction +
+                            it.value() + observation_bias;
+            }
+            const Real regularization = this->user_solver.compute_reg(
+                nnz, this->item.rows(), this->config_);
+
+            loss_local +=
+                regularization * this->user.row(cursor_local).squaredNorm();
+          }
+          return loss_local;
+        }));
+      }
+      for (auto &w : workers) {
+        loss += w.get();
+      }
+    }
+    {
+      std::atomic<uint64_t> cursor(0);
+      std::vector<std::future<Real>> workers;
+      for (size_t i = 0; i < solver_config.n_threads; i++) {
+
+        workers.emplace_back(std::async(std::launch::async, [&cursor, this]() {
+          Real loss_local = 0;
+          while (true) {
+            int cursor_local = cursor.fetch_add(1);
+            if (cursor_local >= this->item.rows()) {
+              break;
+            }
+            auto start = this->X_t.outerIndexPtr()[cursor_local];
+            auto end = this->X_t.outerIndexPtr()[cursor_local + 1];
+            int64_t nnz = end - start;
+            const Real regularization = this->item_solver.compute_reg(
+                nnz, this->user.rows(), this->config_);
+
+            loss_local +=
+                regularization * this->item.row(cursor_local).squaredNorm();
+          }
+          return loss_local;
+        }));
+      }
+      for (auto &w : workers) {
+        loss += w.get();
+      }
+    }
+    return loss / 2;
   }
 
   DenseMatrix user_scores(size_t userblock_begin, size_t userblock_end,
