@@ -23,7 +23,7 @@ class Suggestion(object, metaclass=ABCMeta):
         """
         if not is_valid_param_name(name):
             raise ValueError(
-                fr""""{name}" is  not a valid parameter name. It should match r"^([a-zA-Z\d]+[\-_]*)+$"""
+                rf""""{name}" is  not a valid parameter name. It should match r"^([a-zA-Z\d]+[\-_]*)+$"""
             )
         self.name = name
 

@@ -122,12 +122,11 @@ def test_holdout_particular_item_interaction() -> None:
 
 def test_raise() -> None:
     df = df_master.copy()
-    TS_CUTPOINT = 100
     validatable_user_ratio_val = 0.6
     validatable_user_ratio_test = 0.5
     validatable_interactions = (df.timestamp >= 0).values
     with pytest.raises(ValueError):
-        unique_item_ids, dataset = holdout_specific_interactions(
+        _, __ = holdout_specific_interactions(
             df,
             "user_id",
             "item_id",

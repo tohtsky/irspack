@@ -50,7 +50,7 @@ class DecoderNN:
 
 
 def l2_normalize(X: jnp.ndarray) -> jnp.ndarray:
-    return X / jnp.sqrt((X ** 2).sum(axis=1) + 1e-8)[:, None]
+    return X / jnp.sqrt((X**2).sum(axis=1) + 1e-8)[:, None]
 
 
 class EncoderNN:
@@ -111,7 +111,7 @@ class MultVAE:
         mu, log_var = self.encoder_network(X, p, train)
         std = jnp.exp(log_var * 0.5)
         # log_var = 2 * log (std)
-        KL: jnp.ndarray = 0.5 * (-log_var + std ** 2 + mu ** 2 - 1)
+        KL: jnp.ndarray = 0.5 * (-log_var + std**2 + mu**2 - 1)
         KL = KL.sum(axis=1).mean(axis=0)
 
         if train:

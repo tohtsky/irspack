@@ -110,7 +110,7 @@ class DenseSLIMOptimizer(BaseOptimizer):
         cls, X: InteractionMatrix, memory_budget: int
     ) -> List[Suggestion]:
         n_items: int = X.shape[1]
-        if (1e6 * memory_budget) < (4 * 2 * n_items ** 2):
+        if (1e6 * memory_budget) < (4 * 2 * n_items**2):
             raise LowMemoryError(
                 f"Memory budget {memory_budget} too small for DenseSLIM to work."
             )
@@ -129,7 +129,7 @@ class EDLAEOptimizer(BaseOptimizer):
         cls, X: InteractionMatrix, memory_budget: int
     ) -> List[Suggestion]:
         n_items: int = X.shape[1]
-        if (1e6 * memory_budget) < (4 * 2 * n_items ** 2):
+        if (1e6 * memory_budget) < (4 * 2 * n_items**2):
             raise LowMemoryError(
                 f"Memory budget {memory_budget} too small for EDLAE to work."
             )
@@ -168,7 +168,6 @@ try:
             return [
                 IntegerSuggestion("n_components", 4, n_components),
             ]
-
 
 except ImportError:  # pragma: no cover
     pass  # pragma: no cover
@@ -295,7 +294,6 @@ try:
                 IntegerSuggestion("n_components", 4, n_components),
             ]
 
-
 except:  # pragma: no cover
     pass  # pragma: no cover
 
@@ -321,7 +319,6 @@ try:
                 )
 
             return []
-
 
 except:  # pragma: no cover
     pass  # pragma: no cover

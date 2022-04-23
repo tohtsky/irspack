@@ -31,7 +31,7 @@ def test_restriction_global(U: int, I: int, R: int) -> None:
     recommendable = rns.choice(np.arange(I), replace=False, size=R)
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
-    eval = Evaluator(
+    evaluator_ = Evaluator(
         sps.csr_matrix(X_gt),
         offset=0,
         cutoff=I,
@@ -40,7 +40,7 @@ def test_restriction_global(U: int, I: int, R: int) -> None:
     )
     # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
-    my_score = eval.get_score(mock_rec)
+    my_score = evaluator_.get_score(mock_rec)
     sklearn_metrics = defaultdict(list)
     for i in range(scores.shape[0]):
         if X_gt[i, recommendable].sum() == 0:

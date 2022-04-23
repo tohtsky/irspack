@@ -108,4 +108,4 @@ def test_slim_topk(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
         gt = W_non_restricted[:, i]
         target = W_restricted[:, i]
         assert np.sum(target > 0) <= 1
-        target.max() == pytest.approx(gt.max())
+        assert target.max() == pytest.approx(gt.max())

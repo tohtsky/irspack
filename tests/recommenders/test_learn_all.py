@@ -33,10 +33,10 @@ def test_recs(class_name: str) -> None:
     rec.learn()
 
     scores = rec.get_score(np.arange(X_train.shape[0]))
-    eval = Evaluator(X_test, 0, 20)
+    evaluator_ = Evaluator(X_test, 0, 20)
     with pytest.raises(ValueError):
-        eval.get_score(rec)
-    metrics = eval.get_scores(rec, cutoffs=[X_train.shape[1]])
+        evaluator_.get_score(rec)
+    metrics = evaluator_.get_scores(rec, cutoffs=[X_train.shape[1]])
     assert np.all(np.isfinite(scores))
     assert np.all(~np.isnan(scores))
     for value in metrics.values():
