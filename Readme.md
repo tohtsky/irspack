@@ -65,17 +65,19 @@ We first represent the user/item interaction as a [scipy.sparse](https://docs.sc
 ```Python
 import numpy as np
 import scipy.sparse as sps
-from irspack.recommenders import P3alphaRecommender
+from irspack import IALSRecommender, df_to_sparse
 from irspack.dataset.movielens import MovieLens100KDataManager
 
 df = MovieLens100KDataManager().read_interaction()
-unique_user_id, user_index = np.unique(df.userId, return_inverse=True)
-unique_movie_id, movie_index = np.unique(df.movieId, return_inverse=True)
-X_interaction = sps.csr_matrix(
-  (np.ones(df.shape[0]), (user_index, movie_index))
+
+# Convert pandas.Dataframe into scipy's sparse matrix.
+# The i'th row of `X_interaction` corresponds to `unique_user_id[i]`
+# and j'th column of `X_interaction` corresponds to `unique_movie_id[j]`.
+X_interaction, unique_user_id, unique_movie_id = df_to_sparse(
+  df, 'userId', 'movieId'
 )
 
-recommender = P3alphaRecommender(X_interaction)
+recommender = IALSRecommender(X_interaction)
 recommender.learn()
 
 # for user 0 (whose userId is unique_user_id[0]),
@@ -99,7 +101,7 @@ X_train, X_val = rowwise_train_test_split(
 
 evaluator = Evaluator(ground_truth=X_val)
 
-recommender = P3alphaRecommender(X_train)
+recommender = IALSRecommender(X_train)
 recommender.learn()
 evaluator.get_score(recommender)
 ```
@@ -108,17 +110,17 @@ This will print something like
 
 ```Python
 {
-  'appeared_item': 106.0,
-  'entropy': 3.840445116672292,
-  'gini_index': 0.9794929280523742,
-  'hit': 0.8854718981972428,
-  'map': 0.11283343078231302,
-  'n_items': 1682.0,
-  'ndcg': 0.3401244303579389,
-  'precision': 0.27560975609756017,
-  'recall': 0.19399215770339678,
-  'total_user': 943.0,
-  'valid_user': 943.0
+    'appeared_item': 435.0,
+    'entropy': 5.160409123151053,
+    'gini_index': 0.9198367595008214,
+    'hit': 0.40084835630965004,
+    'map': 0.013890322881619916,
+    'n_items': 1682.0,
+    'ndcg': 0.07867240014767263,
+    'precision': 0.06797454931071051,
+    'recall': 0.03327028758587522,
+    'total_user': 943.0,
+    'valid_user': 943.0
 }
 ```
 
@@ -128,12 +130,12 @@ Now that we can evaluate the recommenders' performance against
 the validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
 
 ```Python
-from irspack.optimizers import P3alphaOptimizer
+from irspack.optimizers import IALSOptimizer
 
-optimizer = P3alphaOptimizer(X_train, evaluator)
+optimizer = IALSOptimizer(X_train, evaluator)
 best_params, trial_dfs  = optimizer.optimize(n_trials=20)
 
-# maximal ndcg around 0.38 ~ 0.39
+# maximal ndcg around 0.43 ~ 0.45
 trial_dfs["ndcg@10"].max()
 ```
 
