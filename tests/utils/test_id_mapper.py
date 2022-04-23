@@ -108,8 +108,8 @@ def test_basic_usecase(dtype: str) -> None:
             allowed_item_ids=random_allowed_items,
         )
         check_descending(with_allowed_item)
-        for id, _ in with_allowed_item:
-            assert id in random_allowed_items
+        for id_, _ in with_allowed_item:
+            assert id_ in random_allowed_items
 
         allowed_only_forbidden = mapped_rec.get_recommendation_for_known_user_id(
             uid,

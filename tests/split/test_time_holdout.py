@@ -46,7 +46,6 @@ def test_holdout_fixed_percentage() -> None:
     assert pd.concat([df_train, df_val]).merge(df).shape[0] == df_master.shape[0]
 
     uid_val_unique = np.unique(df_val.user_id)
-    uid_cnt = df_master.user_id.value_counts()
     for uid in uid_val_unique:
         interactions_in_val = df_val[df_val.user_id == uid]
         if interactions_in_val.shape[0] == 0:

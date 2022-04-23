@@ -27,7 +27,7 @@ def test_cosine(X: sps.csr_matrix, normalize: bool) -> None:
         X, shrinkage=0, n_threads=5, top_k=X.shape[0], normalize=normalize
     )
     with pytest.raises(RuntimeError):
-        U = rec.U
+        rec.U
     rec.learn()
     sim = rec.U.toarray()
     manual = X.toarray()  # U x I
