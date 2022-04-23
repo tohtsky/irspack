@@ -92,7 +92,7 @@ def test_ials_loss_original(test_interaction_data: Dict[str, sps.csr_matrix]) ->
     loss_manual = (X.data + rec.alpha0).dot((ui[row, col] - 1) ** 2)
     ui[row, col] = 0.0
     loss_manual += rec.alpha0 * ui.ravel().dot(ui.ravel())
-    loss_manual += rec.reg * ((uvec ** 2).sum() + (ivec ** 2).sum())
+    loss_manual += rec.reg * ((uvec**2).sum() + (ivec**2).sum())
     loss_manual /= 2
     assert rec.trainer.compute_loss() == pytest.approx(loss_manual)
 
@@ -120,7 +120,7 @@ def test_ials_loss_ialspp(test_interaction_data: Dict[str, sps.csr_matrix]) -> N
     # bruteforce computation of iALS loss
     loss_manual = (X.data).dot((ui[row, col] - 1) ** 2)
     loss_manual += rec.alpha0 * ui.ravel().dot(ui.ravel())
-    loss_manual += rec.reg * ((uvec ** 2).sum() + (ivec ** 2).sum())
+    loss_manual += rec.reg * ((uvec**2).sum() + (ivec**2).sum())
     loss_manual /= 2
     assert rec.trainer.compute_loss() == pytest.approx(loss_manual)
 

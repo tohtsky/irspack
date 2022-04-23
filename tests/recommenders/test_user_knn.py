@@ -31,7 +31,7 @@ def test_cosine(X: sps.csr_matrix, normalize: bool) -> None:
     rec.learn()
     sim = rec.U.toarray()
     manual = X.toarray()  # U x I
-    norm = (manual ** 2).sum(axis=1) ** 0.5
+    norm = (manual**2).sum(axis=1) ** 0.5
     manual = manual.dot(manual.T)
     if normalize:
         denom = norm[:, None] * norm[None, :] + 1e-6
@@ -55,7 +55,7 @@ def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float, shrinkage: float) ->
     sim = rec.U.toarray()
 
     manual = X.toarray()
-    norm = (manual ** 2).sum(axis=1)
+    norm = (manual**2).sum(axis=1)
     norm_alpha = np.power(norm, alpha)
     norm_1malpha = np.power(norm, 1 - alpha)
     manual_sim = manual.dot(manual.T)
