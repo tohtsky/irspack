@@ -69,6 +69,7 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping):
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         r"""Perform tuning gradually doubling `n_components`.
         Typically, with the initial `n_components`, the search will be more exhaustive, and with larger `n_components`, less exploration will be done around previously found parameters.
+        This strategy is described in `Revisiting the Performance of iALS on Item Recommendation Benchmarks <https://arxiv.org/abs/2110.14037>`_.
 
         Args:
             initial_dimension: The initial dimension.
@@ -81,8 +82,24 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping):
                 If `None`, we will use a random string for this prefix.
             n_trials_initial:
                 The number of trials for the initial dimension.
-            n_trials_other:
+            n_trials_following:
                 The number of trials for the following dimensions.
+            n_startup_trials_initial:
+                Passed on to `n_startup_trials` argument of `optuna.pruners.MedianPruner` in the initial `optuna.Study`.
+                Defaults to `10`.
+            n_startup_trials_following:
+                Passed on to `n_startup_trials` argument of `optuna.pruners.MedianPruner` in the following `optuna.Study`.
+                Defaults to `5`.
+            neighborhood_scale:
+                `alpha_0` and `reg` parameters will be searched within the log-uniform range
+                [`previous_dimension_result / neighborhood_scale`, `previous_dimension_result * neighborhood_scale`].
+                Defaults to `3.0`
+            suggest_overwrite_initial:
+                Overwrites the suggestion parameters in the initial `optuna.Study`.
+                Defaults to `[]`.
+            random_seed:
+                The random seed to control ``optuna.samplers.TPESampler``. Defaults to `None`.
+
         Returns:
             A tuple that consists of
                 1. A dict containing the best paramaters.

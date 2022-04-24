@@ -38,8 +38,8 @@ _BaseOptimizerArgsString = """Args:
     val_evaluator (Evaluator):
         The validation evaluator which measures the performance of the recommenders.
     logger (Optional[logging.Logger], optional) :
-        The logger used during the optimization steps. Defaults to None.
-        If ``None``, the default logger of irspack will be used.
+        The logger used during the optimization steps. Defaults to `None`.
+        If `None`, the default logger of irspack will be used.
     suggest_overwrite (Sequence[Suggestion], optional) :
         Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
         the default parameter search space defined by ``default_tune_range``
@@ -56,8 +56,8 @@ _BaseOptimizerWithEarlyStoppingArgsString = """Args:
     val_evaluator (Evaluator):
         The validation evaluator which measures the performance of the recommenders.
     logger (Optional[logging.Logger], optional):
-        The logger used during the optimization steps. Defaults to None.
-        If ``None``, the default logger of irspack will be used.
+        The logger used during the optimization steps. Defaults to `None`.
+        If `None`, the default logger of irspack will be used.
     suggest_overwrite (Sequence[Suggestion], optional):
         Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
         the default parameter search space defined by ``default_tune_range``
@@ -330,9 +330,9 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
                 The number of expected trials (include pruned trial.). Defaults to 20.
             timeout:
                 If set to some value (in seconds), the study will exit after that time period.
-                Note that the running trials is not interrupted, though. Defaults to None.
+                Note that the running trials is not interrupted, though. Defaults to `None`.
             random_seed:
-                The random seed to control ``optuna.samplers.TPESampler``. Defaults to None.
+                The random seed to control ``optuna.samplers.TPESampler``. Defaults to `None`.
 
         Returns:
             A tuple that consists of
@@ -362,8 +362,8 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         val_evaluator (Evaluator):
             The validation evaluator which measures the performance of the recommenders.
         logger (Optional[logging.Logger], optional):
-            The logger used during the optimization steps. Defaults to None.
-            If ``None``, the default logger of irspack will be used.
+            The logger used during the optimization steps. Defaults to `None`.
+            If `None`, the default logger of irspack will be used.
         suggest_overwrite (Sequence[Suggestion], optional):
             Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
             the default parameter search space defined by ``default_tune_range``
