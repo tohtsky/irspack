@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Tuple, Type
 import pandas as pd
 from scipy import sparse as sps
 
+from irspack import EvaluatorWithColdUser, IALSRecommender
 from irspack.dataset.movielens import MovieLens20MDataManager
-from irspack.evaluator import EvaluatorWithColdUser
 from irspack.optimizers import (
     AsymmetricCosineKNNOptimizer,
     BaseOptimizer,
@@ -69,7 +69,6 @@ if __name__ == "__main__":
         (AsymmetricCosineKNNOptimizer, 40, dict()),
         (P3alphaOptimizer, 30, dict(alpha=1)),
         (RP3betaOptimizer, 40, dict(alpha=1)),
-        (IALSOptimizer, 40, dict()),
         (DenseSLIMOptimizer, 20, dict()),
         (
             MultVAEOptimizer,
@@ -87,7 +86,9 @@ if __name__ == "__main__":
             valid_evaluator,
             fixed_params=config,
         )
-        (best_param, validation_result_df) = optimizer.optimize(n_trials=n_trials)
+        (best_param, validation_result_df) = optimizer.optimize(
+            n_trials=n_trials, random_seed=0
+        )
         validation_result_df["recommender_name"] = recommender_name
         validation_results.append(validation_result_df)
         pd.concat(validation_results).to_csv(f"validation_scores.csv")
@@ -100,3 +101,33 @@ if __name__ == "__main__":
         )
         with open("test_results.json", "w") as ofs:
             json.dump(test_results, ofs, indent=2)
+
+    # Tuning following the strategy of
+    # "Revisiting the Performance of iALS on Item Recommendation Benchmarks"
+    # https://arxiv.org/abs/2110.14037
+    ials_optimizer = IALSOptimizer(
+        data_train.X_all,
+        valid_evaluator,
+    )
+    (
+        best_param_ials,
+        validation_result_df_ials,
+    ) = ials_optimizer.optimize_doubling_dimension(
+        initial_dimension=128,
+        maximal_dimension=1024,
+        random_seed=0,
+        n_trials_initial=80,
+        n_trials_following=40,
+    )
+    validation_result_df_ials["recommender_name"] = "IALSRecommender"
+    validation_results.append(validation_result_df_ials)
+    pd.concat(validation_results).to_csv(f"validation_scores.csv")
+    test_recommender_ials = IALSRecommender(X_train_val_all, **best_param_ials)
+    test_recommender_ials.learn()
+    test_scores_ials = test_evaluator.get_scores(test_recommender_ials, [20, 50, 100])
+
+    test_results.append(
+        dict(name="IALSRecommender", best_param=best_param_ials, **test_scores_ials)
+    )
+    with open("test_results.json", "w") as ofs:
+        json.dump(test_results, ofs, indent=2)

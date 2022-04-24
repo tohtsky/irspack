@@ -2,7 +2,17 @@ import logging
 import re
 import time
 from abc import ABCMeta
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, no_type_check
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    no_type_check,
+)
 
 import optuna
 import pandas as pd
@@ -28,9 +38,9 @@ _BaseOptimizerArgsString = """Args:
     val_evaluator (Evaluator):
         The validation evaluator which measures the performance of the recommenders.
     logger (Optional[logging.Logger], optional) :
-        The logger used during the optimization steps. Defaults to None.
-        If ``None``, the default logger of irspack will be used.
-    suggest_overwrite (List[Suggestion], optional) :
+        The logger used during the optimization steps. Defaults to `None`.
+        If `None`, the default logger of irspack will be used.
+    suggest_overwrite (Sequence[Suggestion], optional) :
         Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
         the default parameter search space defined by ``default_tune_range``
         Defaults to list().
@@ -46,9 +56,9 @@ _BaseOptimizerWithEarlyStoppingArgsString = """Args:
     val_evaluator (Evaluator):
         The validation evaluator which measures the performance of the recommenders.
     logger (Optional[logging.Logger], optional):
-        The logger used during the optimization steps. Defaults to None.
-        If ``None``, the default logger of irspack will be used.
-    suggest_overwrite (List[Suggestion], optional):
+        The logger used during the optimization steps. Defaults to `None`.
+        If `None`, the default logger of irspack will be used.
+    suggest_overwrite (Sequence[Suggestion], optional):
         Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
         the default parameter search space defined by ``default_tune_range``
         Defaults to list().
@@ -66,7 +76,7 @@ _BaseOptimizerWithEarlyStoppingArgsString = """Args:
 
 
 def optimizer_docstring(
-    default_tune_range: Optional[List[Suggestion]],
+    default_tune_range: Optional[Sequence[Suggestion]],
     recommender_class: Optional[Type[BaseRecommender]],
 ) -> Optional[str]:
     if recommender_class is None:
@@ -116,7 +126,7 @@ class OptimizerMeta(ABCMeta):
         recommender_class: Optional[Type[BaseRecommender]] = namespace.get(
             "recommender_class"
         )
-        default_tune_range: Optional[List[Suggestion]] = namespace.get(
+        default_tune_range: Optional[Sequence[Suggestion]] = namespace.get(
             "default_tune_range"
         )
         if default_tune_range is None:
@@ -170,12 +180,12 @@ def study_to_dataframe(study: optuna.Study) -> pd.DataFrame:
 class BaseOptimizer(object, metaclass=OptimizerMeta):
 
     recommender_class: Type[BaseRecommender]
-    default_tune_range: List[Suggestion] = []
+    default_tune_range: Sequence[Suggestion] = []
 
     @classmethod
     def tune_range_given_memory_budget(
         cls, X: InteractionMatrix, memory_in_mb: int
-    ) -> List[Suggestion]:
+    ) -> Sequence[Suggestion]:
         return []
 
     def __init__(
@@ -183,7 +193,7 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
         data: InteractionMatrix,
         val_evaluator: Evaluator,
         logger: Optional[logging.Logger] = None,
-        suggest_overwrite: List[Suggestion] = list(),
+        suggest_overwrite: Sequence[Suggestion] = list(),
         fixed_params: Dict[str, Any] = dict(),
     ):
 
@@ -320,9 +330,9 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
                 The number of expected trials (include pruned trial.). Defaults to 20.
             timeout:
                 If set to some value (in seconds), the study will exit after that time period.
-                Note that the running trials is not interrupted, though. Defaults to None.
+                Note that the running trials is not interrupted, though. Defaults to `None`.
             random_seed:
-                The random seed to control ``optuna.samplers.TPESampler``. Defaults to None.
+                The random seed to control ``optuna.samplers.TPESampler``. Defaults to `None`.
 
         Returns:
             A tuple that consists of
@@ -352,9 +362,9 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         val_evaluator (Evaluator):
             The validation evaluator which measures the performance of the recommenders.
         logger (Optional[logging.Logger], optional):
-            The logger used during the optimization steps. Defaults to None.
-            If ``None``, the default logger of irspack will be used.
-        suggest_overwrite (List[Suggestion], optional):
+            The logger used during the optimization steps. Defaults to `None`.
+            If `None`, the default logger of irspack will be used.
+        suggest_overwrite (Sequence[Suggestion], optional):
             Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
             the default parameter search space defined by ``default_tune_range``
             Defaults to list().
@@ -377,7 +387,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         data: InteractionMatrix,
         val_evaluator: Evaluator,
         logger: Optional[logging.Logger] = None,
-        suggest_overwrite: List[Suggestion] = list(),
+        suggest_overwrite: Sequence[Suggestion] = list(),
         fixed_params: Dict[str, Any] = dict(),
         max_epoch: int = 512,
         validate_epoch: int = 5,

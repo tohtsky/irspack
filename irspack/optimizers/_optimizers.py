@@ -1,9 +1,7 @@
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Sequence
 
 from irspack.definitions import InteractionMatrix
 
-from ..evaluator import Evaluator
 from ..optimizers.base_optimizer import (
     BaseOptimizer,
     BaseOptimizerWithEarlyStopping,
@@ -23,7 +21,6 @@ from ..recommenders import (
     CosineUserKNNRecommender,
     DenseSLIMRecommender,
     EDLAERecommender,
-    IALSRecommender,
     JaccardKNNRecommender,
     P3alphaRecommender,
     RP3betaRecommender,
@@ -51,64 +48,24 @@ def _get_maximal_n_components_for_budget(
 
 
 class TopPopOptimizer(BaseOptimizer):
-    default_tune_range: List[Suggestion] = []
+    default_tune_range: Sequence[Suggestion] = []
     recommender_class = TopPopRecommender
 
     @classmethod
     def tune_range_given_memory_budget(
         cls, X: InteractionMatrix, memory_budget: int
-    ) -> List[Suggestion]:
+    ) -> Sequence[Suggestion]:
         return []
 
 
-class IALSOptimizer(BaseOptimizerWithEarlyStopping):
-    default_tune_range = [
-        IntegerSuggestion("n_components", 4, 300),
-        LogUniformSuggestion("alpha0", 3e-3, 1),
-        LogUniformSuggestion("reg", 1e-4, 1e-1),
-    ]
-    recommender_class = IALSRecommender
-
-    def __init__(
-        self,
-        data: InteractionMatrix,
-        val_evaluator: Evaluator,
-        logger: Optional[logging.Logger] = None,
-        suggest_overwrite: List[Suggestion] = [],
-        fixed_params: Dict[str, Any] = {},
-        max_epoch: int = 16,
-        validate_epoch: int = 1,
-        score_degradation_max: int = 5,
-    ):
-        super().__init__(
-            data,
-            val_evaluator,
-            logger=logger,
-            suggest_overwrite=suggest_overwrite,
-            fixed_params=fixed_params,
-            max_epoch=max_epoch,
-            validate_epoch=validate_epoch,
-            score_degradation_max=score_degradation_max,
-        )
-
-    @classmethod
-    def tune_range_given_memory_budget(
-        cls, X: InteractionMatrix, memory_budget: int
-    ) -> List[Suggestion]:
-        n_components = _get_maximal_n_components_for_budget(X, memory_budget, 300)
-        return [
-            IntegerSuggestion("n_components", 4, n_components),
-        ]
-
-
 class DenseSLIMOptimizer(BaseOptimizer):
-    default_tune_range: List[Suggestion] = [LogUniformSuggestion("reg", 1, 1e4)]
+    default_tune_range: Sequence[Suggestion] = [LogUniformSuggestion("reg", 1, 1e4)]
     recommender_class = DenseSLIMRecommender
 
     @classmethod
     def tune_range_given_memory_budget(
         cls, X: InteractionMatrix, memory_budget: int
-    ) -> List[Suggestion]:
+    ) -> Sequence[Suggestion]:
         n_items: int = X.shape[1]
         if (1e6 * memory_budget) < (4 * 2 * n_items**2):
             raise LowMemoryError(
@@ -118,7 +75,7 @@ class DenseSLIMOptimizer(BaseOptimizer):
 
 
 class EDLAEOptimizer(BaseOptimizer):
-    default_tune_range: List[Suggestion] = [
+    default_tune_range: Sequence[Suggestion] = [
         LogUniformSuggestion("reg", 1, 1e4),
         UniformSuggestion("dropout_p", 0.0, 0.99),
     ]
@@ -127,7 +84,7 @@ class EDLAEOptimizer(BaseOptimizer):
     @classmethod
     def tune_range_given_memory_budget(
         cls, X: InteractionMatrix, memory_budget: int
-    ) -> List[Suggestion]:
+    ) -> Sequence[Suggestion]:
         n_items: int = X.shape[1]
         if (1e6 * memory_budget) < (4 * 2 * n_items**2):
             raise LowMemoryError(
@@ -146,7 +103,7 @@ try:
         @classmethod
         def tune_range_given_memory_budget(
             cls, X: InteractionMatrix, memory_budget: int
-        ) -> List[Suggestion]:
+        ) -> Sequence[Suggestion]:
             n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
             return [
                 IntegerSuggestion("n_components", 4, n_components),
@@ -163,7 +120,7 @@ try:
         @classmethod
         def tune_range_given_memory_budget(
             cls, X: InteractionMatrix, memory_budget: int
-        ) -> List[Suggestion]:
+        ) -> Sequence[Suggestion]:
             n_components = _get_maximal_n_components_for_budget(X, memory_budget, 512)
             return [
                 IntegerSuggestion("n_components", 4, n_components),
@@ -177,7 +134,7 @@ class SimilarityBasedOptimizerBase(BaseOptimizer):
     @classmethod
     def tune_range_given_memory_budget(
         cls, X: InteractionMatrix, memory_budget: int
-    ) -> List[Suggestion]:
+    ) -> Sequence[Suggestion]:
         top_k_max = min(int(1e6 * memory_budget / 4 // (X.shape[1] + 1)), 1024)
         if top_k_max <= 4:
             raise LowMemoryError(
@@ -249,7 +206,7 @@ class UserSimilarityBasedOptimizerBase(BaseOptimizer):
     @classmethod
     def tune_range_given_memory_budget(
         cls, X: InteractionMatrix, memory_budget: int
-    ) -> List[Suggestion]:
+    ) -> Sequence[Suggestion]:
         top_k_max = min(int(1e6 * memory_budget / 4 // (X.shape[0] + 1)), 1024)
         return [
             IntegerSuggestion("top_k", 4, top_k_max),
@@ -287,7 +244,7 @@ try:
         @classmethod
         def tune_range_given_memory_budget(
             cls, X: InteractionMatrix, memory_budget: int
-        ) -> List[Suggestion]:
+        ) -> Sequence[Suggestion]:
             # memory usage will be roughly 4 (float) * (n_users + n_items) * k
             n_components = _get_maximal_n_components_for_budget(X, memory_budget, 300)
             return [
@@ -312,7 +269,7 @@ try:
         @classmethod
         def tune_range_given_memory_budget(
             cls, X: InteractionMatrix, memory_budget: int
-        ) -> List[Suggestion]:
+        ) -> Sequence[Suggestion]:
             if memory_budget * 1e6 > (X.shape[1] * 2048 * 8):
                 raise LowMemoryError(
                     f"Memory budget {memory_budget} too small for MultVAE to work."

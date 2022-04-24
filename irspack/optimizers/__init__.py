@@ -7,7 +7,6 @@ from irspack.optimizers._optimizers import (
     CosineUserKNNOptimizer,
     DenseSLIMOptimizer,
     EDLAEOptimizer,
-    IALSOptimizer,
     JaccardKNNOptimizer,
     P3alphaOptimizer,
     RP3betaOptimizer,
@@ -17,6 +16,7 @@ from irspack.optimizers._optimizers import (
 )
 from irspack.optimizers.autopilot import autopilot
 from irspack.optimizers.base_optimizer import get_optimizer_class
+from irspack.optimizers.ials import IALSOptimizer
 
 __all__ = [
     "BaseOptimizer",

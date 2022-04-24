@@ -1,6 +1,6 @@
 import pickle
 import time
-from typing import IO, Any, Dict, List
+from typing import IO, Any, Dict, Sequence
 
 import numpy as np
 import scipy.sparse as sps
@@ -37,14 +37,14 @@ class AutopilotMockRecommender(BaseRecommender, register_class=False):
 
 class AutopilotMockOptimizer(BaseOptimizer):
     recommender_class = AutopilotMockRecommender
-    default_tune_range: List[Suggestion] = [
+    default_tune_range: Sequence[Suggestion] = [
         LogUniformSuggestion("wait_time", 1e-2, 4.0)
     ]
 
     @classmethod
     def tune_range_given_memory_budget(
         cls, X: InteractionMatrix, memory_in_mb: int
-    ) -> List[Suggestion]:
+    ) -> Sequence[Suggestion]:
         return []
 
 

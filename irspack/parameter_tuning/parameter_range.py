@@ -1,6 +1,6 @@
 import re
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
 from optuna import Trial
 
@@ -37,10 +37,10 @@ class Suggestion(object, metaclass=ABCMeta):
 
 
 def overwrite_suggestions(
-    base: List[Suggestion],
-    suggest_overwrite: List[Suggestion],
+    base: Sequence[Suggestion],
+    suggest_overwrite: Sequence[Suggestion],
     fixed_params: Dict[str, Any],
-) -> List[Suggestion]:
+) -> Sequence[Suggestion]:
     for suggest in suggest_overwrite:
         if suggest.name in fixed_params:
             raise ValueError("suggest_overwrite and fixed_param have overwrap.")
@@ -52,7 +52,7 @@ def overwrite_suggestions(
         suggest_base
         for suggest_base in base
         if suggest_base.name not in overwritten_parameter_names
-    ] + suggest_overwrite
+    ] + list(suggest_overwrite)
     return suggestions
 
 
