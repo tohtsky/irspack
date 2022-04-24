@@ -102,7 +102,7 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping):
                     self._data,
                     self.val_evaluator,
                     suggest_overwrite=suggest_overwrite_initial,
-                    fixed_params=dict(n_compnents=dimension),
+                    fixed_params=dict(n_components=dimension),
                 )
                 n_trials = n_trials_initial
                 n_startup_trials = n_startup_trials_initial
@@ -136,6 +136,7 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping):
             prev_params = {
                 key: float(value) for key, value in study.best_params.items()
             }
+            dimension *= 2
         final_result_df = pd.concat([x[2] for x in results])
         final_bp = sorted(results)[0][1]
 
