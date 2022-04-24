@@ -4,20 +4,9 @@ from typing import Any, Dict, List, Tuple, Type
 import pandas as pd
 from scipy import sparse as sps
 
+from irspack import EvaluatorWithColdUser, IALSRecommender
 from irspack.dataset.movielens import MovieLens20MDataManager
-from irspack.evaluator import EvaluatorWithColdUser
-from irspack.optimizers import (
-    AsymmetricCosineKNNOptimizer,
-    BaseOptimizer,
-    CosineKNNOptimizer,
-    DenseSLIMOptimizer,
-    IALSOptimizer,
-    MultVAEOptimizer,
-    P3alphaOptimizer,
-    RP3betaOptimizer,
-    SLIMOptimizer,
-    TopPopOptimizer,
-)
+from irspack.optimizers import BaseOptimizer, IALSOptimizer, TopPopOptimizer
 from irspack.split import split_dataframe_partial_user_holdout
 
 if __name__ == "__main__":
@@ -65,20 +54,19 @@ if __name__ == "__main__":
 
     test_configs: List[Tuple[Type[BaseOptimizer], int, Dict[str, Any]]] = [
         (TopPopOptimizer, 1, dict()),
-        (CosineKNNOptimizer, 40, dict()),
-        (AsymmetricCosineKNNOptimizer, 40, dict()),
-        (P3alphaOptimizer, 30, dict(alpha=1)),
-        (RP3betaOptimizer, 40, dict(alpha=1)),
-        (IALSOptimizer, 40, dict()),
-        (DenseSLIMOptimizer, 20, dict()),
-        (
-            MultVAEOptimizer,
-            1,
-            dict(
-                dim_z=200, enc_hidden_dims=600, kl_anneal_goal=0.2
-            ),  # nothing to tune, use the parameters used in the paper.
-        ),
-        (SLIMOptimizer, 40, dict()),  # Note: this is a heavy one.
+        # (CosineKNNOptimizer, 40, dict()),
+        # (AsymmetricCosineKNNOptimizer, 40, dict()),
+        # (P3alphaOptimizer, 30, dict(alpha=1)),
+        # (RP3betaOptimizer, 40, dict(alpha=1)),
+        # (DenseSLIMOptimizer, 20, dict()),
+        # (
+        #    MultVAEOptimizer,
+        #    1,
+        #    dict(
+        #        dim_z=200, enc_hidden_dims=600, kl_anneal_goal=0.2
+        #    ),  # nothing to tune, use the parameters used in the paper.
+        # ),
+        # (SLIMOptimizer, 40, dict()),  # Note: this is a heavy one.
     ]
     for optimizer_class, n_trials, config in test_configs:
         recommender_name = optimizer_class.recommender_class.__name__
@@ -87,7 +75,9 @@ if __name__ == "__main__":
             valid_evaluator,
             fixed_params=config,
         )
-        (best_param, validation_result_df) = optimizer.optimize(n_trials=n_trials)
+        (best_param, validation_result_df) = optimizer.optimize(
+            n_trials=n_trials, random_seed=0
+        )
         validation_result_df["recommender_name"] = recommender_name
         validation_results.append(validation_result_df)
         pd.concat(validation_results).to_csv(f"validation_scores.csv")
@@ -100,3 +90,29 @@ if __name__ == "__main__":
         )
         with open("test_results.json", "w") as ofs:
             json.dump(test_results, ofs, indent=2)
+
+    # Tuning following the strategy of
+    # "Revisiting the Performance of iALS on Item Recommendation Benchmarks"
+    # https://arxiv.org/abs/2110.14037
+    ials_optimizer = IALSOptimizer(
+        data_train.X_all,
+        valid_evaluator,
+    )
+    (
+        best_param_ials,
+        validation_result_df_ials,
+    ) = ials_optimizer.optimize_doubling_dimension(
+        initial_dimension=128, maximal_dimension=1024, random_seed=0
+    )
+    validation_result_df_ials["recommender_name"] = "IALSRecommender"
+    validation_results.append(validation_result_df_ials)
+    pd.concat(validation_results).to_csv(f"validation_scores.csv")
+    test_recommender_ials = IALSRecommender(X_train_val_all, **best_param_ials)
+    test_recommender_ials.learn()
+    test_scores_ials = test_evaluator.get_scores(test_recommender, [20, 50, 100])
+
+    test_results.append(
+        dict(name="IALSRecommender", best_param=best_param_ials, **test_scores_ials)
+    )
+    with open("test_results.json", "w") as ofs:
+        json.dump(test_results, ofs, indent=2)

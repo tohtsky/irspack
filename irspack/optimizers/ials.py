@@ -60,7 +60,7 @@ class IALSOptimizer(BaseOptimizerWithEarlyStopping):
         storage: Optional[optuna.storages.RDBStorage] = None,
         study_name_prefix: Optional[str] = None,
         n_trials_initial: int = 40,
-        n_trials_following: int = 10,
+        n_trials_following: int = 20,
         n_startup_trials_initial: int = 10,
         n_startup_trials_following: int = 5,
         neighborhood_scale: float = 3.0,
