@@ -6,7 +6,7 @@ from logging import Logger
 from multiprocessing import Pipe as mp_pipe
 from multiprocessing import Process
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type
 from uuid import uuid1
 
 import numpy as np
@@ -37,7 +37,7 @@ def search_one(
     X: InteractionMatrix,
     evaluator: Evaluator,
     optimizer_names: List[str],
-    suggest_overwrites: Dict[str, List[Suggestion]],
+    suggest_overwrites: Dict[str, Sequence[Suggestion]],
     db_url: str,
     study_name: str,
     random_seed: int,
@@ -72,7 +72,7 @@ class TaskBackend(ABC):
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
-        suggest_overwrites: Dict[str, List[Suggestion]],
+        suggest_overwrites: Dict[str, Sequence[Suggestion]],
         db_url: str,
         study_name: str,
         random_seed: int,
@@ -111,7 +111,7 @@ class MultiProcessingBackend(TaskBackend):
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
-        suggest_overwrites: Dict[str, List[Suggestion]],
+        suggest_overwrites: Dict[str, Sequence[Suggestion]],
         db_url: str,
         study_name: str,
         random_seed: int,
@@ -156,7 +156,7 @@ class SameThreadBackend(TaskBackend):
         X: InteractionMatrix,
         evaluator: Evaluator,
         optimizer_names: List[str],
-        suggest_overwrites: Dict[str, List[Suggestion]],
+        suggest_overwrites: Dict[str, Sequence[Suggestion]],
         db_url: str,
         study_name: str,
         random_seed: int,
@@ -275,7 +275,7 @@ def autopilot(
     if storage is not None and study_name is None:
         raise ValueError('"study_name" must be specified if "storage" is given.')
     RNS = np.random.RandomState(random_seed)
-    suggest_overwrites: Dict[str, List[Suggestion]] = {}
+    suggest_overwrites: Dict[str, Sequence[Suggestion]] = {}
     optimizer_names: List[str] = []
     for rec_name in algorithms:
         optimizer_class_name = rec_name + "Optimizer"
