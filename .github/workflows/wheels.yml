@@ -70,7 +70,7 @@ jobs:
           - os: ubuntu-20.04
             name: manylinux2014
             cibw:
-              build: "cp38* cp39* cp310"
+              build: "cp38* cp39* cp310*"
               skip: "*musllinux*"
               manylinux_image: manylinux2014
               env: CFLAGS='-march=core-avx-i'
