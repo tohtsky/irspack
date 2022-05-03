@@ -19,9 +19,9 @@ jobs:
       - uses: actions/setup-python@v2
         name: Install Python
         with:
-          python-version: '3.7'
+          python-version: "3.7"
       - name: Build sdist
-        run: python setup.py sdist
+        run: pip install pybind11 setuptools_scm && python setup.py sdist
       - uses: actions/upload-artifact@v2
         with:
           path: dist/*.tar.gz
@@ -56,7 +56,7 @@ jobs:
             cibw:
               arch: universal2
               build: "cp39* cp310*"
-              env: ''
+              env: ""
 
           - os: ubuntu-20.04
             name: manylinux1
@@ -129,7 +129,6 @@ jobs:
         run: python -m pip install cibuildwheel=="${{env.cibuildwheel_version}}"
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
-
 
       - uses: actions/upload-artifact@v2
         with:
