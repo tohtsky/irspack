@@ -73,34 +73,34 @@ def rowwise_train_test_split(
 
 def df_to_sparse(
     df: pd.DataFrame,
-    user_colname: str,
-    item_colname: str,
+    user_column: str,
+    item_column: str,
     user_ids: Optional[Union[List[Any], np.ndarray]] = None,
     item_ids: Optional[Union[List[Any], np.ndarray]] = None,
-    rating_colname: Optional[str] = None,
+    rating_column: Optional[str] = None,
 ) -> Tuple[sps.csr_matrix, np.ndarray, np.ndarray]:
     r"""Convert pandas dataframe into sparse matrix.
 
     Args:
         df:
             The dataframe to be converted into a sparse matrix.
-        user_colname:
+        user_column:
             The column name for users.
-        item_colname:
+        item_column:
             The column name for items.
         user_ids:
             If not `None`, the resulting matrix's rows correspond exactly to this list.
-            In this case, rows where `df[user_colname]` is not in `user_ids` will be dropped.
+            In this case, rows where `df[user_column]` is not in `user_ids` will be dropped.
         item_ids:
             If not `None`, the resulting matrix's columns correspond exactly to this list.
-            In this case, rows where `df[item_colname]` is not in `item_ids` will be dropped.
-        rating_colname:
+            In this case, rows where `df[item_column]` is not in `item_ids` will be dropped.
+        rating_column:
             If not `None`, the non-zero elements of the resulting matrix will correspond to the values of this column.
     Raises:
         RuntimeError:
-            If `user_ids` is not `None` and `df[user_colname]` contains values not in `user_ids`.
+            If `user_ids` is not `None` and `df[user_column]` contains values not in `user_ids`.
         RuntimeError:
-            If `item_ids` is not `None` and `df[item_colname]` contains values not in `item_ids`.
+            If `item_ids` is not `None` and `df[item_column]` contains values not in `item_ids`.
 
     Returns:
         - The resulting sparse matrix.
@@ -108,21 +108,21 @@ def df_to_sparse(
         - item ids corresponding to the columns in the matrix.
     """
     if user_ids is not None:
-        df = df[df[user_colname].isin(user_ids)]
+        df = df[df[user_column].isin(user_ids)]
     if item_ids is not None:
-        df = df[df[item_colname].isin(item_ids)]
+        df = df[df[item_column].isin(item_ids)]
 
-    user_codes = pd.Categorical(df[user_colname], categories=user_ids)
-    item_codes = pd.Categorical(df[item_colname], categories=item_ids)
+    user_codes = pd.Categorical(df[user_column], categories=user_ids)
+    item_codes = pd.Categorical(df[item_column], categories=item_ids)
 
     row = user_codes.codes
     unique_user_ids = user_codes.categories
     col = item_codes.codes
     unique_item_ids = item_codes.categories
-    if rating_colname is None:
+    if rating_column is None:
         data = np.ones(df.shape[0])
     else:
-        data = np.asfarray(df[rating_colname].values)
+        data = np.asfarray(df[rating_column].values)
     return (
         sps.csr_matrix(
             (data, (row, col)), shape=(len(unique_user_ids), len(unique_item_ids))

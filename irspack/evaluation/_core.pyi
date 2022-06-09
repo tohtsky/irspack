@@ -9,7 +9,7 @@ import scipy.sparse
 
 _Shape = typing.Tuple[int, ...]
 
-__all__ = ["EvaluatorCore", "Metrics"]
+__all__ = ["EvaluatorCore", "Metrics", "evaluate_list_vs_list"]
 
 class EvaluatorCore:
     def __getstate__(self) -> tuple: ...
@@ -43,4 +43,12 @@ class Metrics:
     def __init__(self, arg0: int) -> None: ...
     def as_dict(self) -> typing.Dict[str, float]: ...
     def merge(self, arg0: Metrics) -> None: ...
+    pass
+
+def evaluate_list_vs_list(
+    recomemndations: typing.List[typing.List[int]],
+    grount_truths: typing.List[typing.List[int]],
+    n_items: int,
+    n_threads: int,
+) -> Metrics:
     pass
