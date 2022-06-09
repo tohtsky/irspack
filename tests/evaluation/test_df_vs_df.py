@@ -50,7 +50,6 @@ def test_matching() -> None:
     assert recommendation_df.merge(X_train_as_df).shape[0] == 0
     evaluator = Evaluator(X_test, cutoff=cutoff, n_threads=1)
     score_using_evaluator = evaluator.get_score(rec)
-    print("===== df to df =====")
     score_using_df_vs_df = evaluate_recommendation_df(
         recommendation_df, X_test_as_df, user_column, item_column, n_threads=1
     )

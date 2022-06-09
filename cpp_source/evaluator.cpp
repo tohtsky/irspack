@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <future>
 #include <iostream>
+#include <iterator>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -94,9 +95,10 @@ struct Metrics {
 
   void increment_total_user() { this->total_user++; }
 
-  void update(size_t n_gt, const vector<size_t> &score_and_index,
+  void update(const vector<size_t> &score_and_index,
               const std::unordered_set<size_t> &gt_indices,
               bool recall_with_cutoff) {
+    size_t n_gt = gt_indices.size();
     size_t n_recommendable_items = score_and_index.size();
     this->valid_user += 1;
     double dcg = 0;
@@ -183,15 +185,36 @@ struct EvaluatorCore {
     vector<std::future<void>> workers;
     for (size_t th = 0; th < n_threads; th++) {
       workers.emplace_back(std::async([this, &cursor, n_rows]() {
+        std::vector<size_t> indices(this->X_.cols());
         while (true) {
           size_t current = cursor.fetch_add(1);
           if (current >= n_rows) {
             break;
           }
           auto &target = this->X_as_set[current];
-          for (SparseMatrix::InnerIterator iter(this->X_, current); iter;
-               ++iter) {
-            target.insert(iter.col());
+          target.clear();
+          if (this->recommendable_items.empty()) {
+            for (SparseMatrix::InnerIterator iter(this->X_, current); iter;
+                 ++iter) {
+              target.insert(iter.col());
+            }
+          } else {
+            indices.clear();
+            for (SparseMatrix::InnerIterator iter(this->X_, current); iter;
+                 ++iter) {
+              indices.push_back(iter.col());
+            }
+            if (this->recommendable_items.size() == 1) {
+              std::set_intersection(indices.begin(), indices.end(),
+                                    this->recommendable_items[0].begin(),
+                                    this->recommendable_items[0].end(),
+                                    std::inserter(target, target.begin()));
+            } else {
+              std::set_intersection(indices.begin(), indices.end(),
+                                    this->recommendable_items[current].begin(),
+                                    this->recommendable_items[current].end(),
+                                    std::inserter(target, target.begin()));
+            }
           }
         }
       }));
@@ -262,36 +285,31 @@ private:
       metrics_local.increment_total_user();
       score_and_index.clear();
       recommendation_index.clear();
+      if (gt_indices.empty()) {
+        continue;
+      }
 
-      size_t n_gt = 0;
       const auto n_items_signed = static_cast<StorageIndex>(n_items);
       if (this->recommendable_items.empty()) {
         auto score_loc = buffer;
         for (StorageIndex _ = 0; _ < n_items_signed; _++) {
           score_and_index.emplace_back(-*(score_loc++), _);
         }
-        n_gt = gt_indices.size();
       } else if (this->recommendable_items.size() == 1u) {
         const auto &rec_items_global = recommendable_items[0];
         for (auto i : rec_items_global) {
           score_and_index.emplace_back(-buffer[i], i);
-          if (gt_indices.find(i) != gt_indices.cend()) {
-            n_gt++;
-          }
         }
         n_recommendable_items = std::min(cutoff, recommendable_items[0].size());
       } else {
         const auto &item_local = this->recommendable_items[u_orig];
         for (auto i : item_local) {
           score_and_index.emplace_back(-buffer[i], i);
-          if (gt_indices.find(i) != gt_indices.cend()) {
-            n_gt++;
-          }
         }
         n_recommendable_items = std::min(cutoff, item_local.size());
       }
 
-      if ((n_gt == 0) || (n_recommendable_items == 0)) {
+      if (n_recommendable_items == 0) {
         continue;
       }
 
@@ -305,7 +323,7 @@ private:
         if (cnt >= n_recommendable_items)
           break;
       }
-      metrics_local.update(n_gt, recommendation_index, gt_indices,
+      metrics_local.update(recommendation_index, gt_indices,
                            recall_with_cutoff);
     }
     return metrics_local;
@@ -364,8 +382,7 @@ Metrics evaluate_list_vs_list(const vector<vector<size_t>> &recommendation,
               gt_as_set.insert(gt_index);
             }
             metrics_local.increment_total_user();
-            metrics_local.update(gt_as_set.size(), row_recommendations,
-                                 gt_as_set, false);
+            metrics_local.update(row_recommendations, gt_as_set, false);
           }
           return metrics_local;
         }));
