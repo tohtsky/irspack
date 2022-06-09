@@ -5,7 +5,7 @@ import pandas as pd
 from scipy import sparse as sps
 
 from irspack.dataset.movielens import MovieLens1MDataManager
-from irspack.evaluator import EvaluatorWithColdUser
+from irspack.evaluation import EvaluatorWithColdUser
 from irspack.optimizers import (  # SLIMOptimizer,; MultVAEOptimizer,
     AsymmetricCosineKNNOptimizer,
     BaseOptimizer,

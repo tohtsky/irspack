@@ -17,7 +17,7 @@ from optuna.storages import RDBStorage
 from optuna.trial import TrialState
 
 from irspack.definitions import InteractionMatrix
-from irspack.evaluator import Evaluator
+from irspack.evaluation import Evaluator
 from irspack.optimizers.base_optimizer import (
     LowMemoryError,
     get_optimizer_class,

@@ -17,7 +17,7 @@ from typing import (
 import optuna
 import pandas as pd
 
-from irspack.evaluator import Evaluator
+from irspack.evaluation import Evaluator
 from irspack.parameter_tuning import (
     Suggestion,
     is_valid_param_name,

@@ -4,7 +4,7 @@
 API References
 ==============
 
-.. currentmodule:: irspack.evaluator
+.. currentmodule:: irspack.evaluation
 
 Evaluators
 ----------

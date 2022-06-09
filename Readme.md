@@ -92,7 +92,7 @@ We have to split the dataset to train and validation sets
 
 ```Python
 from irspack.split import rowwise_train_test_split
-from irspack.evaluator import Evaluator
+from irspack.evaluation import Evaluator
 
 # Random split
 X_train, X_val = rowwise_train_test_split(

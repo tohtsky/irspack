@@ -6,7 +6,7 @@ import optuna
 import pandas as pd
 
 from irspack.definitions import InteractionMatrix
-from irspack.evaluator import Evaluator
+from irspack.evaluation import Evaluator
 from irspack.parameter_tuning import IntegerSuggestion, LogUniformSuggestion, Suggestion
 from irspack.recommenders.ials import IALSRecommender
 

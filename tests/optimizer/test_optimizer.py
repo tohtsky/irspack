@@ -4,7 +4,7 @@ import scipy.sparse as sps
 
 from irspack.dataset.movielens import MovieLens100KDataManager
 from irspack.definitions import DenseScoreArray, UserIndexArray
-from irspack.evaluator import Evaluator
+from irspack.evaluation import Evaluator
 from irspack.optimizers import BaseOptimizer
 from irspack.parameter_tuning import (
     CategoricalSuggestion,

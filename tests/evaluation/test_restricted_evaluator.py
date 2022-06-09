@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 
-from irspack.evaluator import Evaluator
+from irspack.evaluation import Evaluator
 from irspack.recommenders.base import BaseRecommender
 
 

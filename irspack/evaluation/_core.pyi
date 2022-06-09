@@ -2,7 +2,7 @@ m: int
 n: int
 from numpy import float32
 
-import irspack.evaluator._core
+import irspack.evaluation._core
 import typing
 import numpy
 import scipy.sparse

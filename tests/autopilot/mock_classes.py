@@ -14,7 +14,7 @@ from irspack import (
     TargetMetric,
     UserIndexArray,
 )
-from irspack.evaluator.evaluator import Evaluator
+from irspack.evaluation.evaluator import Evaluator
 from irspack.optimizers.base_optimizer import BaseOptimizerWithEarlyStopping
 from irspack.parameter_tuning import IntegerSuggestion, LogUniformSuggestion, Suggestion
 from irspack.recommenders.base_earlystop import (
