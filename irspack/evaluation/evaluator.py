@@ -7,7 +7,7 @@ import numpy as np
 from scipy import sparse as sps
 
 from irspack.definitions import DenseScoreArray, InteractionMatrix
-from irspack.evaluator._core import EvaluatorCore, Metrics
+from irspack.evaluation._core import EvaluatorCore, Metrics
 from irspack.utils.threading import get_n_threads
 
 if TYPE_CHECKING:

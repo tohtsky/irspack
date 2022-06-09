@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from scipy import sparse as sps
 
 if TYPE_CHECKING:
-    from .. import evaluator
+    from .. import evaluation
 
 from ..definitions import (
     DenseMatrix,
@@ -113,7 +113,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         raise NotImplementedError("_learn must be implemented.")
 
     def learn_with_optimizer(
-        self, evaluator: Optional["evaluator.Evaluator"], trial: Optional[Trial]
+        self, evaluator: Optional["evaluation.Evaluator"], trial: Optional[Trial]
     ) -> None:
         """Learning procedures with early stopping and pruning.
 

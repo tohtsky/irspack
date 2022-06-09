@@ -55,7 +55,7 @@ class get_eigen_include(object):
 
 
 module_name_and_sources: List[Tuple[str, List[str]]] = [
-    ("irspack.evaluator._core", ["cpp_source/evaluator.cpp"]),
+    ("irspack.evaluation._core", ["cpp_source/evaluator.cpp"]),
     ("irspack.recommenders._ials", ["cpp_source/als/wrapper.cpp"]),
     ("irspack.recommenders._knn", ["cpp_source/knn/wrapper.cpp"]),
     ("irspack.utils._util_cpp", ["cpp_source/util.cpp"]),

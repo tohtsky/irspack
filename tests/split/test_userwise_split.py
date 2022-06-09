@@ -33,7 +33,7 @@ for ceil_ in [True, False]:
 
 
 @pytest.mark.parametrize(
-    "n_val_user, n_test_user, val_user_ratio, test_user_ratio, time_colname, ceil",
+    "n_val_user, n_test_user, val_user_ratio, test_user_ratio, time_column, ceil",
     test_configs_with_time_and_ceil_flg,
 )
 def test_user_level_split(
@@ -41,7 +41,7 @@ def test_user_level_split(
     n_test_user: Optional[int],
     val_user_ratio: float,
     test_user_ratio: float,
-    time_colname: Optional[str],
+    time_column: Optional[str],
     ceil: bool,
 ) -> None:
     n_users_all = len(set(df.userId))
@@ -49,7 +49,7 @@ def test_user_level_split(
         df,
         user_column="userId",
         item_column="movieId",
-        time_column=time_colname,
+        time_column=time_column,
         val_user_ratio=val_user_ratio,
         test_user_ratio=test_user_ratio,
         n_val_user=n_val_user,
@@ -86,7 +86,7 @@ def test_user_level_split(
     test = dataset["test"]
     assert test.n_users == get_n_right_answer(test_user_ratio, n_test_user)
 
-    if time_colname is not None:
+    if time_column is not None:
         for d in [val, test]:
             _df_train = d.df_train().merge(
                 df[["userId", "movieId", "timestamp"]].rename(

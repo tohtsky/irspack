@@ -6,7 +6,7 @@ from fastprogress import progress_bar
 from optuna import Trial, exceptions
 
 from irspack.definitions import InteractionMatrix
-from irspack.evaluator.evaluator import Evaluator
+from irspack.evaluation.evaluator import Evaluator
 from irspack.recommenders.base import BaseRecommender, RecommenderConfig
 
 

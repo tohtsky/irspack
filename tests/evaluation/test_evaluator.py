@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 
-from irspack.evaluator import Evaluator, EvaluatorWithColdUser
+from irspack.evaluation import Evaluator, EvaluatorWithColdUser
 from irspack.recommenders import P3alphaRecommender, TopPopRecommender
 from irspack.recommenders.base import BaseRecommender
 from irspack.split import rowwise_train_test_split

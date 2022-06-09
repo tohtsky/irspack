@@ -121,8 +121,8 @@ class UserTrainTestInteractionPair:
 
 def split_train_test_userwise_random(
     df_: pd.DataFrame,
-    user_colname: str,
-    item_colname: str,
+    user_column: str,
+    item_column: str,
     item_ids: Union[List[Any], np.ndarray],
     heldout_ratio: float,
     n_heldout: Optional[int],
@@ -136,9 +136,9 @@ def split_train_test_userwise_random(
     ----------
     df_:
         user x item interaction matrix.
-    user_colname:
+    user_column:
         The column name for the users.
-    item_colname:
+    item_column:
         The column name for the items.
     item_id_to_iid:
         The mapper from item id to item index. If not supplied, create own mapping from df_.
@@ -162,10 +162,10 @@ def split_train_test_userwise_random(
     """
     X_all, user_ids, _ = df_to_sparse(
         df_,
-        user_colname=user_colname,
-        item_colname=item_colname,
+        user_column=user_column,
+        item_column=item_column,
         item_ids=item_ids,
-        rating_colname=rating_column,
+        rating_column=rating_column,
     )
 
     X_learn, X_predict = rowwise_train_test_split(
@@ -179,39 +179,39 @@ def split_train_test_userwise_random(
 
 def split_train_test_userwise_time(
     df_: pd.DataFrame,
-    user_colname: str,
-    item_colname: str,
-    time_colname: str,
+    user_column: str,
+    item_column: str,
+    time_column: str,
     item_ids: List[Any],
     heldout_ratio: float,
     n_heldout: Optional[int],
     rating_column: Optional[str] = None,
     ceil_n_heldout: bool = False,
 ) -> UserTrainTestInteractionPair:
-    unique_user_ids = np.asarray(list(set(df_[user_colname])))
+    unique_user_ids = np.asarray(list(set(df_[user_column])))
     df_train, df_test = split_last_n_interaction_df(
-        df_[[user_colname, item_colname, time_colname]],
-        user_colname,
-        time_colname,
+        df_[[user_column, item_column, time_column]],
+        user_column,
+        time_column,
         n_heldout=n_heldout,
         heldout_ratio=heldout_ratio,
         ceil_n_heldout=ceil_n_heldout,
     )
     X_train, _, __ = df_to_sparse(
         df_train,
-        user_colname,
-        item_colname,
+        user_column,
+        item_column,
         user_ids=unique_user_ids,
         item_ids=item_ids,
-        rating_colname=rating_column,
+        rating_column=rating_column,
     )
     X_test, _, __ = df_to_sparse(
         df_test,
-        user_colname,
-        item_colname,
+        user_column,
+        item_column,
         user_ids=unique_user_ids,
         item_ids=item_ids,
-        rating_colname=rating_column,
+        rating_column=rating_column,
     )
 
     return UserTrainTestInteractionPair(unique_user_ids, X_train, X_test, item_ids)

@@ -4,7 +4,7 @@ from typing import List, Tuple, Type
 from scipy import sparse as sps
 
 from irspack.dataset.movielens import MovieLens1MDataManager
-from irspack.evaluator import Evaluator
+from irspack.evaluation import Evaluator
 from irspack.optimizers import (  # BPRFMOptimizer, #requires lightFM; MultVAEOptimizer, #requires jax & haiku & optax; SLIMOptimizer,
     AsymmetricCosineKNNOptimizer,
     BaseOptimizer,
