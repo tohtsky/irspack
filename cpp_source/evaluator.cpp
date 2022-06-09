@@ -96,13 +96,14 @@ struct Metrics {
 
   void update(size_t n_gt, const vector<size_t> &score_and_index,
               const std::unordered_set<size_t> &gt_indices,
-              size_t n_recommendable_items, bool recall_with_cutoff) {
-
+              bool recall_with_cutoff) {
+    size_t n_recommendable_items = score_and_index.size();
     this->valid_user += 1;
     double dcg = 0;
     double idcg = std::accumulate(
         dcg_discount.begin(),
         dcg_discount.begin() + std::min(n_gt, n_recommendable_items), 0.);
+
     double average_precision = 0;
 
     size_t cum_hit = 0;
@@ -115,6 +116,7 @@ struct Metrics {
         average_precision += (static_cast<Real>(cum_hit) / (i + 1));
       }
     }
+
     if (cum_hit > 0) {
       this->hit += 1;
     }
@@ -296,11 +298,15 @@ private:
       std::partial_sort(score_and_index.begin(),
                         score_and_index.begin() + n_recommendable_items,
                         score_and_index.end());
+      size_t cnt = 0;
       for (auto &s_and_ind : score_and_index) {
         recommendation_index.push_back(s_and_ind.second);
+        cnt++;
+        if (cnt >= n_recommendable_items)
+          break;
       }
       metrics_local.update(n_gt, recommendation_index, gt_indices,
-                           n_recommendable_items, recall_with_cutoff);
+                           recall_with_cutoff);
     }
     return metrics_local;
   }
@@ -342,23 +348,24 @@ Metrics evaluate_list_vs_list(const vector<vector<size_t>> &recommendation,
         std::launch::async, [&current_index, n_items, n_recommendation_max,
                              n_gt_max, &recommendation, &ground_truth]() {
           const size_t n_users = recommendation.size();
-          Metrics metrics_local(n_recommendation_max);
+          Metrics metrics_local(n_items);
 
-          std::unordered_set<size_t> gt_as_set;
-          gt_as_set.reserve(n_gt_max + 1);
           while (true) {
             size_t current = current_index.fetch_add(1);
             if (current >= n_users) {
               break;
             }
+
             auto &row_recommendations = recommendation.at(current);
             auto &row_ground_truth = ground_truth.at(current);
-            gt_as_set.clear();
+
+            std::unordered_set<size_t> gt_as_set;
             for (auto gt_index : row_ground_truth) {
               gt_as_set.insert(gt_index);
             }
+            metrics_local.increment_total_user();
             metrics_local.update(gt_as_set.size(), row_recommendations,
-                                 gt_as_set, n_items, false);
+                                 gt_as_set, false);
           }
           return metrics_local;
         }));
