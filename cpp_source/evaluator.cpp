@@ -16,13 +16,32 @@
 #include "argcheck.hpp"
 
 namespace irspack {
-
+namespace evaluation {
+using Real = double;
 using CountVector = Eigen::Matrix<std::int64_t, Eigen::Dynamic, 1>;
+using SparseMatrix = Eigen::SparseMatrix<Real, Eigen::RowMajor>;
+using StorageIndex = typename SparseMatrix::StorageIndex;
+using std::vector;
+
+template <typename ScoreFloatType>
+using DenseMatrix = Eigen::Matrix<ScoreFloatType, Eigen::Dynamic,
+                                  Eigen::Dynamic, Eigen::RowMajor>;
+template <typename ScoreFloatType>
+using ScoreAndIndex = vector<std::pair<ScoreFloatType, StorageIndex>>;
+vector<double> prepare_dcg_discount(size_t n_items) {
+  vector<double> result(n_items);
+  for (size_t i = 0; i < n_items; i++) {
+    result[i] = 1 / std::log2(2 + i);
+  }
+  return result;
+}
 struct Metrics {
   // This isn't necessary, but MSVC complains Metric is not default
   // constructible.
   inline Metrics() : Metrics(0) {}
-  inline Metrics(size_t n_item) : n_item(n_item), item_cnt(n_item) {
+  inline Metrics(size_t n_item)
+      : n_item(n_item), item_cnt(n_item),
+        dcg_discount(prepare_dcg_discount(n_item)) {
     item_cnt.array() = 0;
   }
 
@@ -73,6 +92,44 @@ struct Metrics {
     return result;
   }
 
+  void increment_total_user() { this->total_user++; }
+
+  void update(size_t n_gt, const vector<size_t> &score_and_index,
+              const std::unordered_set<size_t> &gt_indices,
+              size_t n_recommendable_items, bool recall_with_cutoff) {
+
+    this->valid_user += 1;
+    double dcg = 0;
+    double idcg = std::accumulate(
+        dcg_discount.begin(),
+        dcg_discount.begin() + std::min(n_gt, n_recommendable_items), 0.);
+    double average_precision = 0;
+
+    size_t cum_hit = 0;
+    for (size_t i = 0; i < n_recommendable_items; i++) {
+      auto rec_index = score_and_index[i];
+      this->item_cnt(rec_index) += 1;
+      if (gt_indices.find(rec_index) != gt_indices.cend()) {
+        dcg += dcg_discount[i];
+        cum_hit++;
+        average_precision += (static_cast<Real>(cum_hit) / (i + 1));
+      }
+    }
+    if (cum_hit > 0) {
+      this->hit += 1;
+    }
+    this->precision += cum_hit / static_cast<double>(n_recommendable_items);
+    this->recall +=
+        cum_hit /
+        static_cast<double>(
+            recall_with_cutoff
+                ? (n_gt > n_recommendable_items ? n_recommendable_items : n_gt)
+                : n_gt);
+    this->ndcg += (dcg / idcg);
+    this->map += average_precision / n_gt;
+  }
+
+private:
   size_t valid_user = 0;
   size_t total_user = 0;
   double hit = 0;
@@ -82,18 +139,13 @@ struct Metrics {
   double map = 0;
   size_t n_item;
   CountVector item_cnt;
+  const vector<double> dcg_discount;
 };
 
 struct EvaluatorCore {
-  using Real = double;
-  using SparseMatrix = Eigen::SparseMatrix<Real, Eigen::RowMajor>;
-
-  template <typename ScoreFloatType>
-  using DenseMatrix = Eigen::Matrix<ScoreFloatType, Eigen::Dynamic,
-                                    Eigen::Dynamic, Eigen::RowMajor>;
 
   EvaluatorCore(const SparseMatrix &X,
-                const std::vector<std::vector<size_t>> &recommendable_items)
+                const vector<vector<size_t>> &recommendable_items)
       : X_(X), n_users(X.rows()), n_items(X.cols()),
         recommendable_items(recommendable_items) {
     check_arg(recommendable_items.empty() ||
@@ -123,14 +175,14 @@ struct EvaluatorCore {
       return;
     }
 
-    const int64_t n_rows = this->X_.rows();
+    const size_t n_rows = this->X_.rows();
     this->X_as_set.resize(this->X_.rows());
-    std::atomic<std::int64_t> cursor(0);
-    std::vector<std::future<void>> workers;
+    std::atomic<std::size_t> cursor(0);
+    vector<std::future<void>> workers;
     for (size_t th = 0; th < n_threads; th++) {
       workers.emplace_back(std::async([this, &cursor, n_rows]() {
         while (true) {
-          int64_t current = cursor.fetch_add(1);
+          size_t current = cursor.fetch_add(1);
           if (current >= n_rows) {
             break;
           }
@@ -157,13 +209,13 @@ struct EvaluatorCore {
               "offset + scores.shape[0] exceeds n_users");
     check_arg(cutoff > 0, "cutoff must be strictly greather than 0.");
     check_arg(cutoff <= n_items, "cutoff must not exeeed the number of items.");
-    std::atomic<int64_t> current_index(0);
+    std::atomic<size_t> current_index(0);
 
-    std::vector<std::future<Metrics>> workers;
+    vector<std::future<Metrics>> workers;
     for (size_t th = 0; th < n_threads; th++) {
-      workers.emplace_back(std::async(
-          std::launch::async, [this, &current_index, &scores, cutoff,
-                               offset, recall_with_cutoff]() {
+      workers.emplace_back(
+          std::async(std::launch::async, [this, &current_index, &scores, cutoff,
+                                          offset, recall_with_cutoff]() {
             return this->get_metrics_local(scores, current_index, cutoff,
                                            offset, recall_with_cutoff);
           }));
@@ -175,7 +227,7 @@ struct EvaluatorCore {
   }
 
   inline SparseMatrix get_ground_truth() const { return this->X_; }
-  inline std::vector<std::vector<size_t>> get_recommendable_items() const {
+  inline vector<vector<size_t>> get_recommendable_items() const {
     return this->recommendable_items;
   }
 
@@ -183,33 +235,31 @@ private:
   template <typename ScoreFloatType>
   inline Metrics
   get_metrics_local(const Eigen::Ref<DenseMatrix<ScoreFloatType>> &scores,
-                    std::atomic<int64_t> &current_index, size_t cutoff,
+                    std::atomic<size_t> &current_index, size_t cutoff,
                     size_t offset, bool recall_with_cutoff = false) const {
-    using StorageIndex = typename SparseMatrix::StorageIndex;
 
     Metrics metrics_local(n_items);
 
     const ScoreFloatType *score_begin = scores.data();
-    std::vector<std::pair<ScoreFloatType, StorageIndex>> score_and_index;
+    ScoreAndIndex<ScoreFloatType> score_and_index;
+    vector<size_t> recommendation_index;
     score_and_index.reserve(n_items);
-    std::vector<StorageIndex> intersection(cutoff);
-    std::vector<double> dcg_discount(cutoff);
-    for (size_t i = 0; i < cutoff; i++) {
-      dcg_discount[i] = 1 / std::log2(2 + i);
-    }
-
+    recommendation_index.reserve(n_items);
+    vector<StorageIndex> intersection(cutoff);
     size_t n_recommendable_items = std::min(cutoff, n_items);
+    size_t score_rows = scores.rows();
     while (true) {
       auto u = current_index.fetch_add(1);
-      if (u >= scores.rows()) {
+      if (u >= score_rows) {
         break;
       }
       auto buffer = score_begin + n_items * u;
       int u_orig = u + offset;
 
       const auto &gt_indices = this->X_as_set.at(u_orig);
-      metrics_local.total_user += 1;
+      metrics_local.increment_total_user();
       score_and_index.clear();
+      recommendation_index.clear();
 
       size_t n_gt = 0;
       const auto n_items_signed = static_cast<StorageIndex>(n_items);
@@ -246,36 +296,11 @@ private:
       std::partial_sort(score_and_index.begin(),
                         score_and_index.begin() + n_recommendable_items,
                         score_and_index.end());
-
-      metrics_local.valid_user += 1;
-      double dcg = 0;
-      double idcg = std::accumulate(
-          dcg_discount.begin(),
-          dcg_discount.begin() + std::min(n_gt, n_recommendable_items), 0.);
-      double average_precision = 0;
-
-      size_t cum_hit = 0;
-      for (size_t i = 0; i < n_recommendable_items; i++) {
-        auto rec_index = score_and_index[i].second;
-        metrics_local.item_cnt(rec_index) += 1;
-        if (gt_indices.find(rec_index) == gt_indices.cend()) {
-        } else {
-          dcg += dcg_discount[i];
-          cum_hit++;
-          average_precision += (static_cast<Real>(cum_hit) / (i + 1));
-        }
+      for (auto &s_and_ind : score_and_index) {
+        recommendation_index.push_back(s_and_ind.second);
       }
-      if (cum_hit > 0) {
-        metrics_local.hit += 1;
-      }
-      metrics_local.precision +=
-          cum_hit / static_cast<double>(n_recommendable_items);
-      metrics_local.recall +=
-          cum_hit / static_cast<double>(recall_with_cutoff
-                                            ? (n_gt > cutoff ? cutoff : n_gt)
-                                            : n_gt);
-      metrics_local.ndcg += (dcg / idcg);
-      metrics_local.map += average_precision / n_gt;
+      metrics_local.update(n_gt, recommendation_index, gt_indices,
+                           n_recommendable_items, recall_with_cutoff);
     }
     return metrics_local;
   }
@@ -283,13 +308,75 @@ private:
   SparseMatrix X_;
   const size_t n_users;
   const size_t n_items;
-  std::vector<std::vector<size_t>> recommendable_items;
-  std::vector<std::unordered_set<int64_t>> X_as_set;
-}; // namespace irspack
+  vector<vector<size_t>> recommendable_items;
+  vector<std::unordered_set<size_t>> X_as_set;
+};
+
+Metrics evaluate_list_vs_list(const vector<vector<size_t>> &recommendation,
+                              const vector<vector<size_t>> &ground_truth,
+                              size_t n_items, size_t n_threads) {
+  check_arg(recommendation.size() == ground_truth.size(),
+            "recommendation array and ground_truth array has different size.");
+  size_t n_recommendation_max = 0;
+  for (auto &rec : recommendation) {
+    n_recommendation_max = std::max(rec.size(), n_recommendation_max);
+    for (auto &rec_index : rec) {
+      check_arg(rec_index < n_items,
+                "found recommendation index larger than n_items.");
+    }
+  }
+  size_t n_gt_max = 0;
+  for (auto &gt : ground_truth) {
+    n_gt_max = std::max(gt.size(), n_gt_max);
+    for (auto &gt_index : gt) {
+      check_arg(gt_index < n_items,
+                "found ground truth index larger than n_items.");
+    }
+  }
+  Metrics overall(n_items);
+
+  vector<std::future<Metrics>> workers;
+  std::atomic<size_t> current_index(0);
+  for (size_t th = 0; th < n_threads; th++) {
+    workers.emplace_back(std::async(
+        std::launch::async, [&current_index, n_items, n_recommendation_max,
+                             n_gt_max, &recommendation, &ground_truth]() {
+          const size_t n_users = recommendation.size();
+          Metrics metrics_local(n_recommendation_max);
+
+          std::unordered_set<size_t> gt_as_set;
+          gt_as_set.reserve(n_gt_max + 1);
+          while (true) {
+            size_t current = current_index.fetch_add(1);
+            if (current >= n_users) {
+              break;
+            }
+            auto &row_recommendations = recommendation.at(current);
+            auto &row_ground_truth = ground_truth.at(current);
+            gt_as_set.clear();
+            for (auto gt_index : row_ground_truth) {
+              gt_as_set.insert(gt_index);
+            }
+            metrics_local.update(gt_as_set.size(), row_recommendations,
+                                 gt_as_set, n_items, false);
+          }
+          return metrics_local;
+        }));
+  }
+  for (auto &f : workers) {
+    overall.merge(f.get());
+  }
+  return overall;
+}
+
+} // namespace evaluation
+
 } // namespace irspack
 
 namespace py = pybind11;
 using namespace irspack;
+using namespace irspack::evaluation;
+using std::vector;
 
 PYBIND11_MODULE(_core, m) {
   py::class_<Metrics>(m, "Metrics")
@@ -299,19 +386,18 @@ PYBIND11_MODULE(_core, m) {
       .def("as_dict", &Metrics::as_dict);
 
   py::class_<EvaluatorCore>(m, "EvaluatorCore")
-      .def(py::init<const typename EvaluatorCore::SparseMatrix &,
-                    const std::vector<std::vector<size_t>> &>(),
+      .def(py::init<const SparseMatrix &, const vector<vector<size_t>> &>(),
            py::arg("grount_truth"), py::arg("recommendable"))
       .def("get_metrics_f64",
            static_cast<Metrics (EvaluatorCore::*)(
-               const Eigen::Ref<EvaluatorCore::DenseMatrix<double>> &, size_t,
-               size_t, size_t, bool)>(&EvaluatorCore::get_metrics<double>),
+               const Eigen::Ref<DenseMatrix<double>> &, size_t, size_t, size_t,
+               bool)>(&EvaluatorCore::get_metrics<double>),
            py::arg("score_array"), py::arg("cutoff"), py::arg("offset"),
            py::arg("n_threads"), py::arg("recall_with_cutoff") = false)
       .def("get_metrics_f32",
            static_cast<Metrics (EvaluatorCore::*)(
-               const Eigen::Ref<EvaluatorCore::DenseMatrix<float>> &, size_t,
-               size_t, size_t, bool)>(&EvaluatorCore::get_metrics<float>),
+               const Eigen::Ref<DenseMatrix<float>> &, size_t, size_t, size_t,
+               bool)>(&EvaluatorCore::get_metrics<float>),
            py::arg("score_array"), py::arg("cutoff"), py::arg("offset"),
            py::arg("n_threads"), py::arg("recall_with_cutoff") = false)
       .def("get_ground_truth", &EvaluatorCore::get_ground_truth)
@@ -324,9 +410,11 @@ PYBIND11_MODULE(_core, m) {
           [](py::tuple t) {
             if (t.size() != 2)
               throw std::runtime_error("invalid state");
-            return EvaluatorCore(t[0].cast<EvaluatorCore::SparseMatrix>(),
-                                 t[1].cast<std::vector<std::vector<size_t>>>());
+            return EvaluatorCore(t[0].cast<SparseMatrix>(),
+                                 t[1].cast<vector<vector<size_t>>>());
           }));
 
-  ;
+  m.def("evaluate_list_vs_list", &evaluate_list_vs_list,
+        py::arg("recomemndations"), py::arg("grount_truths"),
+        py::arg("n_items"), py::arg("n_threads"));
 }
