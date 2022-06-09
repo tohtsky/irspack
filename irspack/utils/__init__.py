@@ -90,8 +90,10 @@ def df_to_sparse(
             The column name for items.
         user_ids:
             If not `None`, the resulting matrix's rows correspond exactly to this list.
+            In this case, rows where `df[user_colname]` is not in `user_ids` will be dropped.
         item_ids:
             If not `None`, the resulting matrix's columns correspond exactly to this list.
+            In this case, rows where `df[item_colname]` is not in `item_ids` will be dropped.
         rating_colname:
             If not `None`, the non-zero elements of the resulting matrix will correspond to the values of this column.
     Raises:
@@ -105,12 +107,14 @@ def df_to_sparse(
         - user ids corresponding to the rows in the matrix.
         - item ids corresponding to the columns in the matrix.
     """
+    if user_ids is not None:
+        df = df[df[user_colname].isin(user_ids)]
+    if item_ids is not None:
+        df = df[df[item_colname].isin(item_ids)]
+
     user_codes = pd.Categorical(df[user_colname], categories=user_ids)
     item_codes = pd.Categorical(df[item_colname], categories=item_ids)
-    if np.any(user_codes.codes < 0):
-        raise RuntimeError("Found unknown user id.")
-    if np.any(item_codes.codes < 0):
-        raise RuntimeError("Found unknown item id.")
+
     row = user_codes.codes
     unique_user_ids = user_codes.categories
     col = item_codes.codes
