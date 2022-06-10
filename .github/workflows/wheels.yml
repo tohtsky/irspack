@@ -1,11 +1,6 @@
 name: Build
 on:
   push:
-    branches:
-      - main
-  release:
-    types:
-      - created
 env:
   cibuildwheel_version: "2.2.2"
 jobs:

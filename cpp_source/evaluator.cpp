@@ -8,6 +8,7 @@
 #include <iterator>
 #include <string>
 #include <unordered_set>
+#include <valarray>
 #include <vector>
 
 #include <pybind11/eigen.h>
@@ -45,6 +46,11 @@ struct Metrics {
         dcg_discount(prepare_dcg_discount(n_item)) {
     item_cnt.array() = 0;
   }
+  inline Metrics(const Metrics &other)
+      : valid_user(other.valid_user), total_user(other.total_user),
+        hit(other.hit), recall(other.recall), ndcg(other.ndcg),
+        precision(other.precision), map(other.map), n_item(other.n_item),
+        item_cnt(other.item_cnt), dcg_discount(other.dcg_discount) {}
 
   inline void merge(const Metrics &other) {
     hit += other.hit;
