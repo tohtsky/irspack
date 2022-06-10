@@ -6,8 +6,10 @@
 #include <future>
 #include <iostream>
 #include <iterator>
+#include <stdexcept>
 #include <string>
 #include <unordered_set>
+#include <valarray>
 #include <vector>
 
 #include <pybind11/eigen.h>
@@ -44,6 +46,23 @@ struct Metrics {
       : n_item(n_item), item_cnt(n_item),
         dcg_discount(prepare_dcg_discount(n_item)) {
     item_cnt.array() = 0;
+  }
+  inline Metrics(const Metrics &other)
+      : valid_user(other.valid_user), total_user(other.total_user),
+        hit(other.hit), recall(other.recall), ndcg(other.ndcg),
+        precision(other.precision), map(other.map), n_item(other.n_item),
+        item_cnt(other.item_cnt), dcg_discount(other.dcg_discount) {}
+  inline Metrics &operator=(const Metrics &other) {
+    check_arg(this->n_item != other.n_item, "inconsistent n_item.");
+    this->valid_user = other.valid_user;
+    this->total_user = other.valid_user;
+    this->hit = other.hit;
+    this->recall = other.recall;
+    this->ndcg = other.ndcg;
+    this->precision = other.precision;
+    this->map = other.map;
+    this->item_cnt = other.item_cnt;
+    return *this;
   }
 
   inline void merge(const Metrics &other) {
@@ -141,7 +160,7 @@ private:
   double ndcg = 0;
   double precision = 0;
   double map = 0;
-  size_t n_item;
+  const size_t n_item;
   CountVector item_cnt;
   const vector<double> dcg_discount;
 };
