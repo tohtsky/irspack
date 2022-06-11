@@ -5,7 +5,7 @@ import pandas as pd
 import scipy.sparse as sps
 
 from irspack.definitions import InteractionMatrix, OptionalRandomState
-from irspack.utils.id_mapping import IDMappedRecommender
+from irspack.utils.id_mapping import IDMapper, ItemIDMapper
 from irspack.utils.random import convert_randomstate
 from irspack.utils.threading import get_n_threads
 
@@ -140,7 +140,8 @@ __all__ = [
     "tf_idf_weight",
     "remove_diagonal",
     "get_n_threads",
-    "IDMappedRecommender",
+    "ItemIDMapper",
+    "IDMapper",
     "convert_randomstate",
     "df_to_sparse",
 ]

@@ -7,7 +7,7 @@ from scipy import sparse as sps
 from irspack.evaluation.evaluate_df_to_df import evaluate_recommendation_df
 from irspack.evaluation.evaluator import Evaluator
 from irspack.recommenders.ials import IALSRecommender
-from irspack.utils import IDMappedRecommender, rowwise_train_test_split
+from irspack.utils import IDMapper, rowwise_train_test_split
 
 
 def test_matching() -> None:
@@ -38,10 +38,9 @@ def test_matching() -> None:
     X_test_as_df = _sps_to_df(X_test)
 
     rec = IALSRecommender(X_train, n_components=1, max_epoch=0).learn()
-    score = rec.get_score_remove_seen_block(0, n_users)
-    mrec = IDMappedRecommender(rec, user_ids, item_ids)
+    id_mapper = IDMapper(user_ids, item_ids)
 
-    rec_list = mrec.get_recommendation_for_known_user_batch(user_ids, cutoff=cutoff)
+    rec_list = id_mapper.recommend_for_known_user_batch(rec, user_ids, cutoff=cutoff)
     recommemdation_list = []
     for uid, recommend_per_user in zip(user_ids, rec_list):
         for iid, _ in recommend_per_user:

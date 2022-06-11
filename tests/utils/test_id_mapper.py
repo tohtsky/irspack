@@ -7,7 +7,7 @@ import scipy.sparse as sps
 
 from irspack.definitions import DenseScoreArray, InteractionMatrix
 from irspack.recommenders import BaseRecommender
-from irspack.utils.id_mapping import IDMappedRecommender
+from irspack.utils.id_mapping import IDMapper
 
 
 class MockRecommender(BaseRecommender):
@@ -53,26 +53,24 @@ def test_basic_usecase(dtype: str) -> None:
     rec = MockRecommender(X, score).learn()
 
     with pytest.raises(ValueError):
-        mapped_rec = IDMappedRecommender(rec, user_ids, item_ids + [str(uuid.uuid4())])
+        id_mapper = IDMapper(user_ids, item_ids + [str(uuid.uuid4())])
 
-    mapped_rec = IDMappedRecommender(rec, user_ids, item_ids)
+    id_mapper = IDMapper(user_ids, item_ids)
 
     with pytest.raises(RuntimeError):
-        mapped_rec.get_recommendation_for_known_user_id(str(uuid.uuid4()))
+        id_mapper.recommend_for_known_user_id(rec, str(uuid.uuid4()))
 
     known_user_results_individual = []
     for i, uid in enumerate(user_ids):
         nonzero_items = [item_ids[j] for j in X[i].nonzero()[1]]
-        recommended = mapped_rec.get_recommendation_for_known_user_id(
-            uid, cutoff=n_items
-        )
+        recommended = id_mapper.recommend_for_known_user_id(rec, uid, cutoff=n_items)
         check_descending(recommended)
         recommended_ids = {rec[0] for rec in recommended}
         assert len(recommended_ids.intersection(nonzero_items)) == 0
         assert len(recommended_ids.union(nonzero_items)) == n_items
         cutoff = n_items // 2
-        recommendation_with_cutoff = mapped_rec.get_recommendation_for_known_user_id(
-            uid, cutoff=cutoff
+        recommendation_with_cutoff = id_mapper.recommend_for_known_user_id(
+            rec, uid, cutoff=cutoff
         )
         known_user_results_individual.append(recommendation_with_cutoff)
         check_descending(recommendation_with_cutoff)
@@ -88,8 +86,8 @@ def test_basic_usecase(dtype: str) -> None:
             )
         )
 
-        recommended_with_restriction = mapped_rec.get_recommendation_for_known_user_id(
-            uid, cutoff=n_items, forbidden_item_ids=forbbiden_item
+        recommended_with_restriction = id_mapper.recommend_for_known_user_id(
+            rec, uid, cutoff=n_items, forbidden_item_ids=forbbiden_item
         )
         check_descending(recommended_with_restriction)
         for iid, score in recommended_with_restriction:
@@ -102,7 +100,8 @@ def test_basic_usecase(dtype: str) -> None:
             )
         )
         random_allowed_items += [str(uuid.uuid1())]
-        with_allowed_item = mapped_rec.get_recommendation_for_known_user_id(
+        with_allowed_item = id_mapper.recommend_for_known_user_id(
+            rec,
             uid,
             cutoff=n_items,
             allowed_item_ids=random_allowed_items,
@@ -111,7 +110,8 @@ def test_basic_usecase(dtype: str) -> None:
         for id_, _ in with_allowed_item:
             assert id_ in random_allowed_items
 
-        allowed_only_forbidden = mapped_rec.get_recommendation_for_known_user_id(
+        allowed_only_forbidden = id_mapper.recommend_for_known_user_id(
+            rec,
             uid,
             cutoff=n_items,
             forbidden_item_ids=forbbiden_item,
@@ -119,8 +119,8 @@ def test_basic_usecase(dtype: str) -> None:
         )
         assert not allowed_only_forbidden
 
-        recommendations_for_coldstart = mapped_rec.get_recommendation_for_new_user(
-            nonzero_items, cutoff=n_items
+        recommendations_for_coldstart = id_mapper.recommend_for_new_user(
+            rec, nonzero_items, cutoff=n_items
         )
         coldstart_rec_results = {_[0] for _ in recommendations_for_coldstart}
         assert len(coldstart_rec_results.intersection(nonzero_items)) == 0
@@ -128,14 +128,12 @@ def test_basic_usecase(dtype: str) -> None:
 
     if dtype == "float16":
         with pytest.raises(ValueError):
-            known_user_results_batch = (
-                mapped_rec.get_recommendation_for_known_user_batch(
-                    user_ids, cutoff=n_items
-                )
+            known_user_results_batch = id_mapper.recommend_for_known_user_batch(
+                rec, user_ids, cutoff=n_items
             )
         return
-    known_user_results_batch = mapped_rec.get_recommendation_for_known_user_batch(
-        user_ids, cutoff=n_items
+    known_user_results_batch = id_mapper.recommend_for_known_user_batch(
+        rec, user_ids, cutoff=n_items
     )
     assert len(known_user_results_batch) == len(known_user_results_individual)
     for batch_res, indiv_res in zip(
@@ -172,8 +170,8 @@ def test_basic_usecase(dtype: str) -> None:
                 )
             )
         )
-    batch_result_non_masked = mapped_rec.get_recommendation_for_new_user_batch(
-        nonzero_batch, cutoff=n_items, n_threads=1
+    batch_result_non_masked = id_mapper.recommend_for_new_user_batch(
+        rec, nonzero_batch, cutoff=n_items, n_threads=1
     )
 
     assert len(batch_result_non_masked) == n_users
@@ -185,8 +183,8 @@ def test_basic_usecase(dtype: str) -> None:
         assert len(recommended_ids.intersection(nonzero_items)) == 0
         assert len(recommended_ids.union(nonzero_items)) == n_items
 
-    batch_result_non_masked_cutoff_3 = mapped_rec.get_recommendation_for_new_user_batch(
-        nonzero_batch, cutoff=3, n_threads=2
+    batch_result_non_masked_cutoff_3 = id_mapper.recommend_for_new_user_batch(
+        rec, nonzero_batch, cutoff=3, n_threads=2
     )
 
     assert len(batch_result_non_masked_cutoff_3) == n_users
@@ -199,7 +197,8 @@ def test_basic_usecase(dtype: str) -> None:
         for rid in recommended_ids:
             assert rid not in nonzero_items
 
-    batch_result_masked = mapped_rec.get_recommendation_for_new_user_batch(
+    batch_result_masked = id_mapper.recommend_for_new_user_batch(
+        rec,
         nonzero_batch,
         cutoff=n_items,
         forbidden_item_ids=forbidden_items_batch,
@@ -216,7 +215,8 @@ def test_basic_usecase(dtype: str) -> None:
             len(recommended_ids.union(nonzero_items).union(forbidden_items)) == n_items
         )
 
-    batch_result_masked_restricted = mapped_rec.get_recommendation_for_new_user_batch(
+    batch_result_masked_restricted = id_mapper.recommend_for_new_user_batch(
+        rec,
         nonzero_batch,
         cutoff=n_items,
         forbidden_item_ids=forbidden_items_batch,
@@ -248,8 +248,8 @@ def test_basic_usecase(dtype: str) -> None:
     for i, _ in enumerate(user_ids):
         profile = {item_ids[j]: 2.0 for j in X[i].nonzero()[1]}
         nonzero_batch_dict.append(profile)
-    batch_result_dict = mapped_rec.get_recommendation_for_new_user_batch(
-        nonzero_batch_dict, cutoff=n_items, n_threads=1
+    batch_result_dict = id_mapper.recommend_for_new_user_batch(
+        rec, nonzero_batch_dict, cutoff=n_items, n_threads=1
     )
     for i, result in enumerate(batch_result_dict):
         nnz = len(X[i].nonzero()[1])
@@ -258,13 +258,12 @@ def test_basic_usecase(dtype: str) -> None:
             assert score == pytest.approx(1 / softmax_denom)
 
     allowed_items_uniform = [str(x) for x in RNS.choice(item_ids, size=2)]
-    batch_result_masked_uniform_allowed_ids = (
-        mapped_rec.get_recommendation_for_new_user_batch(
-            nonzero_batch,
-            cutoff=n_items,
-            allowed_item_ids=allowed_items_uniform,
-            n_threads=1,
-        )
+    batch_result_masked_uniform_allowed_ids = id_mapper.recommend_for_new_user_batch(
+        rec,
+        nonzero_batch,
+        cutoff=n_items,
+        allowed_item_ids=allowed_items_uniform,
+        n_threads=1,
     )
     cnt = 0
     for x in batch_result_masked_uniform_allowed_ids:
