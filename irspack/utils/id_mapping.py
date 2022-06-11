@@ -70,6 +70,14 @@ class ItemIDMapper(Generic[ItemIdType]):
         if len(self.item_ids) != len(self.item_id_to_index):
             raise ValueError("Duplicates in item_ids.")
 
+    def _check_recommender_n_items(self, rec: "BaseRecommender") -> None:
+        if rec.n_items != len(self.item_ids):
+            raise ValueError("`n_items` of the recommender is inconsistent.")
+
+    def _check_score_shape(self, score: DenseScoreArray) -> None:
+        if score.shape[1] != len(self.item_ids):
+            raise ValueError("`score.shape[1]` inconsistent with `len(self.item_ids)`")
+
     def _item_id_list_to_index_list(self, ids: Iterable[ItemIdType]) -> List[int]:
         return [self.item_id_to_index[id] for id in ids if id in self.item_id_to_index]
 
@@ -111,7 +119,7 @@ class ItemIDMapper(Generic[ItemIdType]):
 
     def recommend_for_new_user(
         self,
-        recommender: BaseRecommender,
+        recommender: "BaseRecommender",
         user_profile: Union[List[ItemIdType], Dict[ItemIdType, float]],
         cutoff: int = 20,
         allowed_item_ids: Optional[List[ItemIdType]] = None,
@@ -136,6 +144,7 @@ class ItemIDMapper(Generic[ItemIdType]):
         Returns:
             A List of tuples consisting of ``(item_id, score)``.
         """
+        self._check_recommender_n_items(recommender)
         data, cols = self._user_profile_to_data_col(user_profile)
         X_input = sps.csr_matrix(
             (data, cols, [0, len(cols)]), shape=(1, len(self.item_ids))
@@ -150,7 +159,7 @@ class ItemIDMapper(Generic[ItemIdType]):
 
     def recommend_for_new_user_batch(
         self,
-        recommender: BaseRecommender,
+        recommender: "BaseRecommender",
         user_profiles: Sequence[Union[List[ItemIdType], Dict[ItemIdType, float]]],
         cutoff: int = 20,
         allowed_item_ids: Optional[List[ItemIdType]] = None,
@@ -189,6 +198,7 @@ class ItemIDMapper(Generic[ItemIdType]):
             A list of list of tuples consisting of ``(item_id, score)``.
             Each internal list corresponds to the recommender's recommendation output.
         """
+        self._check_recommender_n_items(recommender)
         X_input = self._list_of_user_profile_to_matrix(user_profiles)
         score = recommender.get_score_cold_user_remove_seen(X_input)
         return self.score_to_recommended_items_batch(
@@ -207,6 +217,8 @@ class ItemIDMapper(Generic[ItemIdType]):
         allowed_item_ids: Optional[List[ItemIdType]] = None,
         forbidden_item_ids: Optional[List[ItemIdType]] = None,
     ) -> List[Tuple[ItemIdType, float]]:
+        self._check_score_shape(score[None, :])
+
         if allowed_item_ids is not None:
             allowed_item_indices = np.asarray(
                 self._item_id_list_to_index_list(allowed_item_ids), dtype=np.int64
@@ -265,6 +277,7 @@ class ItemIDMapper(Generic[ItemIdType]):
                 Defaults to ``None``.
 
         """
+        self._check_score_shape(score)
 
         if forbidden_item_ids is not None:
             assert len(forbidden_item_ids) == score.shape[0]
@@ -307,15 +320,19 @@ class IDMapper(Generic[UserIdType, ItemIdType], ItemIDMapper[ItemIdType]):
         if len(self.user_ids) != len(self.user_id_to_index):
             raise ValueError("Duplicates in user_ids.")
 
+    def _check_recommender_n_users(self, rec: "BaseRecommender") -> None:
+        if rec.n_users != len(self.user_ids):
+            raise ValueError("")
+
     def recommend_for_known_user_id(
         self,
-        recommender: BaseRecommender,
+        recommender: "BaseRecommender",
         user_id: UserIdType,
         cutoff: int = 20,
         allowed_item_ids: Optional[List[ItemIdType]] = None,
         forbidden_item_ids: Optional[List[ItemIdType]] = None,
     ) -> List[Tuple[ItemIdType, float]]:
-        """Retrieve recommendation result for a known user.
+        r"""Retrieve recommendation result for a known user.
         Args:
             recommender:
                 The recommender for scoring.
@@ -336,6 +353,7 @@ class IDMapper(Generic[UserIdType, ItemIdType], ItemIDMapper[ItemIdType]):
         Returns:
             A List of tuples consisting of ``(item_id, score)``.
         """
+        self._check_recommender_n_users(recommender)
         if user_id not in self.user_ids:
             raise RuntimeError(f"User with user_id {user_id} not found.")
         user_index: UserIndexArray = np.asarray(
@@ -352,7 +370,7 @@ class IDMapper(Generic[UserIdType, ItemIdType], ItemIDMapper[ItemIdType]):
 
     def recommend_for_known_user_batch(
         self,
-        recommender: BaseRecommender,
+        recommender: "BaseRecommender",
         user_ids: List[UserIdType],
         cutoff: int = 20,
         allowed_item_ids: Optional[List[ItemIdType]] = None,
@@ -390,6 +408,8 @@ class IDMapper(Generic[UserIdType, ItemIdType], ItemIDMapper[ItemIdType]):
             A list of list of tuples consisting of ``(item_id, score)``.
             Each internal list corresponds to the recommender's recommendation output.
         """
+        self._check_recommender_n_users(recommender)
+
         user_indexes: UserIndexArray = np.asarray(
             [self.user_id_to_index[user_id] for user_id in user_ids], dtype=np.int64
         )

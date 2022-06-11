@@ -1,5 +1,6 @@
+import random
 import uuid
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pytest
@@ -7,7 +8,7 @@ import scipy.sparse as sps
 
 from irspack.definitions import DenseScoreArray, InteractionMatrix
 from irspack.recommenders import BaseRecommender
-from irspack.utils.id_mapping import IDMapper
+from irspack.utils.id_mapping import IDMapper, ItemIDMapper
 
 
 class MockRecommender(BaseRecommender):
@@ -53,7 +54,12 @@ def test_basic_usecase(dtype: str) -> None:
     rec = MockRecommender(X, score).learn()
 
     with pytest.raises(ValueError):
-        id_mapper = IDMapper(user_ids, item_ids + [str(uuid.uuid4())])
+        id_mapper_extra_item_ids = IDMapper(user_ids, item_ids + [str(uuid.uuid4())])
+        id_mapper_extra_item_ids.recommend_for_known_user_id(rec, user_ids[0])
+
+    with pytest.raises(ValueError):
+        id_mapper_extra_user_ids = IDMapper(user_ids + [str(uuid.uuid4())], item_ids)
+        id_mapper_extra_user_ids.recommend_for_known_user_id(rec, user_ids[0])
 
     id_mapper = IDMapper(user_ids, item_ids)
 
@@ -146,30 +152,10 @@ def test_basic_usecase(dtype: str) -> None:
             assert score_batch == pytest.approx(score_indiv)
 
     nonzero_batch: List[List[str]] = []
-    forbidden_items_batch: List[List[str]] = []
-    allowed_items_batch: List[List[str]] = []
     for i, _ in enumerate(user_ids):
         nonzero_items = [item_ids[j] for j in X[i].nonzero()[1]]
         nonzero_batch.append(nonzero_items)
-        forbidden_items_batch.append(
-            list(
-                set(
-                    RNS.choice(
-                        list(item_id_set.difference(nonzero_items)),
-                        replace=False,
-                        size=(n_items - len(nonzero_items)) // 2,
-                    )
-                )
-            )
-        )
-        allowed_items_batch.append(
-            list(
-                RNS.choice(
-                    list(item_id_set.difference(nonzero_items)),
-                    size=min(n_items - len(nonzero_items), n_items // 3),
-                )
-            )
-        )
+
     batch_result_non_masked = id_mapper.recommend_for_new_user_batch(
         rec, nonzero_batch, cutoff=n_items, n_threads=1
     )
@@ -201,48 +187,15 @@ def test_basic_usecase(dtype: str) -> None:
         rec,
         nonzero_batch,
         cutoff=n_items,
-        forbidden_item_ids=forbidden_items_batch,
         n_threads=1,
     )
     assert len(batch_result_masked) == n_users
-    for recommended_using_batch_masked, uid, nonzero_items, forbidden_items in zip(
-        batch_result_masked, user_ids, nonzero_batch, forbidden_items_batch
+    for recommended_using_batch_masked, uid, nonzero_items in zip(
+        batch_result_masked, user_ids, nonzero_batch
     ):
         check_descending(recommended_using_batch_masked)
         recommended_ids = {rec[0] for rec in recommended_using_batch_masked}
         assert len(recommended_ids.intersection(nonzero_items)) == 0
-        assert (
-            len(recommended_ids.union(nonzero_items).union(forbidden_items)) == n_items
-        )
-
-    batch_result_masked_restricted = id_mapper.recommend_for_new_user_batch(
-        rec,
-        nonzero_batch,
-        cutoff=n_items,
-        forbidden_item_ids=forbidden_items_batch,
-        per_user_allowed_item_ids=allowed_items_batch,
-        n_threads=1,
-    )
-    assert len(batch_result_masked_restricted) == n_users
-    for (
-        recommended_using_batch_masked_restricted,
-        uid,
-        nonzero_items,
-        forbidden_items,
-        allowed_items,
-    ) in zip(
-        batch_result_masked_restricted,
-        user_ids,
-        nonzero_batch,
-        forbidden_items_batch,
-        allowed_items_batch,
-    ):
-        check_descending(recommended_using_batch_masked_restricted)
-        recommended_ids = {rec[0] for rec in recommended_using_batch_masked_restricted}
-        assert not recommended_ids.intersection(nonzero_items)
-        for rid in recommended_ids:
-            assert rid in allowed_items
-            assert rid not in forbidden_items
 
     nonzero_batch_dict: List[Dict[str, float]] = []
     for i, _ in enumerate(user_ids):
@@ -257,17 +210,91 @@ def test_basic_usecase(dtype: str) -> None:
         for _, score in result:
             assert score == pytest.approx(1 / softmax_denom)
 
-    allowed_items_uniform = [str(x) for x in RNS.choice(item_ids, size=2)]
-    batch_result_masked_uniform_allowed_ids = id_mapper.recommend_for_new_user_batch(
-        rec,
-        nonzero_batch,
-        cutoff=n_items,
-        allowed_item_ids=allowed_items_uniform,
-        n_threads=1,
+
+def test_item_id_mapper_per_user_allowed_item() -> None:
+    ids = [(i, f"{i}") for i in range(1, 11)]
+    np.random.shuffle(ids)
+    id_mapepr = ItemIDMapper(ids)
+    N_users = 10
+    score = np.random.random((N_users, len(ids)))
+    per_user_allowed_item_ids = [
+        list(set([random.choice(ids) for _ in range(random.randint(2, 5))]))
+        for __ in range(N_users)
+    ]
+    recommendation = id_mapepr.score_to_recommended_items_batch(
+        score, cutoff=5, per_user_allowed_item_ids=per_user_allowed_item_ids
     )
-    cnt = 0
-    for x in batch_result_masked_uniform_allowed_ids:
-        for rec_id, score in x:
-            assert rec_id in allowed_items_uniform
-            cnt += 1
-    assert cnt > 0
+    assert len(recommendation) == score.shape[0]
+    for i, (rec, allowed_item_ids_for_user) in enumerate(
+        zip(recommendation, per_user_allowed_item_ids)
+    ):
+        previous_score: Optional[float] = None
+        for ((id_int, id_str), score_value) in rec:
+            assert (id_int, id_str) in allowed_item_ids_for_user
+            item_index = ids.index((id_int, f"{id_int}"))
+            assert score[i, item_index] == pytest.approx(score_value)
+            if previous_score is not None:
+                assert score_value <= previous_score
+            previous_score = score_value
+
+
+def test_item_id_mapper_uniform_allowed_item() -> None:
+    ids = [(i, f"{i}") for i in range(1, 11)]
+    np.random.shuffle(ids)
+    id_mapepr = ItemIDMapper(ids)
+    N_users = 10
+    score = np.random.random((N_users, len(ids)))
+
+    allowed_items_uniform = list(set([random.choice(ids) for _ in range(5)]))
+    assert allowed_items_uniform
+    recommendation = id_mapepr.score_to_recommended_items_batch(
+        score, cutoff=5, allowed_item_ids=allowed_items_uniform
+    )
+    assert len(recommendation) == score.shape[0]
+    for i, rec in enumerate(recommendation):
+        previous_score: Optional[float] = None
+        for ((id_int, id_str), score_value) in rec:
+            assert (id_int, id_str) in allowed_items_uniform
+            item_index = ids.index((id_int, f"{id_int}"))
+            assert score[i, item_index] == pytest.approx(score_value)
+            if previous_score is not None:
+                assert score_value <= previous_score
+            previous_score = score_value
+
+
+def test_item_id_mapper_per_user_allowed_item_forbidden_items() -> None:
+    ids: List[int] = list(range(10))
+    per_user_allowed_item_ids = [
+        [0, 1, 2, 1048576],
+        [0, 1],
+        [1, 2, -1],
+    ]
+    forbidden_items = [[0, 1, 2], [0], [1]]
+    # so
+    # Nothing can be recommended for user 0
+    # 1 is the only choice for user 1
+    # 2 is the only choice for user 2
+
+    N_users = len(per_user_allowed_item_ids)
+    assert len(forbidden_items) == N_users
+    np.random.shuffle(ids)
+    id_mapepr = ItemIDMapper(ids)
+    score = np.random.random((len(forbidden_items), len(ids)))
+    recommendation = id_mapepr.score_to_recommended_items_batch(
+        score,
+        cutoff=10,
+        per_user_allowed_item_ids=per_user_allowed_item_ids,
+        forbidden_item_ids=forbidden_items,
+    )
+    assert len(recommendation) == score.shape[0]
+
+    user_0_recommendation = recommendation[0]
+    assert not user_0_recommendation
+
+    user_1_recommendation = recommendation[1]
+    assert len(user_1_recommendation) == 1
+    assert user_1_recommendation[0][0] == 1
+
+    user_2_recommendation = recommendation[2]
+    assert len(user_2_recommendation) == 1
+    assert user_2_recommendation[0][0] == 2
