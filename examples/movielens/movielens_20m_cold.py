@@ -4,21 +4,21 @@ from typing import Any, Dict, List, Tuple, Type
 import pandas as pd
 from scipy import sparse as sps
 
-from irspack import EvaluatorWithColdUser, IALSRecommender
-from irspack.dataset.movielens import MovieLens20MDataManager
-from irspack.optimizers import (
+from irspack import (
     AsymmetricCosineKNNOptimizer,
     BaseOptimizer,
     CosineKNNOptimizer,
     DenseSLIMOptimizer,
+    EvaluatorWithColdUser,
     IALSOptimizer,
-    MultVAEOptimizer,
+    IALSRecommender,
     P3alphaOptimizer,
     RP3betaOptimizer,
     SLIMOptimizer,
     TopPopOptimizer,
+    split_dataframe_partial_user_holdout,
 )
-from irspack.split import split_dataframe_partial_user_holdout
+from irspack.dataset import MovieLens20MDataManager
 
 if __name__ == "__main__":
 
@@ -70,15 +70,23 @@ if __name__ == "__main__":
         (P3alphaOptimizer, 30, dict(alpha=1)),
         (RP3betaOptimizer, 40, dict(alpha=1)),
         (DenseSLIMOptimizer, 20, dict()),
-        (
-            MultVAEOptimizer,
-            1,
-            dict(
-                dim_z=200, enc_hidden_dims=600, kl_anneal_goal=0.2
-            ),  # nothing to tune, use the parameters used in the paper.
-        ),
         (SLIMOptimizer, 40, dict()),  # Note: this is a heavy one.
     ]
+    try:
+        from irspack import MultVAEOptimizer
+
+        test_configs.append(
+            (
+                MultVAEOptimizer,
+                1,
+                dict(
+                    dim_z=200, enc_hidden_dims=600, kl_anneal_goal=0.2
+                ),  # nothing to tune, use the parameters used in the paper.
+            )
+        )
+    except ImportError:
+        pass
+
     for optimizer_class, n_trials, config in test_configs:
         recommender_name = optimizer_class.recommender_class.__name__
         optimizer: BaseOptimizer = optimizer_class(
