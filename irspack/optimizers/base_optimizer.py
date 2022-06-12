@@ -36,7 +36,7 @@ _BaseOptimizerArgsString = """Args:
     data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
         The train data.
     val_evaluator (Evaluator):
-        The validation evaluator which measures the performance of the recommenders.
+        The validation evaluator that measures the performance of the recommenders.
     logger (Optional[logging.Logger], optional) :
         The logger used during the optimization steps. Defaults to `None`.
         If `None`, the default logger of irspack will be used.
@@ -54,7 +54,7 @@ _BaseOptimizerWithEarlyStoppingArgsString = """Args:
     data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
         The train data.
     val_evaluator (Evaluator):
-        The validation evaluator which measures the performance of the recommenders.
+        The validation evaluator that measures the performance of the recommenders.
     logger (Optional[logging.Logger], optional):
         The logger used during the optimization steps. Defaults to `None`.
         If `None`, the default logger of irspack will be used.
@@ -360,7 +360,7 @@ class BaseOptimizerWithEarlyStopping(BaseOptimizer):
         data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
             The train data.
         val_evaluator (Evaluator):
-            The validation evaluator which measures the performance of the recommenders.
+            The validation evaluator that measures the performance of the recommenders.
         logger (Optional[logging.Logger], optional):
             The logger used during the optimization steps. Defaults to `None`.
             If `None`, the default logger of irspack will be used.

@@ -49,12 +49,12 @@ ItemIdType = TypeVar("ItemIdType")
 
 
 class ItemIDMapper(Generic[ItemIdType]):
-    """A utility class that helps  mapping user/item ids to index, retrieving recommendation score,
-    and making a recommendation.
+    r"""A utility class that helps mapping item IDs to indices or vice versa.
 
     Args:
         item_ids:
-            item_ids which correspods to the columns of ``recommender.X_train_all``.
+            List of item IDs. The ordering of this list should be consistent with
+            the item indices of recommenders or score arrays to be used.
 
     Raises:
         ValueError: When there is a duplicate in item_ids.
@@ -99,9 +99,20 @@ class ItemIDMapper(Generic[ItemIdType]):
                     cols.append(self.item_id_to_index[id])
         return data, cols
 
-    def _list_of_user_profile_to_matrix(
+    def list_of_user_profile_to_matrix(
         self, users_info: Sequence[Union[List[ItemIdType], Dict[ItemIdType, float]]]
     ) -> sps.csr_matrix:
+        r"""Converts users' profiles (interaction histories for the users) into a sparse matrix.
+
+        Args:
+            users_info:
+                A list of user profiles.
+                Each profile should be either the item ids that the user cotacted or a dictionary of item ratings.
+                Previously unseen item IDs will be ignored.
+
+        Returns:
+            The converted sparse matrix. Each column correspond to `self.items_ids`.
+        """
         data: List[float] = []
         indptr: List[int] = [0]
         col: List[int] = []
@@ -199,7 +210,7 @@ class ItemIDMapper(Generic[ItemIdType]):
             Each internal list corresponds to the recommender's recommendation output.
         """
         self._check_recommender_n_items(recommender)
-        X_input = self._list_of_user_profile_to_matrix(user_profiles)
+        X_input = self.list_of_user_profile_to_matrix(user_profiles)
         score = recommender.get_score_cold_user_remove_seen(X_input)
         return self.score_to_recommended_items_batch(
             score,
@@ -313,6 +324,21 @@ class ItemIDMapper(Generic[ItemIdType]):
 
 
 class IDMapper(Generic[UserIdType, ItemIdType], ItemIDMapper[ItemIdType]):
+    r"""A utility class that helps mapping item user/IDs to indices or vice versa.
+
+    Args:
+        user_ids:
+            List of user IDs. The ordering of this list should be consistent with
+            the user indices of recommenders.
+
+        item_ids:
+            List of item IDs. The ordering of this list should be consistent with
+            the item indices of recommenders or score arrays to be used.
+
+    Raises:
+        ValueError: When there is a duplicate in item_ids.
+    """
+
     def __init__(self, user_ids: List[UserIdType], item_ids: List[ItemIdType]):
         super().__init__(item_ids)
         self.user_ids = user_ids
@@ -378,7 +404,7 @@ class IDMapper(Generic[UserIdType, ItemIdType], ItemIDMapper[ItemIdType]):
         forbidden_item_ids: Optional[List[List[ItemIdType]]] = None,
         n_threads: Optional[int] = None,
     ) -> List[List[Tuple[ItemIdType, float]]]:
-        r"""Retrieve recommendation result for a list of known users.
+        r"""Retrieves recommendation for known users.
 
         Args:
             recommender:

@@ -1,4 +1,4 @@
-# irspack
+# irspack - Implicit recommender systems for practitioners.
 
 [![Python](https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10-blue)](https://www.python.org)
 [![pypi](https://img.shields.io/pypi/v/irspack.svg)](https://pypi.python.org/pypi/irspack)
@@ -9,23 +9,20 @@
 
 [**Docs**](https://irspack.readthedocs.io/en/latest/)
 
-**irspack** is a Python package to train, evaluate, and optimize recommender systems based on implicit feedback.
+**irspack** is a Python package for recommender systems based on implicit feedback, designed to be used by practitioners.
 
-There are already great packages for this purpose like
+Some of its features include:
 
-- [implicit](https://github.com/benfred/implicit)
-- [daisyRec](https://github.com/AmazingDD/daisyRec)
-- [RecSys2019_DeepLearning_Evaluation](https://github.com/MaurizioFD/RecSys2019_DeepLearning_Evaluation) (which has influenced this project the most)
-
-However, I decided to implement my own one to
-
-- Use [optuna](https://github.com/optuna/optuna) for more efficient parameter search. In particular, if an early stopping scheme is available, optuna can prune unpromising trial based on the intermediate validation score, which drastically reduces overall running time for tuning.
-- Use multi-threaded implementations wherever possible. Currently, several important algorithms (KNN, iALS, SLIM) and performance evaluators are parallelized using C++ thread.
+- Efficient parameter tuning enabled by C++/Eigen implementations of core recommender algorithms and [optuna](https://github.com/optuna/optuna).
+  - In particular, if an early stopping scheme is available, optuna can prune out unpromising trial based on the intermediate validation scores.
+- Various utility functions, including
+  - ID/index mapping utilities
+  - Fast, multithreaded argsort for batch recommendation retrieval
+  - Efficient and configurable evaluation of recommender system performance
 
 # Installation & Optional Dependencies
 
-There are binaries for Linux, MacOS, and Windows with python>=3.6 with x86 architectures.
-You can install them via
+In most cases, you can install the pre-build binaries via
 
 ```sh
 pip install irspack
@@ -49,7 +46,6 @@ pip install lightfm
 
 If you want to use Mult-VAE, you'll need the following additional (pip-installable) packages:
 
-- [scikit-learn](https://scikit-learn.org/stable/)
 - [jax](https://github.com/google/jax)
 - [jaxlib](https://github.com/google/jax)
   - If you want to use GPU, follow the installation guide [https://github.com/google/jax#installation](https://github.com/google/jax#installation)
@@ -60,13 +56,13 @@ If you want to use Mult-VAE, you'll need the following additional (pip-installab
 
 ## Step 1. Train a recommender
 
-We first represent the user/item interaction as a [scipy.sparse](https://docs.scipy.org/doc/scipy/reference/sparse.html) matrix. Then we can feed it into our `Recommender` classes:
+To begin with, we represent the user/item interaction as a [scipy.sparse](https://docs.scipy.org/doc/scipy/reference/sparse.html) matrix. Then we can feed it into recommender classes:
 
 ```Python
 import numpy as np
 import scipy.sparse as sps
 from irspack import IALSRecommender, df_to_sparse
-from irspack.dataset.movielens import MovieLens100KDataManager
+from irspack.dataset import MovieLens100KDataManager
 
 df = MovieLens100KDataManager().read_interaction()
 
@@ -88,7 +84,7 @@ recommender.get_score_remove_seen([0])
 
 ## Step 2. Evaluate on a validation set
 
-We have to split the dataset to train and validation sets
+To evaluate the performance of a recommenderm we have to split the dataset to train and validation sets:
 
 ```Python
 from irspack.split import rowwise_train_test_split
@@ -126,11 +122,10 @@ This will print something like
 
 ## Step 3. Optimize the Hyperparameter
 
-Now that we can evaluate the recommenders' performance against
-the validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
+Now that we can evaluate the recommenders' performance against the validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
 
 ```Python
-from irspack.optimizers import IALSOptimizer
+from irspack import IALSOptimizer
 
 optimizer = IALSOptimizer(X_train, evaluator)
 best_params, trial_dfs  = optimizer.optimize(n_trials=20)
@@ -139,8 +134,8 @@ best_params, trial_dfs  = optimizer.optimize(n_trials=20)
 trial_dfs["ndcg@10"].max()
 ```
 
-Of course, we have to hold-out another interaction set for test,
-and measure the performance of tuned recommender against the test set.
+Of course, we have to hold-out another interaction set for test, and measure the performance of tuned recommender against the test set.
+
 See `examples/` for more complete examples.
 
 # TODOs

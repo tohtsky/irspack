@@ -13,6 +13,26 @@ def evaluate_recommendation_df(
     item_column: str,
     n_threads: Optional[int] = None,
 ) -> Dict[str, float]:
+    r"""Measure accuracy/diversity metrics by providing recommendation result & ground truth as  `pd.DataFrame`s.
+
+    Args:
+        df_recommendation:
+            The dataframe for the recommendation results.
+            In this dataframe, we assume that the more important the recommended item, the earlier it will appear.
+        df_ground_truth:
+            The dataframe for the groud truth.
+        user_column (str):
+            Specifies which column reporesents the users' id.
+        item_column (str):
+            Specifies which column reporesents the items' id.
+        n_threads:
+            Specifies the number of threads to use for the computation.
+            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
+            and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
+
+    Returns:
+        Resulting accuracy/diversity metrics.
+    """
     df_recommendation = df_recommendation[
         df_recommendation[user_column].isin(df_ground_truth[user_column])
     ].copy()

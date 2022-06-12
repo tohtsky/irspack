@@ -2,6 +2,7 @@ from uuid import uuid1
 
 import numpy as np
 import pandas as pd
+import pytest
 from scipy import sparse as sps
 
 from irspack.evaluation.evaluate_df_to_df import evaluate_recommendation_df
@@ -52,8 +53,26 @@ def test_matching() -> None:
     score_using_df_vs_df = evaluate_recommendation_df(
         recommendation_df, X_test_as_df, user_column, item_column, n_threads=1
     )
-    assert score_using_evaluator["ndcg"] == score_using_df_vs_df["ndcg"]
-    assert score_using_evaluator["map"] == score_using_df_vs_df["map"]
-    assert score_using_evaluator["hit"] == score_using_df_vs_df["hit"]
-    assert score_using_evaluator["recall"] == score_using_df_vs_df["recall"]
-    assert score_using_evaluator["precision"] == score_using_df_vs_df["precision"]
+    assert score_using_evaluator["ndcg"] == pytest.approx(score_using_df_vs_df["ndcg"])
+    assert score_using_evaluator["map"] == pytest.approx(score_using_df_vs_df["map"])
+    assert score_using_evaluator["hit"] == pytest.approx(score_using_df_vs_df["hit"])
+    assert score_using_evaluator["recall"] == pytest.approx(
+        score_using_df_vs_df["recall"]
+    )
+    assert score_using_evaluator["precision"] == pytest.approx(
+        score_using_df_vs_df["precision"]
+    )
+    assert score_using_evaluator["entropy"] == pytest.approx(
+        score_using_df_vs_df["entropy"]
+    )
+    entropy = score_using_evaluator["entropy"]
+    item_freq_cnt = (
+        recommendation_df[
+            recommendation_df[user_column].isin(X_test_as_df[user_column])
+        ][item_column]
+        .value_counts()
+        .values
+    )
+    item_freq_prob = item_freq_cnt.astype(float) / float(item_freq_cnt.sum())
+    entropy_gt = -np.log(item_freq_prob).dot(item_freq_prob)
+    assert entropy == pytest.approx(entropy_gt)
