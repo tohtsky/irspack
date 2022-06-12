@@ -17,8 +17,7 @@ class MovieLens1MDataManager(BaseMovieLenstDataLoader):
             # This is a hack.
             # The true separator is "::", but this will force pandas
             # to use python engine, which is much slower.
-            # instead we regard the separator to be ':' and imagine there is an empty (NaN).
-            # values between "::"
+            # instead we regard the separator to be ':' and imagine there is an empty (NaN) values between "::".
             df = pd.read_csv(
                 ifs,
                 sep=":",

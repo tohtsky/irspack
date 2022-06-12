@@ -259,9 +259,7 @@ class BaseUserSimilarityRecommender(BaseRecommender):
 
 
 class BaseRecommenderWithUserEmbedding:
-    """Defines a recommender with user embedding (e.g., matrix factorization.).
-    These class can be a base CF estimator for CB2CF (with user profile -> user embedding NN).
-    """
+    r"""Defines a recommender with user embedding (e.g., matrix factorization.)."""
 
     @abstractmethod
     def get_user_embedding(
@@ -290,9 +288,7 @@ class BaseRecommenderWithUserEmbedding:
 
 
 class BaseRecommenderWithItemEmbedding:
-    """Defines a recommender with item embedding (e.g., matrix factorization.).
-    These class can be a base CF estimator for CB2CF (with item profile -> item embedding NN).
-    """
+    """Defines a recommender with item embedding (e.g., matrix factorization.)."""
 
     @abstractmethod
     def get_item_embedding(

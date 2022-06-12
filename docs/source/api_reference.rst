@@ -116,4 +116,5 @@ Utilities
     :toctree: api_reference
     :nosignatures:
 
-    IDMappedRecommender
+    ItemIDMapper
+    IDMapper
