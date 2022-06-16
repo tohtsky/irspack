@@ -34,6 +34,7 @@ class NeuMFDownloader(BaseDownloader):
                 sep="\t",
                 names=["user_id", "item_id", "rating", "timestamp"],
             )
+            train_df["timestamp"] = pd.to_datetime(train_df["timestamp"], unit="s")
         test_data = []
         with self.zf.open(self._TEST_NAME) as test_fs:
             for line_byte in test_fs:
