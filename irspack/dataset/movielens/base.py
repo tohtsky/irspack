@@ -13,4 +13,10 @@ class BaseMovieLenstDataLoader(SingleZipDownloader):
 
     @abstractmethod
     def read_interaction(self) -> pd.DataFrame:
+        r"""Reads the entire user/movie/rating/timestamp interaction data.
+
+        Returns:
+            The interaction `pd.DataFrame`, whose columns are
+            `["userId", "movieId", "rating", "timestamp"]`.
+        """
         raise NotImplementedError("Not implemented")  # pragma: no cover

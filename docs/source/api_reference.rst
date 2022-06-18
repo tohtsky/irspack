@@ -118,3 +118,16 @@ Utilities
 
     ItemIDMapper
     IDMapper
+
+.. currentmodule:: irspack.dataset
+
+Dataset
+-------
+
+.. autosummary::
+    :toctree: api_reference
+    :nosignatures:
+
+    MovieLens1MDataManager
+    MovieLens100KDataManager
+    MovieLens20MDataManager

@@ -19,24 +19,25 @@ class BaseDownloader(metaclass=ABCMeta):
     ):
         if zippath is None:
             zippath = self.DEFAULT_PATH
-            if not zippath.exists():
-                if not force_download:
-                    download = (
-                        input(
-                            "Could not find {}.\nCan I download and save it there?[y/N]".format(
-                                zippath
-                            )
-                        ).lower()
-                        == "y"
-                    )
-                else:
-                    download = True
-                if download:
-                    print("start download...")
-                    self._save_to_zippath(zippath)
-                    print("complete")
-                else:
-                    raise RuntimeError("could not read zipFile")
+        zippath = Path(zippath)
+        if not zippath.exists():
+            if not force_download:
+                download = (
+                    input(
+                        "Could not find {}.\nCan I download and save it there?[y/N]".format(
+                            zippath
+                        )
+                    ).lower()
+                    == "y"
+                )
+            else:
+                download = True
+            if download:
+                print("start download...")
+                self._save_to_zippath(zippath)
+                print("complete")
+            else:
+                raise RuntimeError("could not read zipFile")
 
         self.zf = ZipFile(zippath)
 

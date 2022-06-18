@@ -6,6 +6,17 @@ from .base import BaseMovieLenstDataLoader
 
 
 class MovieLens1MDataManager(BaseMovieLenstDataLoader):
+    r"""Manages MovieLens 1M dataset.
+
+    Args:
+        zippath:
+            Where the zipped data is located. If `None`, assumes the path to be `~/.ml-1m.zip`.
+            If the designated path does not exist, you will be prompted for the permission to download the data.
+            Defaults to `None`.
+        force_download:
+            If `True`, the class will not prompt for the permission and start downloading immediately.
+    """
+
     DOWNLOAD_URL = "http://files.grouplens.org/datasets/movielens/ml-1m.zip"
     DEFAULT_PATH = Path("~/.ml-1m.zip").expanduser()
     INTERACTION_PATH = "ml-1m/ratings.dat"

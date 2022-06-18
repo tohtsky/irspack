@@ -324,15 +324,15 @@ class ItemIDMapper(Generic[ItemIdType]):
 
 
 class IDMapper(Generic[UserIdType, ItemIdType], ItemIDMapper[ItemIdType]):
-    r"""A utility class that helps mapping item user/IDs to indices or vice versa.
+    r"""A utility class that helps mapping user/item IDs to indices or vice versa.
 
     Args:
         user_ids:
-            List of user IDs. The ordering of this list should be consistent with
-            the user indices of recommenders.
+            List of user IDs. The ordering should be consistent with
+            the user indices of recommenders to be used.
 
         item_ids:
-            List of item IDs. The ordering of this list should be consistent with
+            List of item IDs. The ordering should be consistent with
             the item indices of recommenders or score arrays to be used.
 
     Raises:

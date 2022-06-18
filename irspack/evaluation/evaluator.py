@@ -1,7 +1,7 @@
 import warnings
 from collections import OrderedDict
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import numpy as np
 from scipy import sparse as sps
@@ -58,16 +58,18 @@ class Evaluator:
             If this parameter is not None, evaluator will be concentrating on
             the recommender's score output for these recommendable_items,
             and compute the ranking performance within this subset.
-        per_user_recommendable_items (Optional[List[List[int]]], optional):
-            Similar to `recommendable_items`, but this time the recommendable items can vary among users. Defaults to None.
-        masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
+        per_user_recommendable_items:
+            Similar to `recommendable_items`, but this time the recommendable items can vary among users.
+            If a sparse matrix is given, its nonzero indices are regarded as the list of recommendable items.
+            Defaults to `None`.
+        masked_interactions:
             If set, this matrix masks the score output of recommender model where it is non-zero.
             If none, the mask will be the training matrix itself owned by the recommender.
 
-        n_threads (int, optional):
+        n_threads:
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
-            If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
-            and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
+            If `None`, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"` will be looked up,
+            and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to `None`.
 
         recall_with_cutoff (bool, optional):
             This affects the definition of recall.
@@ -99,7 +101,9 @@ class Evaluator:
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
-        per_user_recommendable_items: Optional[List[List[int]]] = None,
+        per_user_recommendable_items: Union[
+            None, List[List[int]], InteractionMatrix
+        ] = None,
         masked_interactions: Optional[InteractionMatrix] = None,
         n_threads: Optional[int] = None,
         recall_with_cutoff: bool = False,
@@ -112,7 +116,17 @@ class Evaluator:
             if per_user_recommendable_items is None:
                 recommendable_items_arg: List[List[int]] = []
             else:
-                recommendable_items_arg = per_user_recommendable_items
+                if sps.issparse(per_user_recommendable_items):
+                    per_user_as_csr = sps.csr_matrix(per_user_recommendable_items)
+                    recommendable_items_arg = [
+                        [int(j) for j in row.nonzero()[1]] for row in per_user_as_csr
+                    ]
+                else:
+                    recommendable_items_arg = per_user_recommendable_items
+                if len(recommendable_items_arg) != ground_truth.shape[0]:
+                    raise ValueError(
+                        "ground_truth and per_user_recommendable_items have inconsistent shapes."
+                    )
         else:
             recommendable_items_arg = [recommendable_items]
 
@@ -304,7 +318,9 @@ class EvaluatorWithColdUser(Evaluator):
         cutoff: int = 10,
         target_metric: str = "ndcg",
         recommendable_items: Optional[List[int]] = None,
-        per_user_recommendable_items: Optional[List[List[int]]] = None,
+        per_user_recommendable_items: Union[
+            None, List[List[int]], InteractionMatrix
+        ] = None,
         masked_interactions: Optional[InteractionMatrix] = None,
         n_threads: Optional[int] = None,
         recall_with_cutoff: bool = False,

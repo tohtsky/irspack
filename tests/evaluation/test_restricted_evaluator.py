@@ -1,9 +1,9 @@
 from collections import defaultdict
-from typing import List
+from typing import Any, List
 
 import numpy as np
 import pytest
-import scipy.sparse as sps
+from scipy import sparse as sps
 
 from irspack.evaluation import Evaluator
 from irspack.recommenders.base import BaseRecommender
@@ -53,18 +53,34 @@ def test_restriction_global(U: int, I: int, R: int) -> None:
     assert my_score["ndcg"] == pytest.approx(np.mean(sklearn_metrics["ndcg"]), abs=1e-8)
 
 
-@pytest.mark.parametrize("U, I", [(10, 30), (100, 30), (30, 100)])
-def test_restriction_local(U: int, I: int) -> None:
+@pytest.mark.parametrize(
+    "U, I, is_sparse", [(10, 30, False), (100, 30, True), (30, 100, False)]
+)
+def test_restriction_local(U: int, I: int, is_sparse: bool) -> None:
     try:
         from sklearn.metrics import ndcg_score
     except:
         pytest.skip()
     rns = np.random.RandomState(42)
-    recommendables: List[np.ndarray] = []
+    recommendables: List[List[int]] = []
+
+    def _to_int_list(x: Any) -> List[int]:
+        return [int(_) for _ in x]
+
     for _ in range(U):
         recommendables.append(
-            rns.choice(np.arange(I), replace=False, size=rns.randint(2, I))
+            _to_int_list(
+                rns.choice(np.arange(I), replace=False, size=rns.randint(2, I))
+            )
         )
+    if is_sparse:
+        indices = [j for r in recommendables for j in sorted(r)]
+        indptr = np.cumsum([0] + [len(r) for r in recommendables])
+        recommendables_arg = sps.csr_matrix(
+            (np.ones(len(indices), dtype=float), indices, indptr), shape=(U, I)
+        )
+    else:
+        recommendables_arg = recommendables
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
     eval = Evaluator(
@@ -72,7 +88,7 @@ def test_restriction_local(U: int, I: int) -> None:
         offset=0,
         cutoff=I,
         n_threads=1,
-        per_user_recommendable_items=recommendables,
+        per_user_recommendable_items=recommendables_arg,
     )
     # empty mask
     mock_rec = MockRecommender(sps.csr_matrix(X_gt.shape), scores)
@@ -99,21 +115,14 @@ def test_irregular(U: int, I: int) -> None:
         offset=0,
         cutoff=I,
         n_threads=1,
-        per_user_recommendable_items=[],
-    )
-    _ = Evaluator(
-        sps.csr_matrix(X_gt),
-        offset=0,
-        cutoff=I,
-        n_threads=1,
-        per_user_recommendable_items=[[0]],
-    )
-    _ = Evaluator(
-        sps.csr_matrix(X_gt),
-        offset=0,
-        cutoff=I,
-        n_threads=1,
         per_user_recommendable_items=[[0] for _ in range(X_gt.shape[0])],
+    )
+    _ = Evaluator(
+        sps.csr_matrix(X_gt),
+        offset=0,
+        cutoff=I,
+        n_threads=1,
+        per_user_recommendable_items=sps.csr_matrix(X_gt),
     )
 
     with pytest.raises(ValueError):
@@ -125,7 +134,7 @@ def test_irregular(U: int, I: int) -> None:
             per_user_recommendable_items=[[0], [0]],
         )
     with pytest.raises(ValueError):
-        eval = Evaluator(
+        _ = Evaluator(
             sps.csr_matrix(X_gt),
             offset=0,
             cutoff=I,
@@ -133,7 +142,7 @@ def test_irregular(U: int, I: int) -> None:
             per_user_recommendable_items=[[0, 0]],
         )
     with pytest.raises(ValueError):
-        eval = Evaluator(
+        _ = Evaluator(
             sps.csr_matrix(X_gt),
             offset=0,
             cutoff=I,
@@ -144,4 +153,11 @@ def test_irregular(U: int, I: int) -> None:
                 ]
             ],
         )
-    # empty mask
+    with pytest.raises(ValueError):
+        _ = Evaluator(
+            sps.csr_matrix(X_gt),
+            offset=0,
+            cutoff=I,
+            n_threads=1,
+            per_user_recommendable_items=X_gt[:-1],
+        )

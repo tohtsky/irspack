@@ -1,4 +1,4 @@
-# irspack - Implicit recommender systems for practitioners.
+# irspack - Implicit recommender systems for practitioners
 
 [![Python](https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10-blue)](https://www.python.org)
 [![pypi](https://img.shields.io/pypi/v/irspack.svg)](https://pypi.python.org/pypi/irspack)
