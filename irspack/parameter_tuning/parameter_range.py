@@ -1,8 +1,9 @@
 import re
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, List, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence
 
-from optuna import Trial
+if TYPE_CHECKING:
+    from optuna import Trial
 
 NAME_CHECKER = re.compile(r"^([a-zA-Z\d]+[\-_]*)+$")
 
@@ -28,12 +29,12 @@ class Suggestion(object, metaclass=ABCMeta):
         self.name = name
 
     @abstractmethod
-    def suggest(self, trial: Trial, prefix: str = "") -> Any:
-        raise NotImplementedError('"suggest" must be implemented.')
+    def suggest(self, trial: "Trial", prefix: str = "") -> Any:
+        raise NotImplementedError('"suggest" must be implemented.')  # pragma: no cover
 
     @abstractmethod
     def __repr__(self) -> str:
-        raise NotImplementedError('"__repr__" must be implemented.')
+        raise NotImplementedError('"__repr__" must be implemented.')  # pragma: no cover
 
 
 def overwrite_suggestions(
@@ -65,8 +66,8 @@ class UniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial, prefix: str = "") -> Any:
-        return trial.suggest_uniform(prefix + self.name, self.low, self.high)
+    def suggest(self, trial: "Trial", prefix: str = "") -> Any:
+        return trial.suggest_float(prefix + self.name, self.low, self.high)
 
     def __repr__(self) -> str:
         return f"UniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
@@ -81,8 +82,8 @@ class LogUniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial, prefix: str = "") -> Any:
-        return trial.suggest_loguniform(prefix + self.name, self.low, self.high)
+    def suggest(self, trial: "Trial", prefix: str = "") -> Any:
+        return trial.suggest_float(prefix + self.name, self.low, self.high, log=True)
 
     def __repr__(self) -> str:
         return f"LogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
@@ -98,7 +99,7 @@ class IntegerSuggestion(Suggestion):
         self.high = high
         self.step = step
 
-    def suggest(self, trial: Trial, prefix: str = "") -> Any:
+    def suggest(self, trial: "Trial", prefix: str = "") -> Any:
         return trial.suggest_int(
             prefix + self.name, self.low, self.high, step=self.step
         )
@@ -116,8 +117,8 @@ class IntegerLogUniformSuggestion(Suggestion):
         self.low = low
         self.high = high
 
-    def suggest(self, trial: Trial, prefix: str = "") -> Any:
-        return round(trial.suggest_loguniform(prefix + self.name, self.low, self.high))
+    def suggest(self, trial: "Trial", prefix: str = "") -> Any:
+        return trial.suggest_int(prefix + self.name, self.low, self.high, log=True)
 
     def __repr__(self) -> str:
         return f"IntegerLogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
@@ -128,7 +129,7 @@ class CategoricalSuggestion(Suggestion):
         super().__init__(name)
         self.choices = choices
 
-    def suggest(self, trial: Trial, prefix: str = "") -> Any:
+    def suggest(self, trial: "Trial", prefix: str = "") -> Any:
         return trial.suggest_categorical(prefix + self.name, self.choices)
 
     def __repr__(self) -> str:
