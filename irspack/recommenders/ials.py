@@ -1,9 +1,12 @@
 import enum
 import pickle
-from typing import IO, Optional
+from typing import IO, Any, Dict, List, Optional, Tuple
 
 import numpy as np
+import optuna
+import pandas as pd
 import scipy.sparse as sps
+from evaluation.evaluator import Evaluator
 from typing_extensions import Literal  # pragma: no cover, type: ignore
 
 from irspack.utils import get_n_threads
@@ -14,10 +17,15 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
+from ..parameter_tuning import IntegerSuggestion, LogUniformSuggestion, Suggestion
 from ._ials import IALSModelConfigBuilder, IALSSolverConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
 from ._ials import LossType, SolverType
-from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
+from .base import (
+    BaseRecommenderWithItemEmbedding,
+    BaseRecommenderWithUserEmbedding,
+    ParameterSuggestFunctionType,
+)
 from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,
     BaseRecommenderWithEarlyStopping,
@@ -134,8 +142,6 @@ class IALSConfig(BaseEarlyStoppingRecommenderConfig):
     loss_type: Literal["IALSPP", "ORIGINAL"] = "IALSPP"
     nu_star: Optional[float] = None
     random_seed: int = 42
-    validate_epoch: int = 1
-    score_degradation_max: int = 5
     n_threads: Optional[int] = None
     max_epoch: int = 16
     prediction_time_max_cg_steps: int = 5
@@ -241,10 +247,6 @@ class IALSRecommender(
             Defaults to None.
         random_seed (int, optional):
             The random seed to initialize the parameters.
-        validate_epoch (int, optional):
-            Frequency of validation score measurement (if any). Defaults to 5.
-        score_degradation_max (int, optional):
-            Maximal number of allowed score degradation. Defaults to 5.
         n_threads (Optional[int], optional):
             Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
@@ -270,6 +272,11 @@ class IALSRecommender(
     """
 
     config_class = IALSConfig
+    default_tune_range: List[Suggestion] = [
+        IntegerSuggestion("n_components", 4, 300),
+        LogUniformSuggestion("alpha0", 3e-3, 1),
+        LogUniformSuggestion("reg", 1e-4, 1e-1),
+    ]
 
     def __init__(
         self,
@@ -287,8 +294,6 @@ class IALSRecommender(
         loss_type: Literal["IALSPP", "ORIGINAL"] = "IALSPP",
         nu_star: Optional[float] = None,
         random_seed: int = 42,
-        validate_epoch: int = 1,
-        score_degradation_max: int = 5,
         n_threads: Optional[int] = None,
         max_epoch: int = 16,
         prediction_time_max_cg_steps: int = 5,
@@ -298,8 +303,6 @@ class IALSRecommender(
         super().__init__(
             X_train_all,
             max_epoch=max_epoch,
-            validate_epoch=validate_epoch,
-            score_degradation_max=score_degradation_max,
         )
 
         self.n_components = n_components
@@ -430,3 +433,115 @@ class IALSRecommender(
         return self.trainer_as_ials.core_trainer.user[user_indices].dot(
             item_embedding.T
         )
+
+    @classmethod
+    def tune_doubling_dimension(
+        self,
+        data: InteractionMatrix,
+        evaluator: Evaluator,
+        initial_dimension: int,
+        maximal_dimension: int,
+        storage: Optional[optuna.storages.RDBStorage] = None,
+        study_name_prefix: Optional[str] = None,
+        n_trials_initial: int = 40,
+        n_trials_following: int = 20,
+        n_startup_trials_initial: int = 10,
+        n_startup_trials_following: int = 5,
+        neighborhood_scale: float = 3.0,
+        suggest_function_initial: Optional[ParameterSuggestFunctionType] = None,
+        random_seed: Optional[int] = None,
+    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
+        r"""Perform tuning gradually doubling `n_components`.
+        Typically, with the initial `n_components`, the search will be more exhaustive, and with larger `n_components`, less exploration will be done around previously found parameters.
+        This strategy is described in `Revisiting the Performance of iALS on Item Recommendation Benchmarks <https://arxiv.org/abs/2110.14037>`_.
+
+        Args:
+            initial_dimension: The initial dimension.
+            maximal_dimension: The maximal (inclusive) dimension to be tried.
+            storage:
+                The storage where multiple `optuna.Study` will be created corresponding to the various dimensions.
+                If `None`, all `Study` will be created in-memory.
+            study_name_prefix:
+                The prefix for the names of `optuna.Study`. For dimension `d`, the full name of the `Study` will be `"{study_name_prefix}_{d}"`.
+                If `None`, we will use a random string for this prefix.
+            n_trials_initial:
+                The number of trials for the initial dimension.
+            n_trials_following:
+                The number of trials for the following dimensions.
+            n_startup_trials_initial:
+                Passed on to `n_startup_trials` argument of `optuna.pruners.MedianPruner` in the initial `optuna.Study`.
+                Defaults to `10`.
+            n_startup_trials_following:
+                Passed on to `n_startup_trials` argument of `optuna.pruners.MedianPruner` in the following `optuna.Study`.
+                Defaults to `5`.
+            neighborhood_scale:
+                `alpha_0` and `reg` parameters will be searched within the log-uniform range
+                [`previous_dimension_result / neighborhood_scale`, `previous_dimension_result * neighborhood_scale`].
+                Defaults to `3.0`
+            suggest_overwrite_initial:
+                Overwrites the suggestion parameters in the initial `optuna.Study`.
+                Defaults to `[]`.
+            random_seed:
+                The random seed to control ``optuna.samplers.TPESampler``. Defaults to `None`.
+
+        Returns:
+            A tuple that consists of
+                1. A dict containing the best paramaters.
+                   This dict can be passed to the recommender as ``**kwargs``.
+                2. A ``pandas.DataFrame`` that contains the history of optimization for all dimensions.
+        """
+        from uuid import uuid1
+
+        if study_name_prefix is None:
+            study_name_prefix = str(uuid1())
+        dimension = initial_dimension
+        prev_params: Optional[Dict[str, Any]] = None
+        results: List[Tuple[float, Dict[str, Any], pd.DataFrame]] = []
+        while dimension <= maximal_dimension:
+            _suggest: Optional[ParameterSuggestFunctionType]
+            if random_seed is not None:
+                random_seed += 1
+            if prev_params is None:
+                _suggest = suggest_function_initial
+                n_trials = n_trials_initial
+                n_startup_trials = n_startup_trials_initial
+            else:
+                n_trials = n_trials_following
+                n_startup_trials = n_startup_trials_following
+
+                _prev_params_copied = prev_params.copy()
+
+                def _suggest(trial: optuna.Trial) -> Dict[str, Any]:
+                    result: Dict[str, Any] = {}
+                    for key, value in _prev_params_copied.items():
+                        if isinstance(value, float):
+                            result[key] = trial.suggest_float(
+                                key,
+                                value / neighborhood_scale,
+                                value * neighborhood_scale,
+                                log=True,
+                            )
+                    return result
+
+            study = optuna.create_study(
+                storage=storage,
+                sampler=optuna.samplers.TPESampler(seed=random_seed),
+                pruner=optuna.pruners.MedianPruner(n_startup_trials=n_startup_trials),
+                study_name=f"{study_name_prefix}_{dimension}",
+            )
+            bp, df_ = self.tune_with_study(
+                study,
+                data,
+                evaluator,
+                n_trials,
+                max_epoch=16,
+                validate_epoch=1,
+            )
+            df_["n_components"] = dimension
+            results.append((float(df_["value"].min()), bp, df_))
+            prev_params = study.best_params.copy()
+            dimension *= 2
+        final_result_df = pd.concat([x[2] for x in results])
+        final_bp = sorted(results)[0][1]
+
+        return final_bp, final_result_df

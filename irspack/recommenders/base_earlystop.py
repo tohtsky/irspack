@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
 from io import BytesIO
-from typing import IO, Any, Optional, Type
+from typing import IO, TYPE_CHECKING, Any, Optional, Type
 
 from fastprogress import progress_bar
-from optuna import Trial, exceptions
 
 from irspack.definitions import InteractionMatrix
-from irspack.evaluation.evaluator import Evaluator
 from irspack.recommenders.base import BaseRecommender, RecommenderConfig
+
+if TYPE_CHECKING:
+    from optuna import Trial
+
+    from irspack import evaluation
 
 
 class TrainerBase(ABC):
@@ -63,15 +66,11 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         self,
         X_train_all: InteractionMatrix,
         max_epoch: int = 512,
-        validate_epoch: int = 5,
-        score_degradation_max: int = 5,
         **kwargs: Any,
     ):
 
         super().__init__(X_train_all, **kwargs)
         self.max_epoch = max_epoch
-        self.validate_epoch = validate_epoch
-        self.score_degradation_max = score_degradation_max
         self.trainer: Optional[TrainerBase] = None
         self.best_state: Optional[bytes] = None
 
@@ -106,15 +105,22 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
         self.learn_with_optimizer(None, None)
 
     def learn_with_optimizer(
-        self, evaluator: Optional[Evaluator], trial: Optional[Trial]
+        self,
+        evaluator: Optional["evaluation.Evaluator"],
+        trial: Optional["Trial"],
+        max_epoch: int = 128,
+        validate_epoch: int = 5,
+        score_degradation_max: int = 5,
     ) -> None:
+        from optuna.exceptions import TrialPruned
+
         self.start_learning()
         best_score = -float("inf")
         n_score_degradation = 0
-        pb = progress_bar(range(self.max_epoch))
+        pb = progress_bar(range(max_epoch))
         for epoch in pb:
             self.run_epoch()
-            if (epoch + 1) % self.validate_epoch:
+            if (epoch + 1) % validate_epoch:
                 continue
 
             if evaluator is None:
@@ -131,12 +137,12 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
                 n_score_degradation = 0
             else:
                 n_score_degradation += 1
-                if n_score_degradation >= self.score_degradation_max:
+                if n_score_degradation >= score_degradation_max:
                     break
             if trial is not None:
                 trial.report(-relevant_score, epoch)
                 if trial.should_prune():
-                    raise exceptions.TrialPruned()
+                    raise TrialPruned()
 
         if evaluator is not None:
             self.load_state()

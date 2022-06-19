@@ -1,42 +1,22 @@
 import logging
 import re
 import time
-from abc import ABCMeta
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    no_type_check,
-)
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type
 
 import optuna
 import pandas as pd
+from optuna import Trial
 
 from irspack.evaluation import Evaluator
-from irspack.parameter_tuning import (
-    Suggestion,
-    is_valid_param_name,
-    overwrite_suggestions,
-)
+from irspack.parameter_tuning import Suggestion, is_valid_param_name
 from irspack.recommenders.base import BaseRecommender, InteractionMatrix
 from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 from irspack.utils.default_logger import get_default_logger
 
-
-class LowMemoryError(RuntimeError):
-    pass
-
+SparseMatrixSuggestFunction = Callable[[Trial], InteractionMatrix]
+ParameterSuggestFunction = Callable[[Trial], Dict[str, Any]]
 
 _BaseOptimizerArgsString = """Args:
-    data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-        The train data.
-    val_evaluator (Evaluator):
-        The validation evaluator that measures the performance of the recommenders.
     logger (Optional[logging.Logger], optional) :
         The logger used during the optimization steps. Defaults to `None`.
         If `None`, the default logger of irspack will be used.
@@ -44,10 +24,7 @@ _BaseOptimizerArgsString = """Args:
         Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
         the default parameter search space defined by ``default_tune_range``
         Defaults to list().
-    fixed_params (Dict[str, Any], optional):
-        Fixed parameters passed to recommenders during the optimization procedure.
-        If such a parameter exists in ``default_tune_range``, it will not be tuned.
-        Defaults to dict().
+
 """
 
 _BaseOptimizerWithEarlyStoppingArgsString = """Args:
@@ -111,34 +88,6 @@ def optimizer_docstring(
     return docs
 
 
-class OptimizerMeta(ABCMeta):
-    optimizer_name_vs_optimizer_class: Dict[str, "OptimizerMeta"] = {}
-
-    @no_type_check
-    def __new__(
-        mcs,
-        name,
-        bases,
-        namespace,
-        **kwargs,
-    ):
-
-        recommender_class: Optional[Type[BaseRecommender]] = namespace.get(
-            "recommender_class"
-        )
-        default_tune_range: Optional[Sequence[Suggestion]] = namespace.get(
-            "default_tune_range"
-        )
-        if default_tune_range is None:
-            assert recommender_class is None
-        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        docs = optimizer_docstring(default_tune_range, recommender_class)
-        if docs is not None:
-            cls.__doc__ = docs
-        mcs.optimizer_name_vs_optimizer_class[name] = cls
-        return cls
-
-
 def add_score_to_trial(
     trial: optuna.Trial, score: Dict[str, float], cutoff: int
 ) -> None:
@@ -177,54 +126,40 @@ def study_to_dataframe(study: optuna.Study) -> pd.DataFrame:
     return result_df
 
 
-class BaseOptimizer(object, metaclass=OptimizerMeta):
+class Optimizer:
 
-    recommender_class: Type[BaseRecommender]
     default_tune_range: Sequence[Suggestion] = []
-
-    @classmethod
-    def tune_range_given_memory_budget(
-        cls, X: InteractionMatrix, memory_in_mb: int
-    ) -> Sequence[Suggestion]:
-        return []
 
     def __init__(
         self,
-        data: InteractionMatrix,
+        data_suggest_function: SparseMatrixSuggestFunction,
+        parameter_suggest_function: ParameterSuggestFunction,
+        fixed_params: Dict[str, Any],
         val_evaluator: Evaluator,
         logger: Optional[logging.Logger] = None,
-        suggest_overwrite: Sequence[Suggestion] = list(),
-        fixed_params: Dict[str, Any] = dict(),
+        max_epoch: int = 512,
+        validate_epoch: int = 5,
+        score_degradation_max: int = 5,
     ):
 
         if logger is None:
             logger = get_default_logger()
 
         self.logger = logger
-        self._data = data
+        self._data_suggest_function = data_suggest_function
+        self._parameter_suggest_function = parameter_suggest_function
         self.val_evaluator = val_evaluator
 
         self.current_trial: int = 0
         self.best_val = float("inf")
-
-        self.suggestions = overwrite_suggestions(
-            self.default_tune_range, suggest_overwrite, fixed_params
-        )
         self.fixed_params = fixed_params
 
-    def _suggest(self, trial: optuna.Trial, prefix: str = "") -> Dict[str, Any]:
-        parameters: Dict[str, Any] = dict()
-        for s in self.suggestions:
-            parameters[s.name] = s.suggest(trial, prefix)
-        return parameters
-
-    def get_model_arguments(
-        self, *args: Any, **kwargs: Any
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return args, kwargs
+        self.max_epoch = max_epoch
+        self.validate_epoch = validate_epoch
+        self.score_degradation_max = score_degradation_max
 
     def objective_function(
-        self, param_prefix: str = ""
+        self, recommender_class: Type[BaseRecommender]
     ) -> Callable[[optuna.Trial], float]:
         """Returns the objective function that can be passed to ``optuna.Study`` .
 
@@ -234,14 +169,20 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
 
         def objective_func(trial: optuna.Trial) -> float:
             start = time.time()
-            params = dict(**self._suggest(trial, param_prefix), **self.fixed_params)
+            data = self._data_suggest_function(trial)
+            params = self._parameter_suggest_function(trial)
+            params.update(self.fixed_params)
             self.logger.info("Trial %s:", trial.number)
             self.logger.info("parameter = %s", params)
 
-            arg, parameters = self.get_model_arguments(**params)
-
-            recommender = self.recommender_class(self._data, *arg, **parameters)
-            recommender.learn_with_optimizer(self.val_evaluator, trial)
+            recommender = recommender_class(data, **params)
+            recommender.learn_with_optimizer(
+                self.val_evaluator,
+                trial,
+                max_epoch=self.max_epoch,
+                validate_epoch=self.validate_epoch,
+                score_degradation_max=self.score_degradation_max,
+            )
 
             score = self.val_evaluator.get_score(recommender)
             end = time.time()
@@ -268,6 +209,7 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
     def optimize_with_study(
         self,
         study: optuna.Study,
+        recommender_class: Type[BaseRecommender],
         n_trials: int = 20,
         timeout: Optional[int] = None,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
@@ -282,10 +224,6 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
                 The study object.
             n_trials:
                 The number of expected trials (include pruned trial.). Defaults to 20.
-            timeout:
-                If set to some value (in seconds), the study will exit after that time period.
-                Note that the running trials is not interrupted, though. Defaults to None.
-
         Returns:
             A tuple that consists of
 
@@ -295,12 +233,11 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
 
         """
 
-        objective_func = self.objective_function()
+        objective_func = self.objective_function(recommender_class)
 
         self.logger.info(
             """Start parameter search for %s over the range: %s""",
-            type(self).recommender_class.__name__,
-            self.suggestions,
+            recommender_class.__name__,
         )
 
         study.optimize(objective_func, n_trials=n_trials, timeout=timeout)
@@ -313,17 +250,19 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
             },
         )
         best_params.update(self.fixed_params)
-
-        return best_params, study_to_dataframe(study)
+        trials_df = study_to_dataframe(study)
+        return (best_params, trials_df)
 
     def optimize(
         self,
+        recommender_class: Type[BaseRecommender],
         n_trials: int = 20,
         timeout: Optional[int] = None,
         random_seed: Optional[int] = None,
+        prunning_n_startup_trials: int = 10,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
-        """Perform the optimization step.
-        ``optuna.Study`` object is created inside this function.
+        r"""Perform the optimization step.
+        `optuna.Study` object is created inside this function.
 
         Args:
             n_trials:
@@ -333,6 +272,9 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
                 Note that the running trials is not interrupted, though. Defaults to `None`.
             random_seed:
                 The random seed to control ``optuna.samplers.TPESampler``. Defaults to `None`.
+            prunning_n_startup_trials:
+                `n_startup_trials` argument passed to the constructor of `optuna.pruners.MedianPruner`,
+                Defaults to `10`.
 
         Returns:
             A tuple that consists of
@@ -343,91 +285,9 @@ class BaseOptimizer(object, metaclass=OptimizerMeta):
 
         """
         study = optuna.create_study(
-            sampler=optuna.samplers.TPESampler(seed=random_seed)
+            sampler=optuna.samplers.TPESampler(seed=random_seed),
+            pruner=optuna.pruners.MedianPruner(
+                n_startup_trials=prunning_n_startup_trials
+            ),
         )
-        return self.optimize_with_study(study, n_trials, timeout)
-
-
-class BaseOptimizerWithEarlyStopping(BaseOptimizer):
-    """The Base Optimizer class for early-stoppable recommenders.
-
-    The child class must define
-
-        - ``recommender_class``
-        - ``default_tune_range``
-
-    Args:
-        data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-            The train data.
-        val_evaluator (Evaluator):
-            The validation evaluator that measures the performance of the recommenders.
-        logger (Optional[logging.Logger], optional):
-            The logger used during the optimization steps. Defaults to `None`.
-            If `None`, the default logger of irspack will be used.
-        suggest_overwrite (Sequence[Suggestion], optional):
-            Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
-            the default parameter search space defined by ``default_tune_range``
-            Defaults to list().
-        fixed_params (Dict[str, Any], optional):
-            Fixed parameters passed to recommenders during the optimization procedure.
-            If such a parameter exists in ``default_tune_range``, it will not be tuned.
-            Defaults to dict().
-        max_epoch (int, optional):
-            The maximal number of epochs for the training. Defaults to 512.
-        validate_epoch (int, optional):
-            The frequency of validation score measurement. Defaults to 5.
-        score_degradation_max (int, optional):
-            Maximal number of allowed score degradation. Defaults to 5. Defaults to 5.
-    """
-
-    recommender_class: Type[BaseRecommenderWithEarlyStopping]
-
-    def __init__(
-        self,
-        data: InteractionMatrix,
-        val_evaluator: Evaluator,
-        logger: Optional[logging.Logger] = None,
-        suggest_overwrite: Sequence[Suggestion] = list(),
-        fixed_params: Dict[str, Any] = dict(),
-        max_epoch: int = 512,
-        validate_epoch: int = 5,
-        score_degradation_max: int = 5,
-        **kwargs: Any,
-    ):
-
-        super().__init__(
-            data,
-            val_evaluator,
-            logger=logger,
-            suggest_overwrite=suggest_overwrite,
-            fixed_params=fixed_params,
-        )
-        self.max_epoch = max_epoch
-        self.validate_epoch = validate_epoch
-        self.score_degradation_max = score_degradation_max
-
-    def get_model_arguments(
-        self, *args: Any, **kwargs: Any
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
-        return super().get_model_arguments(
-            *args,
-            max_epoch=self.max_epoch,
-            validate_epoch=self.validate_epoch,
-            score_degradation_max=self.score_degradation_max,
-            **kwargs,
-        )
-
-
-def get_optimizer_class(optimizer_name: str) -> Type[BaseOptimizer]:
-    r"""Get optimizer class from its class name.
-
-    Args:
-        optimizer_name: The class name of the optimizer.
-
-    Returns:
-        The optimizer class with its class name being `optimizer_name`.
-    """
-    result: Type[BaseOptimizer] = OptimizerMeta.optimizer_name_vs_optimizer_class[
-        optimizer_name
-    ]
-    return result
+        return self.optimize_with_study(study, recommender_class, n_trials, timeout)
