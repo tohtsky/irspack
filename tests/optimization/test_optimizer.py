@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import pytest
 import scipy.sparse as sps
@@ -5,13 +7,13 @@ import scipy.sparse as sps
 from irspack.dataset.movielens import MovieLens100KDataManager
 from irspack.definitions import DenseScoreArray, UserIndexArray
 from irspack.evaluation import Evaluator
-from irspack.optimizers import BaseOptimizer
-from irspack.parameter_tuning import (
-    CategoricalSuggestion,
-    IntegerLogUniformSuggestion,
-    IntegerSuggestion,
-    LogUniformSuggestion,
-    UniformSuggestion,
+from irspack.optimization.parameter_range import (
+    CategoricalRange,
+    LogUniformFloatRange,
+    LogUniformIntegerRange,
+    ParameterRange,
+    UniformFloatRange,
+    UniformIntegerRange,
 )
 from irspack.recommenders import BaseRecommender
 from irspack.split import rowwise_train_test_split
@@ -28,6 +30,14 @@ X_large = sps.csr_matrix(
 
 
 class MockRecommender(BaseRecommender, register_class=False):
+    default_tune_range: List[ParameterRange] = [
+        UniformFloatRange("p1", 0, 1),
+        LogUniformFloatRange("reg", 0.99, 1.01),
+        UniformIntegerRange("I1", 100, 102),
+        LogUniformIntegerRange("I2", 500, 502),
+        CategoricalRange("flag", ["foo", "bar"]),
+    ]
+
     def __init__(
         self,
         X: sps.csr_matrix,
@@ -56,25 +66,14 @@ class MockRecommender(BaseRecommender, register_class=False):
         return score
 
 
-class MockOptimizer(BaseOptimizer):
-    recommender_class = MockRecommender
-    default_tune_range = [
-        UniformSuggestion("p1", 0, 1),
-        LogUniformSuggestion("reg", 0.99, 1.01),
-        IntegerSuggestion("I1", 100, 102),
-        IntegerLogUniformSuggestion("I2", 500, 502),
-        CategoricalSuggestion("flag", ["foo", "bar"]),
-    ]
-
-
 @pytest.mark.parametrize("X", [X_small, X_large])
 def test_optimizer_by_mock(X: sps.csr_matrix) -> None:
     X_train, X_val = rowwise_train_test_split(X, test_ratio=0.5, random_state=0)
     evaluator = Evaluator(X_val, 0)
-    optimizer = MockOptimizer(
-        X_train, evaluator, logger=None, fixed_params=dict(X_test=X_val)
+
+    config, _ = MockRecommender.tune(
+        X_train, evaluator, n_trials=40, random_seed=42, fixed_params=dict(X_test=X_val)
     )
-    config, _ = optimizer.optimize(n_trials=40, random_seed=42)
     assert config["p1"] >= 0.9
     assert (config["reg"] >= 0.99) and (config["reg"] <= 1.01)
     assert (config["I1"] >= 100) and (config["I1"] <= 102)

@@ -1,6 +1,7 @@
 import optuna
 
-from irspack import Evaluator, IALSOptimizer, rowwise_train_test_split
+from irspack import Evaluator, rowwise_train_test_split
+from irspack.recommenders.ials import IALSRecommender
 from irspack.utils.sample_data import mf_example_data
 
 
@@ -8,9 +9,10 @@ def test_doubling_dimension_strategy() -> None:
     X = mf_example_data(100, 100, 8, random_state=0)
     storage = optuna.storages.RDBStorage("sqlite:///:memory:")
     X_train, X_val = rowwise_train_test_split(X, random_state=0)
-    optim = IALSOptimizer(X_train, Evaluator(X_val))
     SCALE = 1.1
-    bp, df = optim.optimize_doubling_dimension(
+    bp, df = IALSRecommender.tune_doubling_dimension(
+        X_train,
+        Evaluator(X_val),
         2,
         8,
         n_trials_initial=10,

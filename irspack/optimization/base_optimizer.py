@@ -1,20 +1,31 @@
 import logging
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+)
 
-import optuna
 import pandas as pd
-from optuna import Trial
 
 from irspack.evaluation import Evaluator
-from irspack.parameter_tuning import Suggestion, is_valid_param_name
+from irspack.optimization.parameter_range import ParameterRange, is_valid_param_name
 from irspack.recommenders.base import BaseRecommender, InteractionMatrix
 from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 from irspack.utils.default_logger import get_default_logger
 
-SparseMatrixSuggestFunction = Callable[[Trial], InteractionMatrix]
-ParameterSuggestFunction = Callable[[Trial], Dict[str, Any]]
+if TYPE_CHECKING:
+    from optuna import Study, Trial
+
+SparseMatrixSuggestFunction = Callable[["Trial"], InteractionMatrix]
+ParameterSuggestFunction = Callable[["Trial"], Dict[str, Any]]
 
 _BaseOptimizerArgsString = """Args:
     logger (Optional[logging.Logger], optional) :
@@ -53,7 +64,7 @@ _BaseOptimizerWithEarlyStoppingArgsString = """Args:
 
 
 def optimizer_docstring(
-    default_tune_range: Optional[Sequence[Suggestion]],
+    default_tune_range: Optional[Sequence[ParameterRange]],
     recommender_class: Optional[Type[BaseRecommender]],
 ) -> Optional[str]:
     if recommender_class is None:
@@ -88,9 +99,7 @@ def optimizer_docstring(
     return docs
 
 
-def add_score_to_trial(
-    trial: optuna.Trial, score: Dict[str, float], cutoff: int
-) -> None:
+def add_score_to_trial(trial: "Trial", score: Dict[str, float], cutoff: int) -> None:
     score_history: List[Tuple[int, Dict[str, float]]] = trial.study.user_attrs.get(
         "scores", []
     )
@@ -106,7 +115,7 @@ def add_score_to_trial(
     trial.study.set_user_attr("scores", score_history)
 
 
-def study_to_dataframe(study: optuna.Study) -> pd.DataFrame:
+def study_to_dataframe(study: "Study") -> pd.DataFrame:
     result_df: pd.DataFrame = study.trials_dataframe().set_index("number")
 
     # remove prefix
@@ -128,7 +137,7 @@ def study_to_dataframe(study: optuna.Study) -> pd.DataFrame:
 
 class Optimizer:
 
-    default_tune_range: Sequence[Suggestion] = []
+    default_tune_range: Sequence[ParameterRange] = []
 
     def __init__(
         self,
@@ -160,14 +169,14 @@ class Optimizer:
 
     def objective_function(
         self, recommender_class: Type[BaseRecommender]
-    ) -> Callable[[optuna.Trial], float]:
+    ) -> Callable[["Trial"], float]:
         """Returns the objective function that can be passed to ``optuna.Study`` .
 
         Returns:
             A callable that receives ``otpuna.Trial`` and returns float (like ndcg score).
         """
 
-        def objective_func(trial: optuna.Trial) -> float:
+        def objective_func(trial: "Trial") -> float:
             start = time.time()
             data = self._data_suggest_function(trial)
             params = self._parameter_suggest_function(trial)
@@ -208,7 +217,7 @@ class Optimizer:
 
     def optimize_with_study(
         self,
-        study: optuna.Study,
+        study: "Study",
         recommender_class: Type[BaseRecommender],
         n_trials: int = 20,
         timeout: Optional[int] = None,
@@ -236,7 +245,7 @@ class Optimizer:
         objective_func = self.objective_function(recommender_class)
 
         self.logger.info(
-            """Start parameter search for %s over the range: %s""",
+            """Start parameter search for %s""",
             recommender_class.__name__,
         )
 
@@ -252,42 +261,3 @@ class Optimizer:
         best_params.update(self.fixed_params)
         trials_df = study_to_dataframe(study)
         return (best_params, trials_df)
-
-    def optimize(
-        self,
-        recommender_class: Type[BaseRecommender],
-        n_trials: int = 20,
-        timeout: Optional[int] = None,
-        random_seed: Optional[int] = None,
-        prunning_n_startup_trials: int = 10,
-    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
-        r"""Perform the optimization step.
-        `optuna.Study` object is created inside this function.
-
-        Args:
-            n_trials:
-                The number of expected trials (include pruned trial.). Defaults to 20.
-            timeout:
-                If set to some value (in seconds), the study will exit after that time period.
-                Note that the running trials is not interrupted, though. Defaults to `None`.
-            random_seed:
-                The random seed to control ``optuna.samplers.TPESampler``. Defaults to `None`.
-            prunning_n_startup_trials:
-                `n_startup_trials` argument passed to the constructor of `optuna.pruners.MedianPruner`,
-                Defaults to `10`.
-
-        Returns:
-            A tuple that consists of
-
-                1. A dict containing the best paramaters.
-                   This dict can be passed to the recommender as ``**kwargs``.
-                2. A ``pandas.DataFrame`` that contains the history of optimization.
-
-        """
-        study = optuna.create_study(
-            sampler=optuna.samplers.TPESampler(seed=random_seed),
-            pruner=optuna.pruners.MedianPruner(
-                n_startup_trials=prunning_n_startup_trials
-            ),
-        )
-        return self.optimize_with_study(study, recommender_class, n_trials, timeout)

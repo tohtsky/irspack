@@ -1,18 +1,14 @@
-from ..parameter_tuning import (
-    CategoricalSuggestion,
-    IntegerSuggestion,
-    UniformSuggestion,
-)
+from .parameter_range import CategoricalRange, UniformFloatRange, UniformIntegerRange
 
 default_tune_range_knn = [
-    IntegerSuggestion("top_k", 4, 1000),
-    UniformSuggestion("shrinkage", 0, 1000),
+    UniformIntegerRange("top_k", 4, 1000),
+    UniformFloatRange("shrinkage", 0, 1000),
 ]
 
 default_tune_range_knn_with_weighting = [
-    IntegerSuggestion("top_k", 4, 1000),
-    UniformSuggestion("shrinkage", 0, 1000),
-    CategoricalSuggestion("feature_weighting", ["NONE", "TF_IDF", "BM_25"]),
+    UniformIntegerRange("top_k", 4, 1000),
+    UniformFloatRange("shrinkage", 0, 1000),
+    CategoricalRange("feature_weighting", ["NONE", "TF_IDF", "BM_25"]),
 ]
 
 #

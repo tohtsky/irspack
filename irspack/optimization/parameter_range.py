@@ -1,6 +1,6 @@
 import re
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence
+from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
     from optuna import Trial
@@ -14,14 +14,14 @@ def is_valid_param_name(name: str) -> bool:
     return True
 
 
-class Suggestion(object, metaclass=ABCMeta):
-    def __init__(self, name: str):
-        """The base class to controll optuna's ``Trial`` behavior during
-            hyper parameter optimization.
+class ParameterRange(metaclass=ABCMeta):
+    r"""The class to define default parameter tuning range.
 
-        Args:
-            name (str): The name of the parameter to be tuned.
-        """
+    Args:
+        name (str): The name of the parameter to be tuned.
+    """
+
+    def __init__(self, name: str):
         if not is_valid_param_name(name):
             raise ValueError(
                 rf""""{name}" is  not a valid parameter name. It should match r"^([a-zA-Z\d]+[\-_]*)+$"""
@@ -37,27 +37,7 @@ class Suggestion(object, metaclass=ABCMeta):
         raise NotImplementedError('"__repr__" must be implemented.')  # pragma: no cover
 
 
-def overwrite_suggestions(
-    base: Sequence[Suggestion],
-    suggest_overwrite: Sequence[Suggestion],
-    fixed_params: Dict[str, Any],
-) -> Sequence[Suggestion]:
-    for suggest in suggest_overwrite:
-        if suggest.name in fixed_params:
-            raise ValueError("suggest_overwrite and fixed_param have overwrap.")
-
-    overwritten_parameter_names = set(
-        [x.name for x in suggest_overwrite] + [x for x in fixed_params]
-    )
-    suggestions = [
-        suggest_base
-        for suggest_base in base
-        if suggest_base.name not in overwritten_parameter_names
-    ] + list(suggest_overwrite)
-    return suggestions
-
-
-class UniformSuggestion(Suggestion):
+class UniformFloatRange(ParameterRange):
     def __init__(self, name: str, low: float, high: float):
         super().__init__(name)
         if low > high:
@@ -73,7 +53,7 @@ class UniformSuggestion(Suggestion):
         return f"UniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
 
 
-class LogUniformSuggestion(Suggestion):
+class LogUniformFloatRange(ParameterRange):
     def __init__(self, name: str, low: float, high: float):
         super().__init__(name)
         if low > high:
@@ -89,7 +69,7 @@ class LogUniformSuggestion(Suggestion):
         return f"LogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
 
 
-class IntegerSuggestion(Suggestion):
+class UniformIntegerRange(ParameterRange):
     def __init__(self, name: str, low: int, high: int, step: int = 1):
         super().__init__(name)
         if low > high:
@@ -108,7 +88,7 @@ class IntegerSuggestion(Suggestion):
         return f"IntegerSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
 
 
-class IntegerLogUniformSuggestion(Suggestion):
+class LogUniformIntegerRange(ParameterRange):
     def __init__(self, name: str, low: int, high: int):
         super().__init__(name)
         if low > high:
@@ -124,7 +104,7 @@ class IntegerLogUniformSuggestion(Suggestion):
         return f"IntegerLogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
 
 
-class CategoricalSuggestion(Suggestion):
+class CategoricalRange(ParameterRange):
     def __init__(self, name: str, choices: List[Any]):
         super().__init__(name)
         self.choices = choices

@@ -1,3 +1,4 @@
+import logging
 from abc import ABCMeta, abstractmethod
 from typing import (
     TYPE_CHECKING,
@@ -19,10 +20,12 @@ from pydantic import BaseModel
 from scipy import sparse as sps
 
 if TYPE_CHECKING:
+    from optuna import Study, Trial
+
     from .. import evaluation
 
-ParameterSuggestFunctionType = Callable[[Trial], Dict[str, Any]]
-from optuna import Study, Trial, create_study, pruners, samplers
+
+ParameterSuggestFunctionType = Callable[["Trial"], Dict[str, Any]]
 
 from ..definitions import (
     DenseMatrix,
@@ -30,7 +33,7 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from ..parameter_tuning import Suggestion
+from ..optimization.parameter_range import ParameterRange
 
 R = TypeVar("R", bound="BaseRecommender")
 
@@ -79,7 +82,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
     """
 
     config_class: Type[RecommenderConfig]
-    default_tune_range: List[Suggestion]
+    default_tune_range: List[ParameterRange]
 
     def __init__(self, X_train_all: InteractionMatrix, **kwargs: Any) -> None:
         self.X_train_all: sps.csr_matrix = sps.csr_matrix(X_train_all).astype(
@@ -123,7 +126,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
     def learn_with_optimizer(
         self,
         evaluator: Optional["evaluation.Evaluator"],
-        trial: Optional[Trial],
+        trial: Optional["Trial"],
         max_epoch: int = 128,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
@@ -155,7 +158,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
 
     @classmethod
     def default_suggest_parameter(
-        cls, trial: Trial, fixed_params: Dict[str, Any]
+        cls, trial: "Trial", fixed_params: Dict[str, Any]
     ) -> Dict[str, Any]:
         return {
             s.name: s.suggest(trial)
@@ -170,7 +173,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         evaluator: "evaluation.Evaluator",
         n_trials: int = 20,
         timeout: Optional[int] = None,
-        data_suggest_function: Optional[Callable[[Trial], InteractionMatrix]] = None,
+        data_suggest_function: Optional[Callable[["Trial"], InteractionMatrix]] = None,
         parameter_suggest_function: Optional[ParameterSuggestFunctionType] = None,
         fixed_params: Dict[str, Any] = dict(),
         random_seed: Optional[int] = None,
@@ -178,6 +181,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         max_epoch: int = 128,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
+        logger: Optional[logging.Logger] = None,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         r"""Perform the optimization step.
         `optuna.Study` object is created inside this function.
@@ -227,6 +231,8 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
                 2. A ``pandas.DataFrame`` that contains the history of optimization.
         """
 
+        from optuna import create_study, pruners, samplers
+
         study = create_study(
             sampler=samplers.TPESampler(seed=random_seed),
             pruner=pruners.MedianPruner(n_startup_trials=prunning_n_startup_trials),
@@ -243,6 +249,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
+            logger=logger,
         )
 
     @classmethod
@@ -253,12 +260,13 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         evaluator: "evaluation.Evaluator",
         n_trials: int = 20,
         timeout: Optional[int] = None,
-        data_suggest_function: Optional[Callable[[Trial], InteractionMatrix]] = None,
+        data_suggest_function: Optional[Callable[["Trial"], InteractionMatrix]] = None,
         parameter_suggest_function: Optional[ParameterSuggestFunctionType] = None,
         fixed_params: Dict[str, Any] = dict(),
         max_epoch: int = 128,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
+        logger: Optional[logging.Logger] = None,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         from irspack.optimization.base_optimizer import Optimizer
 
@@ -270,14 +278,14 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
             _data_suggest_function = data_suggest_function
         else:
 
-            def _data_suggest_function(trial: Trial) -> InteractionMatrix:
+            def _data_suggest_function(trial: "Trial") -> InteractionMatrix:
                 return data
 
         if parameter_suggest_function is not None:
             _parameter_suggest_function = parameter_suggest_function
         else:
 
-            def _parameter_suggest_function(trial: Trial) -> Dict[str, Any]:
+            def _parameter_suggest_function(trial: "Trial") -> Dict[str, Any]:
                 return cls.default_suggest_parameter(trial, fixed_params)
 
         optim = Optimizer(
@@ -288,6 +296,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
+            logger=logger,
         )
         return optim.optimize_with_study(study, cls, n_trials=n_trials, timeout=timeout)
 

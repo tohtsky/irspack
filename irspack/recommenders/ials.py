@@ -6,7 +6,6 @@ import numpy as np
 import optuna
 import pandas as pd
 import scipy.sparse as sps
-from evaluation.evaluator import Evaluator
 from typing_extensions import Literal  # pragma: no cover, type: ignore
 
 from irspack.utils import get_n_threads
@@ -17,7 +16,12 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from ..parameter_tuning import IntegerSuggestion, LogUniformSuggestion, Suggestion
+from ..evaluation.evaluator import Evaluator
+from ..optimization.parameter_range import (
+    LogUniformFloatRange,
+    ParameterRange,
+    UniformIntegerRange,
+)
 from ._ials import IALSModelConfigBuilder, IALSSolverConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
 from ._ials import LossType, SolverType
@@ -272,10 +276,10 @@ class IALSRecommender(
     """
 
     config_class = IALSConfig
-    default_tune_range: List[Suggestion] = [
-        IntegerSuggestion("n_components", 4, 300),
-        LogUniformSuggestion("alpha0", 3e-3, 1),
-        LogUniformSuggestion("reg", 1e-4, 1e-1),
+    default_tune_range: List[ParameterRange] = [
+        UniformIntegerRange("n_components", 4, 300),
+        LogUniformFloatRange("alpha0", 3e-3, 1),
+        LogUniformFloatRange("reg", 1e-4, 1e-1),
     ]
 
     def __init__(
@@ -436,7 +440,7 @@ class IALSRecommender(
 
     @classmethod
     def tune_doubling_dimension(
-        self,
+        cls,
         data: InteractionMatrix,
         evaluator: Evaluator,
         initial_dimension: int,
@@ -529,13 +533,15 @@ class IALSRecommender(
                 pruner=optuna.pruners.MedianPruner(n_startup_trials=n_startup_trials),
                 study_name=f"{study_name_prefix}_{dimension}",
             )
-            bp, df_ = self.tune_with_study(
+            bp, df_ = cls.tune_with_study(
                 study,
                 data,
                 evaluator,
                 n_trials,
                 max_epoch=16,
                 validate_epoch=1,
+                parameter_suggest_function=_suggest,
+                fixed_params=dict(n_components=dimension),
             )
             df_["n_components"] = dimension
             results.append((float(df_["value"].min()), bp, df_))
