@@ -45,8 +45,6 @@ class TrainerBase(ABC):
 
 
 class BaseEarlyStoppingRecommenderConfig(RecommenderConfig):
-    validate_epoch: int = 5
-    score_degradation_max: int = 5
     max_epoch: int = 512
 
 
