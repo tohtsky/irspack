@@ -152,7 +152,7 @@ class IALSConfig(BaseEarlyStoppingRecommenderConfig):
     nu_star: Optional[float] = None
     random_seed: int = 42
     n_threads: Optional[int] = None
-    max_epoch: int = 16
+    train_epochs: int = 16
     prediction_time_max_cg_steps: int = 5
 
 
@@ -260,8 +260,8 @@ class IALSRecommender(
             Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
-        max_epoch (int, optional):
-            Maximal number of epochs. Defaults to 512.
+        train_epochs (int, optional):
+            Maximal number of epochs. Defaults to 16.
         prediction_time_max_cg_steps (int, optional):
             Maximal number of conjute gradient descent steps during the prediction time,
             i.e., the case when a user unseen at the training time is given as a history matrix.
@@ -304,14 +304,14 @@ class IALSRecommender(
         nu_star: Optional[float] = None,
         random_seed: int = 42,
         n_threads: Optional[int] = None,
-        max_epoch: int = 16,
+        train_epochs: int = 16,
         prediction_time_max_cg_steps: int = 5,
         prediction_time_ialspp_iteration: int = 7,
     ) -> None:
 
         super().__init__(
             X_train_all,
-            max_epoch=max_epoch,
+            train_epochs=train_epochs,
         )
 
         self.n_components = n_components
@@ -588,6 +588,39 @@ class IALSRecommender(
             data_suggest_function,
             parameter_suggest_function,
             fixed_params,
+            max_epoch,
+            validate_epoch,
+            score_degradation_max,
+            logger,
+        )
+
+    @classmethod
+    def tune(
+        cls,
+        data: Union[InteractionMatrix, None],
+        evaluator: "evaluation.Evaluator",
+        n_trials: int = 20,
+        timeout: Optional[int] = None,
+        data_suggest_function: Optional[Callable[["Trial"], InteractionMatrix]] = None,
+        parameter_suggest_function: Optional[ParameterSuggestFunctionType] = None,
+        fixed_params: Dict[str, Any] = dict(),
+        random_seed: Optional[int] = None,
+        prunning_n_startup_trials: int = 10,
+        max_epoch: int = 16,
+        validate_epoch: int = 1,
+        score_degradation_max: int = 3,
+        logger: Optional[logging.Logger] = None,
+    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
+        return super().tune(
+            data,
+            evaluator,
+            n_trials,
+            timeout,
+            data_suggest_function,
+            parameter_suggest_function,
+            fixed_params,
+            random_seed,
+            prunning_n_startup_trials,
             max_epoch,
             validate_epoch,
             score_degradation_max,

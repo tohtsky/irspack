@@ -146,7 +146,7 @@ class Optimizer:
         fixed_params: Dict[str, Any],
         val_evaluator: Evaluator,
         logger: Optional[logging.Logger] = None,
-        max_epoch: int = 512,
+        max_epoch: int = 128,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
     ):

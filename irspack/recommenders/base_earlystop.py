@@ -45,17 +45,17 @@ class TrainerBase(ABC):
 
 
 class BaseEarlyStoppingRecommenderConfig(RecommenderConfig):
-    max_epoch: int = 512
+    train_epochs: int = 512
 
 
 class BaseRecommenderWithEarlyStopping(BaseRecommender):
     """The base class for all the early-stoppable recommenders.
 
     Args:
-        X_train_all (csr_matrix|csc_matrix): The train interaction matrix.
-        max_epoch (int, optional): The maximal number of epochs to be run. Defaults to 512.
-        validate_epoch (int, optional): Frequency of validation score measurement (if any). Defaults to 5.
-        score_degradation_max (int, optional): Maximal number of allowed score degradation. Defaults to 5.
+        X_train_all:
+            The train interaction matrix.
+        train_epochs:
+            The number of training epochs to run. Defaults to 128.
     """
 
     trainer_class: Type[TrainerBase]
@@ -63,12 +63,12 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
     def __init__(
         self,
         X_train_all: InteractionMatrix,
-        max_epoch: int = 512,
+        train_epochs: int = 128,
         **kwargs: Any,
     ):
 
         super().__init__(X_train_all, **kwargs)
-        self.max_epoch = max_epoch
+        self.train_epochs = train_epochs
         self.trainer: Optional[TrainerBase] = None
         self.best_state: Optional[bytes] = None
 
@@ -100,7 +100,7 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
             self.trainer.load_state(ifs)
 
     def _learn(self) -> None:
-        self.learn_with_optimizer(None, None)
+        self.learn_with_optimizer(None, None, max_epoch=self.train_epochs)
 
     def learn_with_optimizer(
         self,
@@ -131,7 +131,7 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
             if relevant_score > best_score:
                 best_score = relevant_score
                 self.save_state()
-                self.learnt_config["max_epoch"] = epoch + 1
+                self.learnt_config["train_epochs"] = epoch + 1
                 n_score_degradation = 0
             else:
                 n_score_degradation += 1

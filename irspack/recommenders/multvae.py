@@ -311,16 +311,12 @@ class MultVAERecommender(BaseRecommenderWithEarlyStopping):
         kl_anneal_goal: float = 0.2,
         anneal_end_epoch: int = 50,
         minibatch_size: int = 512,
-        max_epoch: int = 300,
-        validate_epoch: int = 5,
-        score_degradation_max: int = 5,
+        train_epochs: int = 300,
         learning_rate: float = 1e-3,
     ) -> None:
         super().__init__(
             X_train_all,
-            max_epoch=max_epoch,
-            validate_epoch=validate_epoch,
-            score_degradation_max=score_degradation_max,
+            train_epochs=train_epochs,
         )
 
         self.dim_z = dim_z

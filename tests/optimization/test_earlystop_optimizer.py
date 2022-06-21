@@ -110,7 +110,7 @@ def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
                 ),
             )
     assert len(config) == 3
-    assert config["max_epoch"] == target_epoch
+    assert config["train_epochs"] == target_epoch
     best_index = np.nanargmax(-history.value.values)
     best_target_score_inferred = history.target_score.iloc[best_index]
     best_ndcg = history["ndcg@30"].iloc[best_index]

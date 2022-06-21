@@ -13,7 +13,7 @@ def test_bprFM(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
         pytest.skip("lightfm not found.")
         raise
     X = test_interaction_data["X_small"]
-    rec = BPRFMRecommender(X, n_components=min(X.shape), max_epoch=30)
+    rec = BPRFMRecommender(X, n_components=min(X.shape), train_epochs=30)
     with pytest.raises(RuntimeError):
         _ = rec.fm.user_embeddings
     rec.learn()

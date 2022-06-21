@@ -57,4 +57,4 @@ def test_doubling_dimension_strategy() -> None:
 
     assert bp["n_components"] == df.sort_values("value").iloc[0]["n_components"]
 
-    assert bp["max_epoch"] <= 2
+    assert bp["train_epochs"] <= 2

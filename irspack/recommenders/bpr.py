@@ -84,25 +84,21 @@ class BPRFMRecommender(
 
 
     Args:
-        X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
+        X_train_all:
             Input interaction matrix.
-        n_components (int, optional):
+        n_components:
             The dimension for latent factor. Defaults to 128.
-        item_alpha (float, optional):
+        item_alpha:
             The regularization coefficient for item factors. Defaults to 1e-9.
-        user_alpha (float, optional):
+        user_alpha:
             The regularization coefficient for user factors. Defaults to 1e-9.
-        loss (str, optional):
+        loss:
             Specifies the loss function type of LightFM. Must be one of {"bpr", "warp"}. Defaults to "bpr".
-        validate_epoch (int, optional):
-            Frequency of validation score measurement (if any). Defaults to 5.
-        score_degradation_max (int, optional):
-            Maximal number of allowed score degradation. Defaults to 5.
-        n_threads (Optional[int], optional): Specifies the number of threads to use for the computation.
+        train_epochs:
+            Number of training epochs. Defaults to 128.
+        n_threads: Specifies the number of threads to use for the computation.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
-        max_epoch (int, optional):
-            Maximal number of epochs. Defaults to 512.
     """
 
     config_class = BPRFMConfig
@@ -120,16 +116,12 @@ class BPRFMRecommender(
         item_alpha: float = 1e-9,
         user_alpha: float = 1e-9,
         loss: str = "bpr",
-        validate_epoch: int = 5,
-        score_degradation_max: int = 3,
         n_threads: Optional[int] = None,
-        max_epoch: int = 512,
+        train_epochs: int = 128,
     ):
         super().__init__(
             X_train_all,
-            max_epoch=max_epoch,
-            validate_epoch=validate_epoch,
-            score_degradation_max=score_degradation_max,
+            train_epochs=train_epochs,
         )
         self.n_components = n_components
         self.item_alpha = item_alpha
