@@ -1,15 +1,15 @@
 import enum
+import logging
 import pickle
-from typing import IO, Any, Dict, List, Optional, Tuple
+from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import optuna
 import pandas as pd
 import scipy.sparse as sps
+from optuna import Study
 from typing_extensions import Literal  # pragma: no cover, type: ignore
 
-from irspack.utils import get_n_threads
-
+from .. import evaluation
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
@@ -22,6 +22,7 @@ from ..optimization.parameter_range import (
     ParameterRange,
     UniformIntegerRange,
 )
+from ..utils import get_n_threads
 from ._ials import IALSModelConfigBuilder, IALSSolverConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
 from ._ials import LossType, SolverType
@@ -35,6 +36,10 @@ from .base_earlystop import (
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
 )
+
+if TYPE_CHECKING:
+    from optuna import Study, Trial
+    from optuna.storages import RDBStorage
 
 
 def str_to_solver_type(t: str) -> SolverType:
@@ -445,12 +450,15 @@ class IALSRecommender(
         evaluator: Evaluator,
         initial_dimension: int,
         maximal_dimension: int,
-        storage: Optional[optuna.storages.RDBStorage] = None,
+        storage: Optional["RDBStorage"] = None,
         study_name_prefix: Optional[str] = None,
         n_trials_initial: int = 40,
         n_trials_following: int = 20,
         n_startup_trials_initial: int = 10,
         n_startup_trials_following: int = 5,
+        max_epoch: int = 16,
+        validate_epoch: int = 1,
+        score_degradation_max: int = 3,
         neighborhood_scale: float = 3.0,
         suggest_function_initial: Optional[ParameterSuggestFunctionType] = None,
         random_seed: Optional[int] = None,
@@ -496,6 +504,8 @@ class IALSRecommender(
         """
         from uuid import uuid1
 
+        import optuna
+
         if study_name_prefix is None:
             study_name_prefix = str(uuid1())
         dimension = initial_dimension
@@ -515,7 +525,7 @@ class IALSRecommender(
 
                 _prev_params_copied = prev_params.copy()
 
-                def _suggest(trial: optuna.Trial) -> Dict[str, Any]:
+                def _suggest(trial: "Trial") -> Dict[str, Any]:
                     result: Dict[str, Any] = {}
                     for key, value in _prev_params_copied.items():
                         if isinstance(value, float):
@@ -538,8 +548,9 @@ class IALSRecommender(
                 data,
                 evaluator,
                 n_trials,
-                max_epoch=16,
-                validate_epoch=1,
+                max_epoch=max_epoch,
+                validate_epoch=validate_epoch,
+                score_degradation_max=score_degradation_max,
                 parameter_suggest_function=_suggest,
                 fixed_params=dict(n_components=dimension),
             )
@@ -551,3 +562,34 @@ class IALSRecommender(
         final_bp = sorted(results)[0][1]
 
         return final_bp, final_result_df
+
+    @classmethod
+    def tune_with_study(
+        cls,
+        study: "Study",
+        data: Union[InteractionMatrix, None],
+        evaluator: "evaluation.Evaluator",
+        n_trials: int = 20,
+        timeout: Optional[int] = None,
+        data_suggest_function: Optional[Callable[["Trial"], InteractionMatrix]] = None,
+        parameter_suggest_function: Optional[ParameterSuggestFunctionType] = None,
+        fixed_params: Dict[str, Any] = dict(),
+        max_epoch: int = 16,
+        validate_epoch: int = 1,
+        score_degradation_max: int = 3,
+        logger: Optional[logging.Logger] = None,
+    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
+        return super().tune_with_study(
+            study,
+            data,
+            evaluator,
+            n_trials,
+            timeout,
+            data_suggest_function,
+            parameter_suggest_function,
+            fixed_params,
+            max_epoch,
+            validate_epoch,
+            score_degradation_max,
+            logger,
+        )

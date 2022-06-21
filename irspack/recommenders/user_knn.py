@@ -2,6 +2,11 @@ from abc import abstractmethod
 from typing import Optional, Union
 
 from irspack.definitions import InteractionMatrix
+from irspack.optimization.parameter_range import (
+    CategoricalRange,
+    UniformFloatRange,
+    default_tune_range_knn_with_weighting,
+)
 from irspack.recommenders._knn import (
     AsymmetricSimilarityComputer,
     CosineSimilarityComputer,
@@ -115,6 +120,9 @@ class CosineUserKNNRecommender(BaseUserKNNRecommender):
     """
 
     config_class = CosineUserKNNConfig
+    default_tune_range = default_tune_range_knn_with_weighting.copy() + [
+        CategoricalRange("normalize", [False, True])
+    ]
 
     def __init__(
         self,
@@ -182,6 +190,9 @@ class AsymmetricCosineUserKNNRecommender(BaseUserKNNRecommender):
     """
 
     config_class = AsymmetricCosineUserKNNConfig
+    default_tune_range = default_tune_range_knn_with_weighting + [
+        UniformFloatRange("alpha", 0, 1)
+    ]
 
     def __init__(
         self,

@@ -19,6 +19,7 @@ def test_doubling_dimension_strategy() -> None:
         n_startup_trials_following=5,
         neighborhood_scale=SCALE,
         storage=storage,
+        max_epoch=2,
     )
     tried_dimensions = sorted(df["n_components"].unique())
     assert len(tried_dimensions) == 3
@@ -55,3 +56,5 @@ def test_doubling_dimension_strategy() -> None:
         assert reg >= (bp_4["reg"] / SCALE)
 
     assert bp["n_components"] == df.sort_values("value").iloc[0]["n_components"]
+
+    assert bp["max_epoch"] <= 2

@@ -10,6 +10,8 @@ import optax
 from optax import OptState, adam
 from scipy import sparse as sps
 
+from irspack.optimization.parameter_range import CategoricalRange
+
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
 from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,
@@ -291,6 +293,12 @@ class MultVAEConfig(BaseEarlyStoppingRecommenderConfig):
 
 class MultVAERecommender(BaseRecommenderWithEarlyStopping):
     config_class = MultVAEConfig
+
+    default_tune_range = [
+        CategoricalRange("dim_z", [32, 64, 128, 256]),
+        CategoricalRange("enc_hidden_dims", [128, 256, 512]),
+        CategoricalRange("kl_anneal_goal", [0.1, 0.2, 0.4]),
+    ]
 
     def __init__(
         self,

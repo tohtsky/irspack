@@ -4,6 +4,7 @@ import numpy as np
 from scipy import linalg
 
 from ..definitions import InteractionMatrix
+from ..optimization.parameter_range import LogUniformFloatRange
 from .base import BaseSimilarityRecommender, RecommenderConfig
 
 
@@ -27,6 +28,7 @@ class DenseSLIMRecommender(BaseSimilarityRecommender):
             The regularization parameter for ease. Defaults to 1.0.
     """
 
+    default_tune_range = [LogUniformFloatRange("reg", 1, 1e4)]
     config_class = DenseSLIMConfig
 
     def __init__(self, X_train_all: InteractionMatrix, reg: float = 1):

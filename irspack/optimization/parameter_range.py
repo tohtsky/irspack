@@ -116,3 +116,15 @@ class CategoricalRange(ParameterRange):
         return (
             f"IntegerLogUniformSuggestion(name={self.name!r}, choices={self.choices!r})"
         )
+
+
+default_tune_range_knn = [
+    UniformIntegerRange("top_k", 4, 1000),
+    UniformFloatRange("shrinkage", 0, 1000),
+]
+
+default_tune_range_knn_with_weighting = [
+    UniformIntegerRange("top_k", 4, 1000),
+    UniformFloatRange("shrinkage", 0, 1000),
+    CategoricalRange("feature_weighting", ["NONE", "TF_IDF", "BM_25"]),
+]

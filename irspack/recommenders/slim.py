@@ -1,6 +1,7 @@
 from typing import Optional
 
 from irspack.definitions import InteractionMatrix
+from irspack.optimization.parameter_range import LogUniformFloatRange, UniformFloatRange
 from irspack.recommenders.base import BaseSimilarityRecommender, RecommenderConfig
 from irspack.utils import get_n_threads
 from irspack.utils._util_cpp import (
@@ -50,7 +51,10 @@ class SLIMRecommender(BaseSimilarityRecommender):
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
     """
-
+    default_tune_range = [
+        LogUniformFloatRange("alpha", 1e-5, 1),
+        UniformFloatRange("l1_ratio", 0, 1),
+    ]
     config_class = SLIMConfig
 
     def __init__(

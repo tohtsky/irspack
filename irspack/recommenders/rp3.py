@@ -3,6 +3,11 @@ from typing import Optional
 from irspack.utils import get_n_threads, l1_normalize_row
 
 from ..definitions import InteractionMatrix
+from ..optimization.parameter_range import (
+    CategoricalRange,
+    LogUniformFloatRange,
+    UniformIntegerRange,
+)
 from ._knn import RP3betaComputer
 from .base import BaseSimilarityRecommender, RecommenderConfig
 
@@ -44,6 +49,11 @@ class RP3betaRecommender(BaseSimilarityRecommender):
     """
 
     config_class = RP3betaConfig
+    default_tune_range = [
+        UniformIntegerRange("top_k", 2, 1000),
+        LogUniformFloatRange("beta", 1e-5, 5e-1),
+        CategoricalRange("normalize_weight", [True, False]),
+    ]
 
     def __init__(
         self,

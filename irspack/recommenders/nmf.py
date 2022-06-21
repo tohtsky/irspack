@@ -3,6 +3,11 @@ from typing import Optional
 from sklearn.decomposition import NMF
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
+from ..optimization.parameter_range import (
+    LogUniformFloatRange,
+    UniformFloatRange,
+    UniformIntegerRange,
+)
 from .base import BaseRecommender, RecommenderConfig
 
 
@@ -16,6 +21,11 @@ class NMFConfig(RecommenderConfig):
 
 class NMFRecommender(BaseRecommender):
     config_class = NMFConfig
+    default_tune_range = [
+        UniformIntegerRange("n_components", 4, 512),
+        LogUniformFloatRange("alpha", 1e-10, 1e-1),
+        UniformFloatRange("l1_ratio", 0, 1),
+    ]
 
     def __init__(
         self,

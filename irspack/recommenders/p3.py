@@ -5,6 +5,7 @@ from irspack.recommenders._knn import P3alphaComputer
 from irspack.recommenders.base import BaseSimilarityRecommender
 from irspack.utils import get_n_threads, l1_normalize_row
 
+from ..optimization.parameter_range import CategoricalRange, UniformIntegerRange
 from .base import BaseSimilarityRecommender, RecommenderConfig
 
 
@@ -41,6 +42,11 @@ class P3alphaRecommender(BaseSimilarityRecommender):
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
             and if the variable is not set, it will be set to ``os.cpu_count()``. Defaults to None.
     """
+
+    default_tune_range = [
+        UniformIntegerRange("top_k", low=10, high=1000),
+        CategoricalRange("normalize_weight", [True, False]),
+    ]
 
     config_class = P3alphaConfig
 

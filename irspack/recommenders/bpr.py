@@ -4,6 +4,11 @@ from typing import IO, Optional
 import numpy as np
 from lightfm import LightFM
 
+from irspack.optimization.parameter_range import (
+    CategoricalRange,
+    LogUniformFloatRange,
+    UniformIntegerRange,
+)
 from irspack.utils import get_n_threads
 
 from ..definitions import (
@@ -101,6 +106,12 @@ class BPRFMRecommender(
     """
 
     config_class = BPRFMConfig
+    default_tune_range = [
+        UniformIntegerRange("n_components", 4, 256),
+        LogUniformFloatRange("item_alpha", 1e-9, 1e-2),
+        LogUniformFloatRange("user_alpha", 1e-9, 1e-2),
+        CategoricalRange("loss", ["bpr", "warp"]),
+    ]
 
     def __init__(
         self,
