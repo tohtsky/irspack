@@ -20,6 +20,7 @@ def test_doubling_dimension_strategy() -> None:
         neighborhood_scale=SCALE,
         storage=storage,
         max_epoch=2,
+        random_seed=0,
     )
     tried_dimensions = sorted(df["n_components"].unique())
     assert len(tried_dimensions) == 3

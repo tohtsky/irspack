@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 
+from irspack import Evaluator, rowwise_train_test_split
 from irspack.recommenders import IALSRecommender
 
 
@@ -285,3 +286,40 @@ def test_ials_overfit_cholesky_logscale(
 
     np.testing.assert_allclose(grad_ivec_chol, np.zeros_like(grad_ivec_chol), atol=1e-5)
     np.testing.assert_allclose(grad_uvec_chol, np.zeros_like(grad_uvec_chol), atol=1e-5)
+
+
+def test_ials_tuning_with_n_startup_trials(
+    test_interaction_data: Dict[str, sps.csr_matrix]
+) -> None:
+    X = test_interaction_data["X_small"]
+    X_tr, X_te = rowwise_train_test_split(X, random_state=0)
+    cutoff = min(10, X.shape[1])
+    bp, history = IALSRecommender.tune(
+        X_tr,
+        Evaluator(X_te, cutoff=cutoff),
+        random_seed=0,
+        prunning_n_startup_trials=20,
+        n_trials=20,
+    )
+    assert history[f"ndcg@{cutoff}"].isna().sum() == 0
+    assert "train_epochs" in bp
+    assert bp["train_epochs"] <= 16
+
+
+def test_ials_tuning_with_too_early_n_startup(
+    test_interaction_data: Dict[str, sps.csr_matrix]
+) -> None:
+    X = test_interaction_data["X_small"]
+    X_tr, X_te = rowwise_train_test_split(X, random_state=0)
+    cutoff = min(10, X.shape[1])
+    bp, history = IALSRecommender.tune(
+        X_tr,
+        Evaluator(X_te, cutoff=cutoff),
+        random_seed=0,
+        prunning_n_startup_trials=1,
+        n_trials=20,
+        max_epoch=3,
+    )
+    assert history[f"ndcg@{cutoff}"].isna().sum() > 0
+    assert "train_epochs" in bp
+    assert bp["train_epochs"] <= 3

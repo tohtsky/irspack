@@ -8,20 +8,9 @@ import scipy.sparse as sps
 
 from irspack.evaluation import Evaluator, EvaluatorWithColdUser
 from irspack.recommenders import P3alphaRecommender, TopPopRecommender
-from irspack.recommenders.base import BaseRecommender
 from irspack.split import rowwise_train_test_split
 
-
-class MockRecommender(BaseRecommender, register_class=False):
-    def __init__(self, X_all: sps.csr_matrix, scores: np.ndarray) -> None:
-        super().__init__(X_all)
-        self.scores = scores
-
-    def get_score(self, user_indices: np.ndarray) -> np.ndarray:
-        return self.scores[user_indices]
-
-    def _learn(self) -> None:
-        pass
+from ..mock_recommender import MockRecommender
 
 
 @pytest.mark.parametrize(

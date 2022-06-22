@@ -27,3 +27,4 @@ pybind11
 docs/build/
 docs/source/api_reference/
 .cache/
+.coverage

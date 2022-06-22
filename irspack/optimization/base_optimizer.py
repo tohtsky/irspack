@@ -1,24 +1,13 @@
 import logging
 import re
 import time
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
 
 import pandas as pd
 
 from irspack.evaluation import Evaluator
-from irspack.optimization.parameter_range import ParameterRange, is_valid_param_name
+from irspack.optimization.parameter_range import is_valid_param_name
 from irspack.recommenders.base import BaseRecommender, InteractionMatrix
-from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
 from irspack.utils.default_logger import get_default_logger
 
 if TYPE_CHECKING:
@@ -26,77 +15,6 @@ if TYPE_CHECKING:
 
 SparseMatrixSuggestFunction = Callable[["Trial"], InteractionMatrix]
 ParameterSuggestFunction = Callable[["Trial"], Dict[str, Any]]
-
-_BaseOptimizerArgsString = """Args:
-    logger (Optional[logging.Logger], optional) :
-        The logger used during the optimization steps. Defaults to `None`.
-        If `None`, the default logger of irspack will be used.
-    suggest_overwrite (Sequence[Suggestion], optional) :
-        Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
-        the default parameter search space defined by ``default_tune_range``
-        Defaults to list().
-
-"""
-
-_BaseOptimizerWithEarlyStoppingArgsString = """Args:
-    data (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-        The train data.
-    val_evaluator (Evaluator):
-        The validation evaluator that measures the performance of the recommenders.
-    logger (Optional[logging.Logger], optional):
-        The logger used during the optimization steps. Defaults to `None`.
-        If `None`, the default logger of irspack will be used.
-    suggest_overwrite (Sequence[Suggestion], optional):
-        Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
-        the default parameter search space defined by ``default_tune_range``
-        Defaults to list().
-    fixed_params (Dict[str, Any], optional):
-        Fixed parameters passed to recommenders during the optimization procedure.
-        If such a parameter exists in ``default_tune_range``, it will not be tuned.
-        Defaults to dict().
-    max_epoch (int, optional):
-        The maximal number of epochs for the training. Defaults to 512.
-    validate_epoch (int, optional):
-        The frequency of validation score measurement. Defaults to 5.
-    score_degradation_max (int, optional):
-        Maximal number of allowed score degradation. Defaults to 5. Defaults to 5.
-"""
-
-
-def optimizer_docstring(
-    default_tune_range: Optional[Sequence[ParameterRange]],
-    recommender_class: Optional[Type[BaseRecommender]],
-) -> Optional[str]:
-    if recommender_class is None:
-        return None
-    assert default_tune_range is not None
-    if default_tune_range:
-
-        ranges = ""
-        for suggest in default_tune_range:
-            ranges += f"          - ``{suggest!r}``\n"
-
-        ranges += "\n"
-
-    if issubclass(recommender_class, BaseRecommenderWithEarlyStopping):
-        args_docstring = _BaseOptimizerWithEarlyStoppingArgsString
-    else:
-        args_docstring = _BaseOptimizerArgsString
-
-    if default_tune_range:
-        tune_range = f"""The default tune range is
-
-{ranges}"""
-    else:
-        tune_range = "   There is no tunable parameters."
-    docs = f"""Optimizer class for :class:`irspack.recommenders.{recommender_class.__name__}`.
-
-{tune_range}
-
-{args_docstring}
-
-    """
-    return docs
 
 
 def add_score_to_trial(trial: "Trial", score: Dict[str, float], cutoff: int) -> None:
@@ -136,8 +54,29 @@ def study_to_dataframe(study: "Study") -> pd.DataFrame:
 
 
 class Optimizer:
-
-    default_tune_range: Sequence[ParameterRange] = []
+    r"""
+    Args:
+        data_suggest_function:
+            The train data.
+        val_evaluator (Evaluator):
+            The validation evaluator that measures the performance of the recommenders.
+        logger:
+            The logger used during the optimization steps. Defaults to `None`.
+            If `None`, the default logger of irspack will be used.
+        suggest_overwrite:
+            Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
+            the default parameter search space defined by ``default_tune_range``
+            Defaults to list().
+        fixed_params (Dict[str, Any], optional):
+            Fixed parameters passed to recommenders during the optimization procedure.
+            If such a parameter exists in ``default_tune_range``, it will not be tuned.
+            Defaults to dict().
+        max_epoch (int, optional):
+            The maximal number of epochs for the training. Defaults to 512.
+        validate_epoch (int, optional):
+            The frequency of validation score measurement. Defaults to 5.
+        score_degradation_max (int, optional):
+            Maximal number of allowed score degradation. Defaults to 5. Defaults to 5."""
 
     def __init__(
         self,
@@ -170,7 +109,7 @@ class Optimizer:
     def objective_function(
         self, recommender_class: Type[BaseRecommender]
     ) -> Callable[["Trial"], float]:
-        """Returns the objective function that can be passed to ``optuna.Study`` .
+        r"""Returns the objective function that can be passed to ``optuna.Study`` .
 
         Returns:
             A callable that receives ``otpuna.Trial`` and returns float (like ndcg score).

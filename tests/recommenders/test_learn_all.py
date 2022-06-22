@@ -24,7 +24,7 @@ def test_recs(class_name: str) -> None:
     """Test the learning of recommenders exit normally, and they are picklable.
 
     Args:
-        class_name (str): The recommender class's name to be tested.
+        class_name: The recommender class's name to be tested.
     """
     RecommenderClass = get_recommender_class(class_name)
     if isabstract(RecommenderClass):

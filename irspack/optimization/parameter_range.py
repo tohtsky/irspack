@@ -32,10 +32,6 @@ class ParameterRange(metaclass=ABCMeta):
     def suggest(self, trial: "Trial", prefix: str = "") -> Any:
         raise NotImplementedError('"suggest" must be implemented.')  # pragma: no cover
 
-    @abstractmethod
-    def __repr__(self) -> str:
-        raise NotImplementedError('"__repr__" must be implemented.')  # pragma: no cover
-
 
 class UniformFloatRange(ParameterRange):
     def __init__(self, name: str, low: float, high: float):
@@ -49,9 +45,6 @@ class UniformFloatRange(ParameterRange):
     def suggest(self, trial: "Trial", prefix: str = "") -> Any:
         return trial.suggest_float(prefix + self.name, self.low, self.high)
 
-    def __repr__(self) -> str:
-        return f"UniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
-
 
 class LogUniformFloatRange(ParameterRange):
     def __init__(self, name: str, low: float, high: float):
@@ -64,9 +57,6 @@ class LogUniformFloatRange(ParameterRange):
 
     def suggest(self, trial: "Trial", prefix: str = "") -> Any:
         return trial.suggest_float(prefix + self.name, self.low, self.high, log=True)
-
-    def __repr__(self) -> str:
-        return f"LogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
 
 
 class UniformIntegerRange(ParameterRange):
@@ -84,9 +74,6 @@ class UniformIntegerRange(ParameterRange):
             prefix + self.name, self.low, self.high, step=self.step
         )
 
-    def __repr__(self) -> str:
-        return f"IntegerSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
-
 
 class LogUniformIntegerRange(ParameterRange):
     def __init__(self, name: str, low: int, high: int):
@@ -100,9 +87,6 @@ class LogUniformIntegerRange(ParameterRange):
     def suggest(self, trial: "Trial", prefix: str = "") -> Any:
         return trial.suggest_int(prefix + self.name, self.low, self.high, log=True)
 
-    def __repr__(self) -> str:
-        return f"IntegerLogUniformSuggestion(name={self.name!r}, low={self.low!r}, high={self.high!r})"
-
 
 class CategoricalRange(ParameterRange):
     def __init__(self, name: str, choices: List[Any]):
@@ -111,11 +95,6 @@ class CategoricalRange(ParameterRange):
 
     def suggest(self, trial: "Trial", prefix: str = "") -> Any:
         return trial.suggest_categorical(prefix + self.name, self.choices)
-
-    def __repr__(self) -> str:
-        return (
-            f"IntegerLogUniformSuggestion(name={self.name!r}, choices={self.choices!r})"
-        )
 
 
 default_tune_range_knn = [

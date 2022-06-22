@@ -79,3 +79,47 @@ def test_optimizer_by_mock(X: sps.csr_matrix) -> None:
     assert (config["I1"] >= 100) and (config["I1"] <= 102)
     assert (config["I2"] >= 500) and (config["I2"] <= 502)
     assert config["flag"] in ["foo", "bar"]
+
+
+def test_data_suggest_function() -> None:
+    X_train_, X_val = rowwise_train_test_split(X_large, random_state=0)
+    evaluator = Evaluator(X_val, offset=0, cutoff=100)
+    from optuna import Trial
+
+    from ..mock_recommender import MockRecommender as MockedScoreRecommender
+
+    assert X_train_.shape == X_val.shape
+
+    def data_suggest_function(trial: Trial) -> sps.csr_matrix:
+        p = trial.suggest_float("p", 0, 1)
+        if p < 0.5:
+            return X_val
+        else:
+            return X_train_
+
+    def parameter_suggest_function(trial: Trial) -> dict:
+        return {"scores": np.random.randn(*X_train_.shape)}
+
+    with pytest.raises(ValueError):
+        _, __ = MockedScoreRecommender.tune(
+            None,
+            evaluator,
+            n_trials=10,
+            random_seed=42,
+            data_suggest_function=None,
+            parameter_suggest_function=parameter_suggest_function,
+        )
+    bp, history = MockedScoreRecommender.tune(
+        None,
+        evaluator,
+        n_trials=10,
+        random_seed=42,
+        data_suggest_function=data_suggest_function,
+        parameter_suggest_function=parameter_suggest_function,
+    )
+    for i, row in history.iterrows():
+        hit_value = row[f"hit@100"]
+        if row["p"] < 0.5:
+            assert hit_value == 0.0
+        else:
+            assert hit_value > 0.0

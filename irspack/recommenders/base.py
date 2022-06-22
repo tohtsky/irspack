@@ -271,7 +271,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         from irspack.optimization.base_optimizer import Optimizer
 
         if data is None:
-            if data_suggest_function:
+            if data_suggest_function is None:
                 raise ValueError(
                     "Either `data` or `data_sugget_function` must be provided."
                 )
