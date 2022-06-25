@@ -4,8 +4,8 @@ import numpy as np
 from scipy import linalg
 
 from ..definitions import InteractionMatrix
-from ..optimization.parameter_range import LogUniformFloatRange, UniformFloatRange
 from .base import BaseSimilarityRecommender, RecommenderConfig
+from .optimization.parameter_range import LogUniformFloatRange, UniformFloatRange
 
 
 class EDLAEConfig(RecommenderConfig):

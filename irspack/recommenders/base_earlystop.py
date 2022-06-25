@@ -136,10 +136,12 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
             else:
                 n_score_degradation += 1
                 if n_score_degradation >= score_degradation_max:
+                    pb.on_interrupt()
                     break
             if trial is not None:
                 trial.report(-relevant_score, epoch)
                 if trial.should_prune():
+                    pb.on_interrupt()
                     raise TrialPruned()
 
         if evaluator is not None:

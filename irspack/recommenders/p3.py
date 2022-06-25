@@ -5,8 +5,8 @@ from irspack.recommenders._knn import P3alphaComputer
 from irspack.recommenders.base import BaseSimilarityRecommender
 from irspack.utils import get_n_threads, l1_normalize_row
 
-from ..optimization.parameter_range import CategoricalRange, UniformIntegerRange
 from .base import BaseSimilarityRecommender, RecommenderConfig
+from .optimization.parameter_range import CategoricalRange, UniformIntegerRange
 
 
 class P3alphaConfig(RecommenderConfig):

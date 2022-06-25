@@ -3,12 +3,12 @@ from typing import Optional
 from sklearn.decomposition import NMF
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
-from ..optimization.parameter_range import (
+from .base import BaseRecommender, RecommenderConfig
+from .optimization.parameter_range import (
     LogUniformFloatRange,
     UniformFloatRange,
     UniformIntegerRange,
 )
-from .base import BaseRecommender, RecommenderConfig
 
 
 class NMFConfig(RecommenderConfig):

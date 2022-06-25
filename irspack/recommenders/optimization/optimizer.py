@@ -7,13 +7,14 @@ import pandas as pd
 
 from irspack.evaluation import Evaluator
 from irspack.optimization.parameter_range import is_valid_param_name
-from irspack.recommenders.base import BaseRecommender, InteractionMatrix
 from irspack.utils.default_logger import get_default_logger
 
 if TYPE_CHECKING:
     from optuna import Study, Trial
 
-SparseMatrixSuggestFunction = Callable[["Trial"], InteractionMatrix]
+    from irspack.recommenders.base import BaseRecommender, InteractionMatrix
+
+SparseMatrixSuggestFunction = Callable[["Trial"], "InteractionMatrix"]
 ParameterSuggestFunction = Callable[["Trial"], Dict[str, Any]]
 
 
@@ -107,7 +108,7 @@ class Optimizer:
         self.score_degradation_max = score_degradation_max
 
     def objective_function(
-        self, recommender_class: Type[BaseRecommender]
+        self, recommender_class: Type["BaseRecommender"]
     ) -> Callable[["Trial"], float]:
         r"""Returns the objective function that can be passed to ``optuna.Study`` .
 
@@ -157,7 +158,7 @@ class Optimizer:
     def optimize_with_study(
         self,
         study: "Study",
-        recommender_class: Type[BaseRecommender],
+        recommender_class: Type["BaseRecommender"],
         n_trials: int = 20,
         timeout: Optional[int] = None,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:

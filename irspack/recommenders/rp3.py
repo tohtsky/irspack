@@ -3,13 +3,13 @@ from typing import Optional
 from irspack.utils import get_n_threads, l1_normalize_row
 
 from ..definitions import InteractionMatrix
-from ..optimization.parameter_range import (
+from ._knn import RP3betaComputer
+from .base import BaseSimilarityRecommender, RecommenderConfig
+from .optimization.parameter_range import (
     CategoricalRange,
     LogUniformFloatRange,
     UniformIntegerRange,
 )
-from ._knn import RP3betaComputer
-from .base import BaseSimilarityRecommender, RecommenderConfig
 
 
 class RP3betaConfig(RecommenderConfig):

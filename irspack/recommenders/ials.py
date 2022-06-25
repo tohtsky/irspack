@@ -17,11 +17,6 @@ from ..definitions import (
     UserIndexArray,
 )
 from ..evaluation.evaluator import Evaluator
-from ..optimization.parameter_range import (
-    LogUniformFloatRange,
-    ParameterRange,
-    UniformIntegerRange,
-)
 from ..utils import get_n_threads
 from ._ials import IALSModelConfigBuilder, IALSSolverConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
@@ -35,6 +30,11 @@ from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
+)
+from .optimization.parameter_range import (
+    LogUniformFloatRange,
+    ParameterRange,
+    UniformIntegerRange,
 )
 
 if TYPE_CHECKING:

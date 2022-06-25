@@ -4,11 +4,6 @@ from typing import IO, Optional
 import numpy as np
 from lightfm import LightFM
 
-from irspack.optimization.parameter_range import (
-    CategoricalRange,
-    LogUniformFloatRange,
-    UniformIntegerRange,
-)
 from irspack.utils import get_n_threads
 
 from ..definitions import (
@@ -23,6 +18,7 @@ from .base_earlystop import (
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
 )
+from .optimization import CategoricalRange, LogUniformFloatRange, UniformIntegerRange
 
 
 class BPRFMTrainer(TrainerBase):

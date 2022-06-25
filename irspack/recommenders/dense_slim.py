@@ -4,8 +4,8 @@ import numpy as np
 from scipy import linalg
 
 from ..definitions import InteractionMatrix
-from ..optimization.parameter_range import LogUniformFloatRange
 from .base import BaseSimilarityRecommender, RecommenderConfig
+from .optimization.parameter_range import LogUniformFloatRange
 
 
 class DenseSLIMConfig(RecommenderConfig):

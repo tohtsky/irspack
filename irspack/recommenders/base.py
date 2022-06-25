@@ -33,7 +33,7 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
-from ..optimization.parameter_range import ParameterRange
+from .optimization.parameter_range import ParameterRange
 
 R = TypeVar("R", bound="BaseRecommender")
 
@@ -268,7 +268,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         score_degradation_max: int = 5,
         logger: Optional[logging.Logger] = None,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
-        from irspack.optimization.base_optimizer import Optimizer
+        from .optimization.optimizer import Optimizer
 
         if data is None:
             if data_suggest_function is None:

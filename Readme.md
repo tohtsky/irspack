@@ -82,7 +82,7 @@ recommender.learn()
 recommender.get_score_remove_seen([0])
 ```
 
-## Step 2. Evaluate on a validation set
+## Step 2. Evaluation on a validation set
 
 To evaluate the performance of a recommenderm we have to split the dataset to train and validation sets:
 
@@ -120,15 +120,12 @@ This will print something like
 }
 ```
 
-## Step 3. Optimize the Hyperparameter
+## Step 3. Hyperparameter optimization
 
-Now that we can evaluate the recommenders' performance against the validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimizer.
+Now that we can evaluate the recommenders' performance against the validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimization.
 
 ```Python
-from irspack import IALSOptimizer
-
-optimizer = IALSOptimizer(X_train, evaluator)
-best_params, trial_dfs  = optimizer.optimize(n_trials=20)
+best_params, trial_dfs  = IALSRecommender.tune(X_train, evaluator, n_trials=20)
 
 # maximal ndcg around 0.43 ~ 0.45
 trial_dfs["ndcg@10"].max()

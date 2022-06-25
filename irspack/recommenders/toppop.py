@@ -3,8 +3,8 @@ from typing import List, Optional
 import numpy as np
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
-from ..optimization.parameter_range import ParameterRange
 from .base import BaseRecommender, RecommenderConfig
+from .optimization.parameter_range import ParameterRange
 
 
 class TopPopConfig(RecommenderConfig):
