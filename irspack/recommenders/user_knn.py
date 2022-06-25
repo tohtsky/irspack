@@ -1,25 +1,20 @@
 from abc import abstractmethod
 from typing import Optional, Union
 
-from irspack.definitions import InteractionMatrix
-from irspack.optimization.parameter_range import (
-    CategoricalRange,
-    UniformFloatRange,
-    default_tune_range_knn_with_weighting,
-)
-from irspack.recommenders._knn import (
+from ..definitions import InteractionMatrix
+from ..utils import get_n_threads, okapi_BM_25_weight, remove_diagonal, tf_idf_weight
+from ._knn import (
     AsymmetricSimilarityComputer,
     CosineSimilarityComputer,
     JaccardSimilarityComputer,
     TverskyIndexComputer,
 )
-from irspack.recommenders.base import BaseUserSimilarityRecommender, RecommenderConfig
-from irspack.recommenders.knn import FeatureWeightingScheme
-from irspack.utils import (
-    get_n_threads,
-    okapi_BM_25_weight,
-    remove_diagonal,
-    tf_idf_weight,
+from .base import BaseUserSimilarityRecommender, RecommenderConfig
+from .knn import FeatureWeightingScheme
+from .optimization.parameter_range import (
+    CategoricalRange,
+    UniformFloatRange,
+    default_tune_range_knn_with_weighting,
 )
 
 

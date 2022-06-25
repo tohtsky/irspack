@@ -1,13 +1,10 @@
 from typing import Optional
 
-from irspack.definitions import InteractionMatrix
-from irspack.optimization.parameter_range import LogUniformFloatRange, UniformFloatRange
-from irspack.recommenders.base import BaseSimilarityRecommender, RecommenderConfig
-from irspack.utils import get_n_threads
-from irspack.utils._util_cpp import (
-    slim_weight_allow_negative,
-    slim_weight_positive_only,
-)
+from ..definitions import InteractionMatrix
+from ..utils import get_n_threads
+from ..utils._util_cpp import slim_weight_allow_negative, slim_weight_positive_only
+from .base import BaseSimilarityRecommender, RecommenderConfig
+from .optimization.parameter_range import LogUniformFloatRange, UniformFloatRange
 
 
 class SLIMConfig(RecommenderConfig):

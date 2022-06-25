@@ -5,17 +5,16 @@ import pandas as pd
 from scipy import sparse as sps
 
 from irspack import (
-    AsymmetricCosineKNNOptimizer,
-    BaseOptimizer,
-    CosineKNNOptimizer,
-    DenseSLIMOptimizer,
+    AsymmetricCosineKNNRecommender,
+    BaseRecommender,
+    CosineKNNRecommender,
+    DenseSLIMRecommender,
     EvaluatorWithColdUser,
-    IALSOptimizer,
     IALSRecommender,
-    P3alphaOptimizer,
-    RP3betaOptimizer,
-    SLIMOptimizer,
-    TopPopOptimizer,
+    P3alphaRecommender,
+    RP3betaRecommender,
+    SLIMRecommender,
+    TopPopRecommender,
     split_dataframe_partial_user_holdout,
 )
 from irspack.dataset import MovieLens20MDataManager
@@ -63,21 +62,21 @@ if __name__ == "__main__":
     test_results = []
     validation_results = []
 
-    test_configs: List[Tuple[Type[BaseOptimizer], int, Dict[str, Any]]] = [
-        (TopPopOptimizer, 1, dict()),
-        (CosineKNNOptimizer, 40, dict()),
-        (AsymmetricCosineKNNOptimizer, 40, dict()),
-        (P3alphaOptimizer, 30, dict(alpha=1)),
-        (RP3betaOptimizer, 40, dict(alpha=1)),
-        (DenseSLIMOptimizer, 20, dict()),
-        (SLIMOptimizer, 40, dict()),  # Note: this is a heavy one.
+    test_configs: List[Tuple[Type[BaseRecommender], int, Dict[str, Any]]] = [
+        (TopPopRecommender, 1, dict()),
+        (CosineKNNRecommender, 40, dict()),
+        (AsymmetricCosineKNNRecommender, 40, dict()),
+        (P3alphaRecommender, 30, dict(alpha=1)),
+        (RP3betaRecommender, 40, dict(alpha=1)),
+        (DenseSLIMRecommender, 20, dict()),
+        (SLIMRecommender, 40, dict()),  # Note: this is a heavy one.
     ]
     try:
-        from irspack import MultVAEOptimizer
+        from irspack import MultVAERecommender
 
         test_configs.append(
             (
-                MultVAEOptimizer,
+                MultVAERecommender,
                 1,
                 dict(
                     dim_z=200, enc_hidden_dims=600, kl_anneal_goal=0.2
@@ -87,21 +86,19 @@ if __name__ == "__main__":
     except ImportError:
         pass
 
-    for optimizer_class, n_trials, config in test_configs:
-        recommender_name = optimizer_class.recommender_class.__name__
-        optimizer: BaseOptimizer = optimizer_class(
+    for recommender_class, n_trials, config in test_configs:
+        recommender_name = recommender_class.__name__
+        (best_param, validation_result_df) = recommender_class.tune(
             data_train.X_all,
             valid_evaluator,
             fixed_params=config,
-        )
-        (best_param, validation_result_df) = optimizer.optimize(
-            n_trials=n_trials, random_seed=0
+            n_trials=n_trials,
+            random_seed=0,
         )
         validation_result_df["recommender_name"] = recommender_name
         validation_results.append(validation_result_df)
         pd.concat(validation_results).to_csv(f"validation_scores.csv")
-        test_recommender = optimizer.recommender_class(X_train_val_all, **best_param)
-        test_recommender.learn()
+        test_recommender = recommender_class(X_train_val_all, **best_param).learn()
         test_scores = test_evaluator.get_scores(test_recommender, [20, 50, 100])
 
         test_results.append(
@@ -113,14 +110,12 @@ if __name__ == "__main__":
     # Tuning following the strategy of
     # "Revisiting the Performance of iALS on Item Recommendation Benchmarks"
     # https://arxiv.org/abs/2110.14037
-    ials_optimizer = IALSOptimizer(
-        data_train.X_all,
-        valid_evaluator,
-    )
     (
         best_param_ials,
         validation_result_df_ials,
-    ) = ials_optimizer.optimize_doubling_dimension(
+    ) = IALSRecommender.tune_doubling_dimension(
+        data_train.X_all,
+        valid_evaluator,
         initial_dimension=128,
         maximal_dimension=1024,
         random_seed=0,

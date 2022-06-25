@@ -4,19 +4,20 @@ from typing import List, Tuple, Type
 import pandas as pd
 from scipy import sparse as sps
 
+from irspack import (
+    AsymmetricCosineKNNRecommender,
+    BaseRecommender,
+    CosineKNNRecommender,
+    DenseSLIMRecommender,
+    IALSRecommender,
+    P3alphaRecommender,
+    RP3betaRecommender,
+    SLIMRecommender,
+    TopPopRecommender,
+    TverskyIndexKNNRecommender,
+)
 from irspack.dataset.movielens import MovieLens1MDataManager
 from irspack.evaluation import EvaluatorWithColdUser
-from irspack.optimizers import (  # SLIMOptimizer,; MultVAEOptimizer,
-    AsymmetricCosineKNNOptimizer,
-    BaseOptimizer,
-    CosineKNNOptimizer,
-    DenseSLIMOptimizer,
-    IALSOptimizer,
-    P3alphaOptimizer,
-    RP3betaOptimizer,
-    TopPopOptimizer,
-    TverskyIndexKNNOptimizer,
-)
 from irspack.split import split_dataframe_partial_user_holdout
 
 if __name__ == "__main__":
@@ -57,28 +58,26 @@ if __name__ == "__main__":
     test_results = []
     validation_results = []
 
-    test_configs: List[Tuple[Type[BaseOptimizer], int]] = [
-        (TopPopOptimizer, 1),
-        (CosineKNNOptimizer, 40),
-        (AsymmetricCosineKNNOptimizer, 40),
-        (TverskyIndexKNNOptimizer, 40),
-        (P3alphaOptimizer, 40),
-        (RP3betaOptimizer, 40),
-        (IALSOptimizer, 40),
-        (DenseSLIMOptimizer, 20),
-        # (SLIMOptimizer, 40), time consuming
-        # (MultVAEOptimizer, 5),
+    test_configs: List[Tuple[Type[BaseRecommender], int]] = [
+        (TopPopRecommender, 1),
+        (CosineKNNRecommender, 40),
+        (AsymmetricCosineKNNRecommender, 40),
+        (TverskyIndexKNNRecommender, 40),
+        (P3alphaRecommender, 40),
+        (RP3betaRecommender, 40),
+        (IALSRecommender, 40),
+        (DenseSLIMRecommender, 20),
+        (SLIMRecommender, 40),  # time consuming
     ]
-    for optimizer_class, n_trials in test_configs:
-        recommender_name = optimizer_class.recommender_class.__name__
-        optimizer: BaseOptimizer = optimizer_class(data_train.X_all, valid_evaluator)
-        (best_param, validation_result_df) = optimizer.optimize(
-            timeout=14400, n_trials=n_trials
+    for recommender_class, n_trials in test_configs:
+        recommender_name = recommender_class.__name__
+        (best_param, validation_result_df) = recommender_class.tune(
+            data_train.X_all, valid_evaluator, n_trials=n_trials, random_seed=0
         )
         validation_result_df["recommender_name"] = recommender_name
         validation_results.append(validation_result_df)
         pd.concat(validation_results).to_csv(f"validation_scores.csv")
-        test_recommender = optimizer.recommender_class(X_train_val_all, **best_param)
+        test_recommender = recommender_class(X_train_val_all, **best_param)
         test_recommender.learn()
         test_scores = test_evaluator.get_scores(test_recommender, [5, 10, 20])
 
