@@ -3,8 +3,6 @@ from typing import Optional
 
 from sklearn.decomposition import TruncatedSVD
 
-from irspack.optimization.parameter_range import UniformIntegerRange
-
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
@@ -17,6 +15,7 @@ from .base import (
     BaseRecommenderWithUserEmbedding,
     RecommenderConfig,
 )
+from .optimization.parameter_range import UniformIntegerRange
 
 
 class TruncatedSVDConfig(RecommenderConfig):

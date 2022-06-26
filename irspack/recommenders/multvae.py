@@ -10,14 +10,13 @@ import optax
 from optax import OptState, adam
 from scipy import sparse as sps
 
-from irspack.optimization.parameter_range import CategoricalRange
-
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
 from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
 )
+from .optimization.parameter_range import CategoricalRange
 
 
 class BaseMLP:
