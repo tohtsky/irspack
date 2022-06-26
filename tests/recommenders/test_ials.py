@@ -320,6 +320,6 @@ def test_ials_tuning_with_too_early_n_startup(
         n_trials=20,
         max_epoch=3,
     )
-    assert history[f"ndcg@{cutoff}"].isna().sum() > 0
+    assert (~history[f"ndcg@{cutoff}"].isna()).sum() > 0
     assert "train_epochs" in bp
     assert bp["train_epochs"] <= 3
