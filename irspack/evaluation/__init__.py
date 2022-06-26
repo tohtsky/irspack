@@ -1,7 +1,7 @@
+from ._core import EvaluatorCore, Metrics
 from .evaluator import (
     METRIC_NAMES,
     Evaluator,
-    EvaluatorCore,
     EvaluatorWithColdUser,
     Metrics,
     TargetMetric,
