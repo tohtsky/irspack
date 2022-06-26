@@ -7,7 +7,7 @@ on:
     types:
       - created
 env:
-  cibuildwheel_version: "2.2.2"
+  cibuildwheel_version: "2.7.0"
 jobs:
   build_sdist:
     name: Build source distribution

@@ -79,13 +79,14 @@ setup(
     },  # https://github.com/pypa/setuptools_scm/issues/342
     author="Tomoki Ohtsuki",
     author_email="tomoki.otsuki129@gmail.com",
-    description="Implicit feedback-based recommender system pack",
+    description="Implicit feedback-based recommender systems, packed for practitioners.",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     ext_modules=ext_modules,
     install_requires=install_requires,
     include_package_data=True,
     cmdclass={"build_ext": build_ext},
-    packages=find_packages(),
-    python_requires=">=3.6",
+    packages=find_packages("src"),
+    python_requires=">=3.7",
+    package_dir={"": "src"},
 )
