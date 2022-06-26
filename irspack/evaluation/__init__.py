@@ -1,5 +1,11 @@
-from ._core import EvaluatorCore, Metrics
-from .evaluator import METRIC_NAMES, Evaluator, EvaluatorWithColdUser, TargetMetric
+from .evaluator import (
+    METRIC_NAMES,
+    Evaluator,
+    EvaluatorCore,
+    EvaluatorWithColdUser,
+    Metrics,
+    TargetMetric,
+)
 
 __all__ = [
     "Evaluator",
