@@ -86,6 +86,7 @@ setup(
     install_requires=install_requires,
     include_package_data=True,
     cmdclass={"build_ext": build_ext},
-    packages=find_packages(),
+    packages=find_packages("src"),
     python_requires=">=3.7",
+    package_dir={"": "src"},
 )
