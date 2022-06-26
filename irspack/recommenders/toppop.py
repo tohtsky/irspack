@@ -1,9 +1,10 @@
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
 from .base import BaseRecommender, RecommenderConfig
+from .optimization.parameter_range import ParameterRange
 
 
 class TopPopConfig(RecommenderConfig):
@@ -18,6 +19,8 @@ class TopPopRecommender(BaseRecommender):
         X_train Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
             Input interaction matrix.
     """
+
+    default_tune_range: List[ParameterRange] = []
 
     config_class = TopPopConfig
     score_: Optional[np.ndarray]

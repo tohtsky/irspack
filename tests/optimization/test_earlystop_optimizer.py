@@ -10,7 +10,6 @@ import pytest
 import scipy.sparse as sps
 
 from irspack import (
-    BaseOptimizerWithEarlyStopping,
     BaseRecommender,
     BaseRecommenderWithEarlyStopping,
     DenseScoreArray,
@@ -19,7 +18,8 @@ from irspack import (
     TargetMetric,
     UserIndexArray,
 )
-from irspack.parameter_tuning import UniformSuggestion
+
+# from irspack.parameter_tuning import UniformSuggestion
 from irspack.recommenders.base_earlystop import TrainerBase
 
 X_small = sps.csr_matrix(
@@ -88,26 +88,29 @@ class MockEvaluator(Evaluator):
         return {self.target_metric.name: model._current_score()}
 
 
-class MockOptimizer(BaseOptimizerWithEarlyStopping):
-    recommender_class = MockRecommender
-    default_tune_range = [UniformSuggestion("target_score", 0, 1)]
+# class MockOptimizer(BaseOptimizerWithEarlyStopping):
+#    recommender_class = MockRecommender
+#    default_tune_range = [UniformSuggestion("target_score", 0, 1)]
 
 
 @pytest.mark.parametrize("X, target_epoch", [(X_small, 20)])
 def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
-
     evaluator = MockEvaluator(X)
-    optimizer = MockOptimizer(
-        X,
-        evaluator,
-        fixed_params=dict(target_epoch=target_epoch),
-        logger=getLogger("IGNORE"),
-    )
     with redirect_stdout(open(os.devnull, "w")):
         with redirect_stderr(open(os.devnull, "w")):
-            config, history = optimizer.optimize(n_trials=20, random_seed=42)
+            config, history = MockRecommender.tune(
+                X,
+                evaluator,
+                fixed_params=dict(target_epoch=target_epoch),
+                logger=getLogger("IGNORE"),
+                parameter_suggest_function=(
+                    lambda trial: {
+                        "target_score": trial.suggest_float("target_score", 0, 1)
+                    }
+                ),
+            )
     assert len(config) == 3
-    assert config["max_epoch"] == target_epoch
+    assert config["train_epochs"] == target_epoch
     best_index = np.nanargmax(-history.value.values)
     best_target_score_inferred = history.target_score.iloc[best_index]
     best_ndcg = history["ndcg@30"].iloc[best_index]

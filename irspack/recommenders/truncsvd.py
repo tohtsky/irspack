@@ -15,6 +15,7 @@ from .base import (
     BaseRecommenderWithUserEmbedding,
     RecommenderConfig,
 )
+from .optimization.parameter_range import UniformIntegerRange
 
 
 class TruncatedSVDConfig(RecommenderConfig):
@@ -42,6 +43,7 @@ class TruncatedSVDRecommender(
     """
 
     config_class = TruncatedSVDConfig
+    default_tune_range = [UniformIntegerRange("n_components", 4, 512)]
 
     def __init__(
         self,

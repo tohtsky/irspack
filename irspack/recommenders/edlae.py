@@ -5,6 +5,7 @@ from scipy import linalg
 
 from ..definitions import InteractionMatrix
 from .base import BaseSimilarityRecommender, RecommenderConfig
+from .optimization.parameter_range import LogUniformFloatRange, UniformFloatRange
 
 
 class EDLAEConfig(RecommenderConfig):
@@ -29,6 +30,11 @@ class EDLAERecommender(BaseSimilarityRecommender):
         dropout_p (float, optional):
             Probability of dropout. Defaults to 0.1
     """
+
+    default_tune_range = [
+        LogUniformFloatRange("reg", 1, 1e4),
+        UniformFloatRange("dropout_p", 0.0, 0.99),
+    ]
 
     config_class = EDLAEConfig
 

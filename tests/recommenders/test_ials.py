@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 
+from irspack import Evaluator, rowwise_train_test_split
 from irspack.recommenders import IALSRecommender
 
 
@@ -54,7 +55,7 @@ def test_ials_overfit_cholesky(
         reg=1e-1,
         solver_type="CHOLESKY",
         loss_type="ORIGINAL",
-        max_epoch=100,
+        train_epochs=100,
         n_threads=1,
         nu=0,
     )
@@ -78,7 +79,7 @@ def test_ials_loss_original(test_interaction_data: Dict[str, sps.csr_matrix]) ->
         reg=1e-1,
         solver_type="CHOLESKY",
         loss_type="ORIGINAL",
-        max_epoch=2,
+        train_epochs=2,
         n_threads=1,
         nu=0,
     ).learn()
@@ -107,7 +108,7 @@ def test_ials_loss_ialspp(test_interaction_data: Dict[str, sps.csr_matrix]) -> N
         reg=1e-1,
         solver_type="CHOLESKY",
         loss_type="IALSPP",
-        max_epoch=2,
+        train_epochs=2,
         n_threads=1,
         nu=0,
     ).learn()
@@ -135,7 +136,7 @@ def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> No
         reg=1e-1,
         solver_type="CG",
         max_cg_steps=3,
-        max_epoch=100,
+        train_epochs=100,
         nu=0,
     )
     rec.learn()
@@ -174,7 +175,7 @@ def test_ials_overfit_ialspp(
         reg=REG,
         solver_type="IALSPP",
         loss_type="ORIGINAL",
-        max_epoch=300,
+        train_epochs=300,
         n_threads=1,
         ialspp_subspace_dimension=subspace_dimension,
         nu=0,
@@ -199,7 +200,7 @@ def test_ials_cg_underfit(test_interaction_data: Dict[str, sps.csr_matrix]) -> N
         reg=1e-3,
         solver_type="CG",
         max_cg_steps=1,
-        max_epoch=10,
+        train_epochs=10,
         nu=0,
     )
     with pytest.raises(RuntimeError):
@@ -226,7 +227,7 @@ def test_ials_overfit_nonzero_alpha(
         alpha0=1 / ALPHA,
         reg=REG,
         solver_type="CHOLESKY",
-        max_epoch=5,
+        train_epochs=5,
     )
     rec_chol.learn()
     assert rec_chol.trainer is not None
@@ -240,7 +241,7 @@ def test_ials_overfit_nonzero_alpha(
         reg=REG,
         solver_type="CG",
         max_cg_steps=5,
-        max_epoch=5,
+        train_epochs=5,
     )
     rec_cg.learn()
     assert rec_cg.trainer is not None
@@ -271,7 +272,7 @@ def test_ials_overfit_cholesky_logscale(
         loss_type="ORIGINAL",
         epsilon=EPSILON,
         confidence_scaling="log",
-        max_epoch=200,
+        train_epochs=200,
         init_std=1e-1,
     )
     rec_chol.learn()
@@ -285,3 +286,40 @@ def test_ials_overfit_cholesky_logscale(
 
     np.testing.assert_allclose(grad_ivec_chol, np.zeros_like(grad_ivec_chol), atol=1e-5)
     np.testing.assert_allclose(grad_uvec_chol, np.zeros_like(grad_uvec_chol), atol=1e-5)
+
+
+def test_ials_tuning_with_n_startup_trials(
+    test_interaction_data: Dict[str, sps.csr_matrix]
+) -> None:
+    X = test_interaction_data["X_small"]
+    X_tr, X_te = rowwise_train_test_split(X, random_state=0)
+    cutoff = min(10, X.shape[1])
+    bp, history = IALSRecommender.tune(
+        X_tr,
+        Evaluator(X_te, cutoff=cutoff),
+        random_seed=0,
+        prunning_n_startup_trials=20,
+        n_trials=20,
+    )
+    assert history[f"ndcg@{cutoff}"].isna().sum() == 0
+    assert "train_epochs" in bp
+    assert bp["train_epochs"] <= 16
+
+
+def test_ials_tuning_with_too_early_n_startup(
+    test_interaction_data: Dict[str, sps.csr_matrix]
+) -> None:
+    X = test_interaction_data["X_small"]
+    X_tr, X_te = rowwise_train_test_split(X, random_state=0)
+    cutoff = min(10, X.shape[1])
+    bp, history = IALSRecommender.tune(
+        X_tr,
+        Evaluator(X_te, cutoff=cutoff),
+        random_seed=0,
+        prunning_n_startup_trials=1,
+        n_trials=20,
+        max_epoch=3,
+    )
+    assert history[f"ndcg@{cutoff}"].isna().sum() > 0
+    assert "train_epochs" in bp
+    assert bp["train_epochs"] <= 3

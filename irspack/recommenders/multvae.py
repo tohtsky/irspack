@@ -16,6 +16,7 @@ from .base_earlystop import (
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
 )
+from .optimization.parameter_range import CategoricalRange
 
 
 class BaseMLP:
@@ -292,6 +293,12 @@ class MultVAEConfig(BaseEarlyStoppingRecommenderConfig):
 class MultVAERecommender(BaseRecommenderWithEarlyStopping):
     config_class = MultVAEConfig
 
+    default_tune_range = [
+        CategoricalRange("dim_z", [32, 64, 128, 256]),
+        CategoricalRange("enc_hidden_dims", [128, 256, 512]),
+        CategoricalRange("kl_anneal_goal", [0.1, 0.2, 0.4]),
+    ]
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -303,16 +310,12 @@ class MultVAERecommender(BaseRecommenderWithEarlyStopping):
         kl_anneal_goal: float = 0.2,
         anneal_end_epoch: int = 50,
         minibatch_size: int = 512,
-        max_epoch: int = 300,
-        validate_epoch: int = 5,
-        score_degradation_max: int = 5,
+        train_epochs: int = 300,
         learning_rate: float = 1e-3,
     ) -> None:
         super().__init__(
             X_train_all,
-            max_epoch=max_epoch,
-            validate_epoch=validate_epoch,
-            score_degradation_max=score_degradation_max,
+            train_epochs=train_epochs,
         )
 
         self.dim_z = dim_z

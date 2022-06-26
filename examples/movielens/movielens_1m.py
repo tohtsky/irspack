@@ -3,19 +3,20 @@ from typing import List, Tuple, Type
 
 from scipy import sparse as sps
 
-from irspack.dataset.movielens import MovieLens1MDataManager
-from irspack.evaluation import Evaluator
-from irspack.optimizers import (  # BPRFMOptimizer, #requires lightFM; MultVAEOptimizer, #requires jax & haiku & optax; SLIMOptimizer,
-    AsymmetricCosineKNNOptimizer,
-    BaseOptimizer,
-    CosineKNNOptimizer,
-    DenseSLIMOptimizer,
-    IALSOptimizer,
-    P3alphaOptimizer,
-    RP3betaOptimizer,
-    TopPopOptimizer,
-    TverskyIndexKNNOptimizer,
+from irspack import (  # BPRFMRecommender, #requires lightFM; MultVAERecommender, #requires jax & haiku & optax
+    AsymmetricCosineKNNRecommender,
+    BaseRecommender,
+    CosineKNNRecommender,
+    DenseSLIMRecommender,
+    Evaluator,
+    IALSRecommender,
+    P3alphaRecommender,
+    RP3betaRecommender,
+    SLIMRecommender,
+    TopPopRecommender,
+    TverskyIndexKNNRecommender,
 )
+from irspack.dataset import MovieLens1MDataManager
 from irspack.split import split_dataframe_partial_user_holdout
 
 if __name__ == "__main__":
@@ -58,28 +59,30 @@ if __name__ == "__main__":
 
     test_results = []
 
-    test_configs: List[Tuple[Type[BaseOptimizer], int]] = [
-        (TopPopOptimizer, 1),
-        (CosineKNNOptimizer, 40),
-        (AsymmetricCosineKNNOptimizer, 40),
-        (TverskyIndexKNNOptimizer, 40),
-        (DenseSLIMOptimizer, 20),
-        (P3alphaOptimizer, 40),
-        (RP3betaOptimizer, 40),
-        (IALSOptimizer, 40),
-        # (BPRFMOptimizer, 40),
-        # (MultVAEOptimizer, 5),
-        # (SLIMOptimizer, 40),
+    test_configs: List[Tuple[Type[BaseRecommender], int]] = [
+        (TopPopRecommender, 1),
+        (CosineKNNRecommender, 40),
+        (AsymmetricCosineKNNRecommender, 40),
+        (TverskyIndexKNNRecommender, 40),
+        (DenseSLIMRecommender, 20),
+        (P3alphaRecommender, 40),
+        (RP3betaRecommender, 40),
+        (IALSRecommender, 40),
+        (SLIMRecommender, 40),
+        # (BPRFMRecommender, 40),
+        # (MultVAERecommender, 5),
     ]
-    for optimizer_class, n_trials in test_configs:
-        name = optimizer_class.__name__
-        optimizer: BaseOptimizer = optimizer_class(X_train_all, valid_evaluator)
-        (best_param, validation_results) = optimizer.optimize(
-            timeout=14400, n_trials=n_trials
+    for recommender_class, n_trials in test_configs:
+        name = recommender_class.__name__
+        (best_param, validation_results) = recommender_class.tune(
+            X_train_all,
+            valid_evaluator,
+            timeout=14400,
+            n_trials=n_trials,
+            random_seed=0,
         )
         validation_results.to_csv(f"{name}_validation_scores.csv")
-        test_recommender = optimizer.recommender_class(X_train_val_all, **best_param)
-        test_recommender.learn()
+        test_recommender = recommender_class(X_train_val_all, **best_param).learn()
         test_scores = test_evaluator.get_scores(test_recommender, [5, 10, 20])
 
         test_results.append(dict(name=name, best_param=best_param, **test_scores))

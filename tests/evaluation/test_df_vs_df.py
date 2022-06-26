@@ -38,7 +38,7 @@ def test_matching() -> None:
     X_train_as_df = _sps_to_df(X_train)
     X_test_as_df = _sps_to_df(X_test)
 
-    rec = IALSRecommender(X_train, n_components=1, max_epoch=0).learn()
+    rec = IALSRecommender(X_train, n_components=1, train_epochs=0).learn()
     id_mapper = IDMapper(user_ids, item_ids)
 
     rec_list = id_mapper.recommend_for_known_user_batch(rec, user_ids, cutoff=cutoff)

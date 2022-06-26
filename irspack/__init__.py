@@ -8,7 +8,6 @@ except DistributionNotFound:  # pragma: no cover
 
 from irspack.definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
 from irspack.evaluation import *
-from irspack.optimizers import *
 from irspack.recommenders import *
 from irspack.split import *
 from irspack.utils import *

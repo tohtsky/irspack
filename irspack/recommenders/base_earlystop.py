@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
 from io import BytesIO
-from typing import IO, Any, Optional, Type
+from typing import IO, TYPE_CHECKING, Any, Optional, Type
 
 from fastprogress import progress_bar
-from optuna import Trial, exceptions
 
 from irspack.definitions import InteractionMatrix
-from irspack.evaluation.evaluator import Evaluator
 from irspack.recommenders.base import BaseRecommender, RecommenderConfig
+
+if TYPE_CHECKING:
+    from optuna import Trial
+
+    from irspack import evaluation
 
 
 class TrainerBase(ABC):
@@ -42,19 +45,17 @@ class TrainerBase(ABC):
 
 
 class BaseEarlyStoppingRecommenderConfig(RecommenderConfig):
-    validate_epoch: int = 5
-    score_degradation_max: int = 5
-    max_epoch: int = 512
+    train_epochs: int = 512
 
 
 class BaseRecommenderWithEarlyStopping(BaseRecommender):
     """The base class for all the early-stoppable recommenders.
 
     Args:
-        X_train_all (csr_matrix|csc_matrix): The train interaction matrix.
-        max_epoch (int, optional): The maximal number of epochs to be run. Defaults to 512.
-        validate_epoch (int, optional): Frequency of validation score measurement (if any). Defaults to 5.
-        score_degradation_max (int, optional): Maximal number of allowed score degradation. Defaults to 5.
+        X_train_all:
+            The train interaction matrix.
+        train_epochs:
+            The number of training epochs to run. Defaults to 128.
     """
 
     trainer_class: Type[TrainerBase]
@@ -62,16 +63,12 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
     def __init__(
         self,
         X_train_all: InteractionMatrix,
-        max_epoch: int = 512,
-        validate_epoch: int = 5,
-        score_degradation_max: int = 5,
+        train_epochs: int = 128,
         **kwargs: Any,
     ):
 
         super().__init__(X_train_all, **kwargs)
-        self.max_epoch = max_epoch
-        self.validate_epoch = validate_epoch
-        self.score_degradation_max = score_degradation_max
+        self.train_epochs = train_epochs
         self.trainer: Optional[TrainerBase] = None
         self.best_state: Optional[bytes] = None
 
@@ -103,18 +100,25 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
             self.trainer.load_state(ifs)
 
     def _learn(self) -> None:
-        self.learn_with_optimizer(None, None)
+        self.learn_with_optimizer(None, None, max_epoch=self.train_epochs)
 
     def learn_with_optimizer(
-        self, evaluator: Optional[Evaluator], trial: Optional[Trial]
+        self,
+        evaluator: Optional["evaluation.Evaluator"],
+        trial: Optional["Trial"],
+        max_epoch: int = 128,
+        validate_epoch: int = 5,
+        score_degradation_max: int = 5,
     ) -> None:
+        from optuna.exceptions import TrialPruned
+
         self.start_learning()
         best_score = -float("inf")
         n_score_degradation = 0
-        pb = progress_bar(range(self.max_epoch))
+        pb = progress_bar(range(max_epoch))
         for epoch in pb:
             self.run_epoch()
-            if (epoch + 1) % self.validate_epoch:
+            if (epoch + 1) % validate_epoch:
                 continue
 
             if evaluator is None:
@@ -127,16 +131,18 @@ class BaseRecommenderWithEarlyStopping(BaseRecommender):
             if relevant_score > best_score:
                 best_score = relevant_score
                 self.save_state()
-                self.learnt_config["max_epoch"] = epoch + 1
+                self.learnt_config["train_epochs"] = epoch + 1
                 n_score_degradation = 0
             else:
                 n_score_degradation += 1
-                if n_score_degradation >= self.score_degradation_max:
+                if n_score_degradation >= score_degradation_max:
+                    pb.on_interrupt()
                     break
             if trial is not None:
                 trial.report(-relevant_score, epoch)
                 if trial.should_prune():
-                    raise exceptions.TrialPruned()
+                    pb.on_interrupt()
+                    raise TrialPruned()
 
         if evaluator is not None:
             self.load_state()

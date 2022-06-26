@@ -11,6 +11,12 @@ from ._knn import (
     TverskyIndexComputer,
 )
 from .base import BaseSimilarityRecommender, RecommenderConfig
+from .optimization.parameter_range import (
+    CategoricalRange,
+    UniformFloatRange,
+    default_tune_range_knn,
+    default_tune_range_knn_with_weighting,
+)
 
 
 class FeatureWeightingScheme(str, enum.Enum):
@@ -26,6 +32,8 @@ class BaseKNNConfig(RecommenderConfig):
 
 
 class BaseKNNRecommender(BaseSimilarityRecommender):
+    default_tune_range = default_tune_range_knn
+
     def __init__(
         self,
         X_train_all: InteractionMatrix,
@@ -119,6 +127,9 @@ class CosineKNNRecommender(BaseKNNRecommender):
     """
 
     config_class = CosineKNNConfig
+    default_tune_range = default_tune_range_knn_with_weighting.copy() + [
+        CategoricalRange("normalize", [False, True])
+    ]
 
     def __init__(
         self,
@@ -188,6 +199,9 @@ class AsymmetricCosineKNNRecommender(BaseKNNRecommender):
     """
 
     config_class = AsymmetricCosineKNNConfig
+    default_tune_range = default_tune_range_knn_with_weighting.copy() + [
+        UniformFloatRange("alpha", 0, 1)
+    ]
 
     def __init__(
         self,
@@ -242,6 +256,7 @@ class JaccardKNNRecommender(BaseKNNRecommender):
     """
 
     config_class = JaccardKNNConfig
+    default_tune_range = default_tune_range_knn.copy()
 
     def __init__(
         self,
@@ -286,6 +301,10 @@ class TverskyIndexKNNRecommender(BaseKNNRecommender):
     """
 
     config_class = TverskyIndexKNNConfig
+    default_tune_range = default_tune_range_knn.copy() + [
+        UniformFloatRange("alpha", 0, 2),
+        UniformFloatRange("beta", 0, 2),
+    ]
 
     def __init__(
         self,
