@@ -9,13 +9,13 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
+from ..optimization.parameter_range import UniformIntegerRange
 from .base import (
     BaseRecommender,
     BaseRecommenderWithItemEmbedding,
     BaseRecommenderWithUserEmbedding,
     RecommenderConfig,
 )
-from .optimization.parameter_range import UniformIntegerRange
 
 
 class TruncatedSVDConfig(RecommenderConfig):

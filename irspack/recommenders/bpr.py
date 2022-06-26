@@ -10,6 +10,7 @@ from ..definitions import (
     InteractionMatrix,
     UserIndexArray,
 )
+from ..optimization import CategoricalRange, LogUniformFloatRange, UniformIntegerRange
 from ..utils import get_n_threads
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
 from .base_earlystop import (
@@ -17,7 +18,6 @@ from .base_earlystop import (
     BaseRecommenderWithEarlyStopping,
     TrainerBase,
 )
-from .optimization import CategoricalRange, LogUniformFloatRange, UniformIntegerRange
 
 
 class BPRFMTrainer(TrainerBase):

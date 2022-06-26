@@ -1,14 +1,14 @@
 from typing import Optional
 
 from ..definitions import InteractionMatrix
-from ..utils import get_n_threads, l1_normalize_row
-from ._knn import RP3betaComputer
-from .base import BaseSimilarityRecommender, RecommenderConfig
-from .optimization.parameter_range import (
+from ..optimization.parameter_range import (
     CategoricalRange,
     LogUniformFloatRange,
     UniformIntegerRange,
 )
+from ..utils import get_n_threads, l1_normalize_row
+from ._knn import RP3betaComputer
+from .base import BaseSimilarityRecommender, RecommenderConfig
 
 
 class RP3betaConfig(RecommenderConfig):

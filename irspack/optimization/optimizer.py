@@ -5,14 +5,13 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Ty
 
 import pandas as pd
 
-from ...evaluation import Evaluator
-from ...utils.default_logger import get_default_logger
 from .parameter_range import is_valid_param_name
 
 if TYPE_CHECKING:
     from optuna import Study, Trial
 
-    from ..base import BaseRecommender, InteractionMatrix
+    from ..evaluation import Evaluator
+    from ..recommenders.base import BaseRecommender, InteractionMatrix
 
 SparseMatrixSuggestFunction = Callable[["Trial"], "InteractionMatrix"]
 ParameterSuggestFunction = Callable[["Trial"], Dict[str, Any]]
@@ -59,7 +58,7 @@ class Optimizer:
     Args:
         data_suggest_function:
             The train data.
-        val_evaluator (Evaluator):
+        val_evaluator:
             The validation evaluator that measures the performance of the recommenders.
         logger:
             The logger used during the optimization steps. Defaults to `None`.
@@ -84,7 +83,7 @@ class Optimizer:
         data_suggest_function: SparseMatrixSuggestFunction,
         parameter_suggest_function: ParameterSuggestFunction,
         fixed_params: Dict[str, Any],
-        val_evaluator: Evaluator,
+        val_evaluator: "Evaluator",
         logger: Optional[logging.Logger] = None,
         max_epoch: int = 128,
         validate_epoch: int = 5,
@@ -92,6 +91,8 @@ class Optimizer:
     ):
 
         if logger is None:
+            from ..utils.default_logger import get_default_logger
+
             logger = get_default_logger()
 
         self.logger = logger

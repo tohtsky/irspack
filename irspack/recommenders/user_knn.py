@@ -2,6 +2,11 @@ from abc import abstractmethod
 from typing import Optional, Union
 
 from ..definitions import InteractionMatrix
+from ..optimization.parameter_range import (
+    CategoricalRange,
+    UniformFloatRange,
+    default_tune_range_knn_with_weighting,
+)
 from ..utils import get_n_threads, okapi_BM_25_weight, remove_diagonal, tf_idf_weight
 from ._knn import (
     AsymmetricSimilarityComputer,
@@ -11,11 +16,6 @@ from ._knn import (
 )
 from .base import BaseUserSimilarityRecommender, RecommenderConfig
 from .knn import FeatureWeightingScheme
-from .optimization.parameter_range import (
-    CategoricalRange,
-    UniformFloatRange,
-    default_tune_range_knn_with_weighting,
-)
 
 
 class BaseUserKNNConfig(RecommenderConfig):

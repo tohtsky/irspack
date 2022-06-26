@@ -1,10 +1,10 @@
 from typing import Optional
 
 from ..definitions import InteractionMatrix
+from ..optimization.parameter_range import CategoricalRange, UniformIntegerRange
 from ..utils import get_n_threads, l1_normalize_row
 from ._knn import P3alphaComputer
 from .base import BaseSimilarityRecommender, RecommenderConfig
-from .optimization.parameter_range import CategoricalRange, UniformIntegerRange
 
 
 class P3alphaConfig(RecommenderConfig):

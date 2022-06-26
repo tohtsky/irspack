@@ -3,6 +3,12 @@ from abc import abstractmethod
 from typing import Optional, Union
 
 from ..definitions import InteractionMatrix
+from ..optimization.parameter_range import (
+    CategoricalRange,
+    UniformFloatRange,
+    default_tune_range_knn,
+    default_tune_range_knn_with_weighting,
+)
 from ..utils import get_n_threads, okapi_BM_25_weight, remove_diagonal, tf_idf_weight
 from ._knn import (
     AsymmetricSimilarityComputer,
@@ -11,12 +17,6 @@ from ._knn import (
     TverskyIndexComputer,
 )
 from .base import BaseSimilarityRecommender, RecommenderConfig
-from .optimization.parameter_range import (
-    CategoricalRange,
-    UniformFloatRange,
-    default_tune_range_knn,
-    default_tune_range_knn_with_weighting,
-)
 
 
 class FeatureWeightingScheme(str, enum.Enum):

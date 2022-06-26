@@ -7,8 +7,7 @@ import scipy.sparse as sps
 from irspack.dataset.movielens import MovieLens100KDataManager
 from irspack.definitions import DenseScoreArray, UserIndexArray
 from irspack.evaluation import Evaluator
-from irspack.recommenders import BaseRecommender
-from irspack.recommenders.optimization.parameter_range import (
+from irspack.optimization.parameter_range import (
     CategoricalRange,
     LogUniformFloatRange,
     LogUniformIntegerRange,
@@ -16,6 +15,7 @@ from irspack.recommenders.optimization.parameter_range import (
     UniformFloatRange,
     UniformIntegerRange,
 )
+from irspack.recommenders import BaseRecommender
 from irspack.split import rowwise_train_test_split
 
 X_small = sps.csr_matrix(
