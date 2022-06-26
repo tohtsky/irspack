@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Ty
 
 import pandas as pd
 
+from ..default_logger import get_default_logger
 from .parameter_range import is_valid_param_name
 
 if TYPE_CHECKING:
@@ -91,7 +92,6 @@ class Optimizer:
     ):
 
         if logger is None:
-            from ..utils.default_logger import get_default_logger
 
             logger = get_default_logger()
 

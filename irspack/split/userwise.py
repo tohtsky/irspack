@@ -5,9 +5,9 @@ import pandas as pd
 from scipy import sparse as sps
 
 from ..definitions import InteractionMatrix, OptionalRandomState
-from ..split.time import split_last_n_interaction_df
 from ..utils import df_to_sparse, rowwise_train_test_split
 from ..utils.random import convert_randomstate
+from .time import split_last_n_interaction_df
 
 
 def _split_list(
