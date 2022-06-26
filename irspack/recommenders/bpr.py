@@ -4,14 +4,13 @@ from typing import IO, Optional
 import numpy as np
 from lightfm import LightFM
 
-from irspack.utils import get_n_threads
-
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
     InteractionMatrix,
     UserIndexArray,
 )
+from ..utils import get_n_threads
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
 from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,

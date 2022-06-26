@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 from scipy import sparse as sps
 
-from irspack.definitions import InteractionMatrix, OptionalRandomState
-from irspack.split.time import split_last_n_interaction_df
-from irspack.utils import df_to_sparse, rowwise_train_test_split
-from irspack.utils.random import convert_randomstate
+from ..definitions import InteractionMatrix, OptionalRandomState
+from ..split.time import split_last_n_interaction_df
+from ..utils import df_to_sparse, rowwise_train_test_split
+from ..utils.random import convert_randomstate
 
 
 def _split_list(

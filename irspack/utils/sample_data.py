@@ -1,8 +1,8 @@
 import scipy.sparse as sps
 from scipy.special import expit
 
-from irspack.definitions import OptionalRandomState
-from irspack.utils.random import convert_randomstate
+from ..definitions import OptionalRandomState
+from .random import convert_randomstate
 
 
 def mf_example_data(

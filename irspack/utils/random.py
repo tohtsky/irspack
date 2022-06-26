@@ -1,6 +1,6 @@
 import numpy as np
 
-from irspack.definitions import OptionalRandomState
+from ..definitions import OptionalRandomState
 
 
 def convert_randomstate(arg: OptionalRandomState) -> np.random.RandomState:

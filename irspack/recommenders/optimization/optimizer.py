@@ -5,15 +5,14 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Ty
 
 import pandas as pd
 
-from irspack.evaluation import Evaluator
-from irspack.utils.default_logger import get_default_logger
-
+from ...evaluation import Evaluator
+from ...utils.default_logger import get_default_logger
 from .parameter_range import is_valid_param_name
 
 if TYPE_CHECKING:
     from optuna import Study, Trial
 
-    from irspack.recommenders.base import BaseRecommender, InteractionMatrix
+    from ..base import BaseRecommender, InteractionMatrix
 
 SparseMatrixSuggestFunction = Callable[["Trial"], "InteractionMatrix"]
 ParameterSuggestFunction = Callable[["Trial"], Dict[str, Any]]

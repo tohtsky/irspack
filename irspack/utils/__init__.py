@@ -4,11 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sps
 
-from irspack.definitions import InteractionMatrix, OptionalRandomState
-from irspack.utils.id_mapping import IDMapper, ItemIDMapper
-from irspack.utils.random import convert_randomstate
-from irspack.utils.threading import get_n_threads
-
+from ..definitions import InteractionMatrix, OptionalRandomState
 from ._util_cpp import (
     okapi_BM_25_weight,
     remove_diagonal,
@@ -17,6 +13,9 @@ from ._util_cpp import (
     sparse_mm_threaded,
     tf_idf_weight,
 )
+from .id_mapping import IDMapper, ItemIDMapper
+from .random import convert_randomstate
+from .threading import get_n_threads
 
 
 def l1_normalize_row(X: sps.csc_matrix) -> sps.csc_matrix:

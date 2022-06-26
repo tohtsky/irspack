@@ -1,10 +1,8 @@
 from typing import Optional
 
-from irspack.definitions import InteractionMatrix
-from irspack.recommenders._knn import P3alphaComputer
-from irspack.recommenders.base import BaseSimilarityRecommender
-from irspack.utils import get_n_threads, l1_normalize_row
-
+from ..definitions import InteractionMatrix
+from ..utils import get_n_threads, l1_normalize_row
+from ._knn import P3alphaComputer
 from .base import BaseSimilarityRecommender, RecommenderConfig
 from .optimization.parameter_range import CategoricalRange, UniformIntegerRange
 

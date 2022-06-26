@@ -3,7 +3,7 @@ from io import BytesIO
 
 import pandas as pd
 
-from irspack.dataset.downloader import SingleZipDownloader
+from ..downloader import SingleZipDownloader
 
 
 class BaseMovieLenstDataLoader(SingleZipDownloader):

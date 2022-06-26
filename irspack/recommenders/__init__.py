@@ -1,13 +1,9 @@
-from irspack.recommenders.base import (
-    BaseRecommender,
-    BaseSimilarityRecommender,
-    get_recommender_class,
-)
-from irspack.recommenders.base_earlystop import BaseRecommenderWithEarlyStopping
-from irspack.recommenders.dense_slim import DenseSLIMConfig, DenseSLIMRecommender
-from irspack.recommenders.edlae import EDLAEConfig, EDLAERecommender
-from irspack.recommenders.ials import IALSConfig, IALSRecommender
-from irspack.recommenders.knn import (
+from .base import BaseRecommender, BaseSimilarityRecommender, get_recommender_class
+from .base_earlystop import BaseRecommenderWithEarlyStopping
+from .dense_slim import DenseSLIMConfig, DenseSLIMRecommender
+from .edlae import EDLAEConfig, EDLAERecommender
+from .ials import IALSConfig, IALSRecommender
+from .knn import (
     AsymmetricCosineKNNConfig,
     AsymmetricCosineKNNRecommender,
     CosineKNNConfig,
@@ -17,7 +13,6 @@ from irspack.recommenders.knn import (
     TverskyIndexKNNConfig,
     TverskyIndexKNNRecommender,
 )
-
 from .p3 import P3alphaConfig, P3alphaRecommender
 from .rp3 import RP3betaConfig, RP3betaRecommender
 from .slim import SLIMConfig, SLIMRecommender
@@ -63,17 +58,14 @@ __all__ = [
 ]
 
 try:
-    from irspack.recommenders.truncsvd import (
-        TruncatedSVDConfig,
-        TruncatedSVDRecommender,
-    )
+    from .truncsvd import TruncatedSVDConfig, TruncatedSVDRecommender
 
     __all__.extend(["TruncatedSVDRecommender", "TruncatedSVDConfig"])
 except ImportError:  # pragma: no cover
     pass  # pragma: no cover
 
 try:
-    from irspack.recommenders.nmf import NMFConfig, NMFRecommender
+    from .nmf import NMFConfig, NMFRecommender
 
     __all__.extend(["NMFRecommender", "NMFConfig"])
 except ImportError:  # pragma: no cover

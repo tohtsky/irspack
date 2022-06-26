@@ -4,8 +4,8 @@ from typing import IO, TYPE_CHECKING, Any, Optional, Type
 
 from fastprogress import progress_bar
 
-from irspack.definitions import InteractionMatrix
-from irspack.recommenders.base import BaseRecommender, RecommenderConfig
+from ..definitions import InteractionMatrix
+from .base import BaseRecommender, RecommenderConfig
 
 if TYPE_CHECKING:
     from optuna import Trial

@@ -1,8 +1,7 @@
 from typing import Optional
 
-from irspack.utils import get_n_threads, l1_normalize_row
-
 from ..definitions import InteractionMatrix
+from ..utils import get_n_threads, l1_normalize_row
 from ._knn import RP3betaComputer
 from .base import BaseSimilarityRecommender, RecommenderConfig
 from .optimization.parameter_range import (

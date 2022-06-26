@@ -11,7 +11,7 @@ from ..utils.threading import get_n_threads
 from ._core import EvaluatorCore, Metrics
 
 if TYPE_CHECKING:
-    from irspack.recommenders import base as base_recommender
+    from ..recommenders.base import BaseRecommender
 
 
 class TargetMetric(Enum):
@@ -172,7 +172,7 @@ class Evaluator:
         else:
             raise ValueError("score must be either float32 or float64.")
 
-    def get_target_score(self, model: "base_recommender.BaseRecommender") -> float:
+    def get_target_score(self, model: "BaseRecommender") -> float:
         r"""Compute the optimization target score (self.target_metric) with the cutoff being ``self.cutoff``.
 
         Args:
@@ -183,7 +183,7 @@ class Evaluator:
         """
         return self.get_score(model)[self.target_metric.name]
 
-    def get_score(self, model: "base_recommender.BaseRecommender") -> Dict[str, float]:
+    def get_score(self, model: "BaseRecommender") -> Dict[str, float]:
         r"""Compute the score with the cutoff being ``self.cutoff``.
 
         Args:
@@ -195,7 +195,7 @@ class Evaluator:
         return self._get_scores_as_list(model, [self.cutoff])[0]
 
     def get_scores(
-        self, model: "base_recommender.BaseRecommender", cutoffs: List[int]
+        self, model: "BaseRecommender", cutoffs: List[int]
     ) -> Dict[str, float]:
         r"""Compute the score with the specified cutoffs.
 
@@ -217,7 +217,7 @@ class Evaluator:
         return result
 
     def _get_scores_as_list(
-        self, model: "base_recommender.BaseRecommender", cutoffs: List[int]
+        self, model: "BaseRecommender", cutoffs: List[int]
     ) -> List[Dict[str, float]]:
         if self.offset + self.n_users > model.n_users:
             raise ValueError("evaluator offset + n_users exceeds the model's n_users.")
@@ -343,7 +343,7 @@ class EvaluatorWithColdUser(Evaluator):
 
     def _get_scores_as_list(
         self,
-        model: "base_recommender.BaseRecommender",
+        model: "BaseRecommender",
         cutoffs: List[int],
     ) -> List[Dict[str, float]]:
 

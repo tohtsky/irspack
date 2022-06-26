@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 from scipy import sparse as sps
 
-from irspack.definitions import OptionalRandomState
-from irspack.split.userwise import UserTrainTestInteractionPair, _split_list
-from irspack.utils.random import convert_randomstate
+from ..definitions import OptionalRandomState
+from ..utils.random import convert_randomstate
+from .userwise import UserTrainTestInteractionPair, _split_list
 
 
 def holdout_specific_interactions(

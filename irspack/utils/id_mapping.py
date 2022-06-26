@@ -14,16 +14,16 @@ from typing import (
 import numpy as np
 import scipy.sparse as sps
 
-from irspack.definitions import DenseScoreArray, UserIndexArray
-from irspack.utils._util_cpp import (
+from ..definitions import DenseScoreArray, UserIndexArray
+from ._util_cpp import (
     retrieve_recommend_from_score_f32,
     retrieve_recommend_from_score_f64,
 )
-from irspack.utils.threading import get_n_threads
+from .threading import get_n_threads
 
 if TYPE_CHECKING:
     # We should move this module out of "utils".
-    from irspack.recommenders import BaseRecommender
+    from ..recommenders import BaseRecommender
 
 
 def retrieve_recommend_from_score(
