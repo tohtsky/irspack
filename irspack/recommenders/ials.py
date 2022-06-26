@@ -10,6 +10,7 @@ from optuna import Study
 from typing_extensions import Literal  # pragma: no cover, type: ignore
 
 from .. import evaluation
+from .._threading import get_n_threads
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
@@ -22,7 +23,6 @@ from ..optimization.parameter_range import (
     ParameterRange,
     UniformIntegerRange,
 )
-from ..utils import get_n_threads
 from ._ials import IALSModelConfigBuilder, IALSSolverConfigBuilder
 from ._ials import IALSTrainer as CoreTrainer
 from ._ials import LossType, SolverType

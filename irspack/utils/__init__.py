@@ -15,7 +15,6 @@ from ._util_cpp import (
 )
 from .id_mapping import IDMapper, ItemIDMapper
 from .random import convert_randomstate
-from .threading import get_n_threads
 
 
 def l1_normalize_row(X: sps.csc_matrix) -> sps.csc_matrix:
@@ -138,7 +137,6 @@ __all__ = [
     "okapi_BM_25_weight",
     "tf_idf_weight",
     "remove_diagonal",
-    "get_n_threads",
     "ItemIDMapper",
     "IDMapper",
     "convert_randomstate",

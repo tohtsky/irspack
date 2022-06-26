@@ -1,8 +1,9 @@
 from typing import Optional
 
+from .._threading import get_n_threads
 from ..definitions import InteractionMatrix
 from ..optimization.parameter_range import CategoricalRange, UniformIntegerRange
-from ..utils import get_n_threads, l1_normalize_row
+from ..utils import l1_normalize_row
 from ._knn import P3alphaComputer
 from .base import BaseSimilarityRecommender, RecommenderConfig
 

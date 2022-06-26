@@ -14,12 +14,12 @@ from typing import (
 import numpy as np
 import scipy.sparse as sps
 
+from .._threading import get_n_threads
 from ..definitions import DenseScoreArray, UserIndexArray
 from ._util_cpp import (
     retrieve_recommend_from_score_f32,
     retrieve_recommend_from_score_f64,
 )
-from .threading import get_n_threads
 
 if TYPE_CHECKING:
     # We should move this module out of "utils".

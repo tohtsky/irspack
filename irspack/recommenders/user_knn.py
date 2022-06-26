@@ -1,13 +1,14 @@
 from abc import abstractmethod
 from typing import Optional, Union
 
+from .._threading import get_n_threads
 from ..definitions import InteractionMatrix
 from ..optimization.parameter_range import (
     CategoricalRange,
     UniformFloatRange,
     default_tune_range_knn_with_weighting,
 )
-from ..utils import get_n_threads, okapi_BM_25_weight, remove_diagonal, tf_idf_weight
+from ..utils import okapi_BM_25_weight, remove_diagonal, tf_idf_weight
 from ._knn import (
     AsymmetricSimilarityComputer,
     CosineSimilarityComputer,

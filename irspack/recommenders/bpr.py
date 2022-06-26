@@ -4,6 +4,7 @@ from typing import IO, Optional
 import numpy as np
 from lightfm import LightFM
 
+from .._threading import get_n_threads
 from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
@@ -11,7 +12,6 @@ from ..definitions import (
     UserIndexArray,
 )
 from ..optimization import CategoricalRange, LogUniformFloatRange, UniformIntegerRange
-from ..utils import get_n_threads
 from .base import BaseRecommenderWithItemEmbedding, BaseRecommenderWithUserEmbedding
 from .base_earlystop import (
     BaseEarlyStoppingRecommenderConfig,

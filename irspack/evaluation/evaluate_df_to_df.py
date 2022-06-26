@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from ..utils.threading import get_n_threads
+from .._threading import get_n_threads
 from ._core import evaluate_list_vs_list
 
 

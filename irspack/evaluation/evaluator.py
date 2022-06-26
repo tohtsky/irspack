@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 import numpy as np
 from scipy import sparse as sps
 
+from .._threading import get_n_threads
 from ..definitions import DenseScoreArray, InteractionMatrix
-from ..utils.threading import get_n_threads
 from ._core import EvaluatorCore, Metrics
 
 if TYPE_CHECKING:
