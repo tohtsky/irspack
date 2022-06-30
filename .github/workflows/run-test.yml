@@ -17,7 +17,7 @@ jobs:
         run: |
           pip install --upgrade pip
           sudo apt-get install lcov
-          CFLAGS="-O0 -g -coverage" CXXFLAGS="-O0 -g coverage" python setup.py develop
+          CFLAGS="-O0 -g -coverage" CXXFLAGS="-O0 -g coverage" pip install -e .
       - name: Run pytest
         run: |
           pip install pytest pytest-mock pytest-cov
