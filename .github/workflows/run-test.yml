@@ -34,5 +34,5 @@ jobs:
           files: ./coverage.xml,./coverage.info
           name: codecov-umbrella
           fail_ci_if_error: true
-          verbose: true
+          verbose: false
           env_vars: OS,PYTHON
