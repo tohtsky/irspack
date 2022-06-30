@@ -5,6 +5,7 @@ from .movielens import (
     MovieLens20MDataManager,
     MovieLens100KDataManager,
 )
+from .neu_mf import NeuMFML1MDownloader, NeuMFMPinterestDownloader
 
 __all__ = [
     "MovieLens100KDataManager",
@@ -12,4 +13,6 @@ __all__ = [
     "MovieLens20MDataManager",
     "CiteULikeADataManager",
     "AmazonMusicDataManager",
+    "NeuMFML1MDownloader",
+    "NeuMFMPinterestDownloader",
 ]

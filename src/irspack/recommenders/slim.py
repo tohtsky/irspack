@@ -79,7 +79,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
         l1_coeff = self.n_users * self.alpha * self.l1_ratio
 
         if self.positive_only:
-            self.W_ = slim_weight_positive_only(
+            self._W = slim_weight_positive_only(
                 self.X_train_all,
                 n_threads=self.n_threads,
                 n_iter=self.n_iter,
@@ -89,7 +89,7 @@ class SLIMRecommender(BaseSimilarityRecommender):
                 top_k=-1 if self.top_k is None else self.top_k,
             )
         else:
-            self.W_ = slim_weight_allow_negative(
+            self._W = slim_weight_allow_negative(
                 self.X_train_all,
                 n_threads=self.n_threads,
                 n_iter=self.n_iter,

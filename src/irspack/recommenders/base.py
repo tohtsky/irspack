@@ -84,11 +84,13 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
     config_class: Type[RecommenderConfig]
     default_tune_range: List[ParameterRange]
 
+    X_train_all: sps.csr_matrix
+    """The matrix to feed into recommender."""
+
     def __init__(self, X_train_all: InteractionMatrix, **kwargs: Any) -> None:
         self.X_train_all: sps.csr_matrix = sps.csr_matrix(X_train_all).astype(
             np.float64
         )
-        """The matrix to feed into recommender."""
 
         self.n_users: int = self.X_train_all.shape[0]
         self.n_items: int = self.X_train_all.shape[1]
@@ -387,18 +389,18 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
 class BaseSimilarityRecommender(BaseRecommender):
     """The computed item-item similarity. Might not be initialized before `learn()` is called."""
 
-    W_: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
+    _W: Optional[Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.W_ = None
+        self._W = None
 
     @property
     def W(self) -> Union[sps.csr_matrix, sps.csc_matrix, np.ndarray]:
         """The computed item-item similarity weight matrix."""
-        if self.W_ is None:
+        if self._W is None:
             raise RuntimeError("W fetched before fit.")
-        return self.W_
+        return self._W
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         return _sparse_to_array(self.X_train_all[user_indices].dot(self.W))

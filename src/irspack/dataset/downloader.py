@@ -17,6 +17,15 @@ class BaseDownloader(metaclass=ABCMeta):
     def __init__(
         self, zippath: Optional[Union[Path, str]] = None, force_download: bool = False
     ):
+        """Specify the zip path for dataset. If that path does not exist, try downloading the relevant data from online resources.
+
+        Args:
+            zippath (Optional[Union[Path, str]], optional): _description_. Defaults to None.
+            force_download (bool, optional): _description_. Defaults to False.
+
+        Raises:
+            RuntimeError: _description_
+        """
         if zippath is None:
             zippath = self.DEFAULT_PATH
         zippath = Path(zippath)
