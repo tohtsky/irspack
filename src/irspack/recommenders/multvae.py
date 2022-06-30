@@ -291,6 +291,33 @@ class MultVAEConfig(BaseEarlyStoppingRecommenderConfig):
 
 
 class MultVAERecommender(BaseRecommenderWithEarlyStopping):
+    r"""JAX implementation of Mult-VAE, presented in `"Variational Autoencoders for Collaborative Filtering" <https://arxiv.org/abs/1802.05814>`_.
+
+    Args:
+        X_train_all:
+            The source data.
+        dim_z:
+            The latend dimension.
+        enc_hidden_dims:
+            The encoder's intermediate layer dimension.
+        dec_hidden_dims:
+            The dimensions of the decoder's intermediate layers.
+        dropout_p:
+            Dropout ratio. Defaults to 0.5.
+        l2_regularizer:
+            L2 regularization coefficient. Defaults to 0.
+        kl_anneal_goal:
+            beta of beta-VAE. Defaults to 0.2.
+        anneal_end_epoch:
+            The epoch to complete the annealing.. Defaults to 50.
+        minibatch_size (int, optional):
+            Minibatch size. Defaults to 512.
+        train_epochs:
+            The number of epochs to run. Defaults to 300.
+        learning_rate:
+            Adam optimizer's learning rate. Defaults to 1e-3.
+    """
+
     config_class = MultVAEConfig
 
     default_tune_range = [

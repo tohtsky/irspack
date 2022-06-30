@@ -75,7 +75,7 @@ class BaseKNNRecommender(BaseSimilarityRecommender):
             raise RuntimeError("Unknown weighting scheme.")
 
         computer = self._create_computer(X_weighted.T)
-        self.W_ = remove_diagonal(
+        self._W = remove_diagonal(
             computer.compute_similarity(self.X_train_all.T, self.top_k)
         ).tocsc()
 

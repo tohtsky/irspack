@@ -54,6 +54,16 @@ class NeuMFDownloader(BaseDownloader):
 
 
 class NeuMFML1MDownloader(NeuMFDownloader):
+    r"""Manages MovieLens 1M dataset split under 1-vs-100 negative evaluation protocol.
+
+    Args:
+        zippath:
+            Where the zipped data is located. If `None`, assumes the path to be `~/.neumf-ml-1m.zip`.
+            If the designated path does not exist, you will be prompted for the permission to download the data.
+            Defaults to `None`.
+        force_download:
+            If `True`, the class will not prompt for the permission and start downloading immediately.
+    """
     DEFAULT_PATH = Path("~/.neumf-ml-1m.zip").expanduser()
 
     TRAIN_URL = "https://raw.githubusercontent.com/tohtsky/neural_collaborative_filtering/master/Data/ml-1m.train.rating"
@@ -61,6 +71,16 @@ class NeuMFML1MDownloader(NeuMFDownloader):
 
 
 class NeuMFMPinterestDownloader(NeuMFDownloader):
+    r"""Manages Pinterest dataset split under 1-vs-100 negative evaluation protocol.
+
+    Args:
+        zippath:
+            Where the zipped data is located. If `None`, assumes the path to be `~/.neumf-pinterest.zip`.
+            If the designated path does not exist, you will be prompted for the permission to download the data.
+            Defaults to `None`.
+        force_download:
+            If `True`, the class will not prompt for the permission and start downloading immediately.
+    """
     DEFAULT_PATH = Path("~/.neumf-pinterest.zip").expanduser()
 
     TRAIN_URL = "https://raw.githubusercontent.com/tohtsky/neural_collaborative_filtering/master/Data/pinterest-20.train.rating"

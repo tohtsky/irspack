@@ -9,7 +9,7 @@ for module_name in "${modules[@]}"
 do
     echo "Create stub for $module_name"
     pybind11-stubgen -o stubs --no-setup-py "$module_name"
-    output_path="$(echo "${module_name}" | sed 's/\./\//g').pyi"
+    output_path="src/$(echo "${module_name}" | sed 's/\./\//g').pyi"
     input_path="stubs/$(echo "${module_name}" | sed 's/\./\//g')-stubs/__init__.pyi"
     rm "${output_path}"
     echo 'm: int

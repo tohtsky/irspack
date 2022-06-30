@@ -50,4 +50,4 @@ class DenseSLIMRecommender(BaseSimilarityRecommender):
         P_dense *= -diag_P_inv[np.newaxis, :]
         range_ = np.arange(self.n_items)
         P_dense[range_, range_] = 0
-        self.W_ = P_dense
+        self._W = P_dense

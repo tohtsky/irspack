@@ -95,3 +95,5 @@ Dataset
     MovieLens1MDataManager
     MovieLens100KDataManager
     MovieLens20MDataManager
+    NeuMFML1MDownloader
+    NeuMFPinterestDownloader

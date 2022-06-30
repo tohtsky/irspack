@@ -71,6 +71,6 @@ class P3alphaRecommender(BaseSimilarityRecommender):
             n_threads=self.n_threads,
         )
         top_k = self.X_train_all.shape[1] if self.top_k is None else self.top_k
-        self.W_ = computer.compute_W(self.X_train_all.T, top_k)
+        self._W = computer.compute_W(self.X_train_all.T, top_k)
         if self.normalize_weight:
-            self.W_ = l1_normalize_row(self.W_)
+            self._W = l1_normalize_row(self._W)
