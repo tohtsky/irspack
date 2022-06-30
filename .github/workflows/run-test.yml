@@ -17,7 +17,7 @@ jobs:
         run: |
           pip install --upgrade pip
           sudo apt-get install lcov
-          CXXFLAGS="-O0 -g -coverage" pip install -e .
+          CXXFLAGS="-fprofile-arcs -ftest-coverage" pip install -e .
       - name: Run pytest
         run: |
           pip install pytest pytest-mock pytest-cov
@@ -27,6 +27,8 @@ jobs:
         run: |
           coverage xml
           lcov -d `pwd` -c -o coverage.info
+          ls -l coverage.info
+          cat coverage.info
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
