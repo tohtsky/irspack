@@ -54,6 +54,10 @@ def str_to_loss_type(t: str) -> LossType:
     return result
 
 
+def _optional_csr_to_csr(X: Optional[InteractionMatrix]) -> InteractionMatrix:
+    return X if X is not None else sps.csr_matrix((0, 0), dtype=np.float32)
+
+
 class IALSTrainer(TrainerBase):
     def __init__(
         self,
@@ -71,8 +75,10 @@ class IALSTrainer(TrainerBase):
         n_threads: int,
         prediction_time_max_cg_steps: int,
         prediction_time_ialspp_iteration: int,
+        X_neg: Optional[InteractionMatrix],
     ):
         X_train_all_f32 = X.astype(np.float32)
+        X_neg_f32 = _optional_csr_to_csr(X_neg).astype(np.float32)
         config = (
             IALSModelConfigBuilder()
             .set_K(n_components)
@@ -93,7 +99,7 @@ class IALSTrainer(TrainerBase):
             .set_ialspp_subspace_dimension(ialspp_subspace_dimension)
             .build()
         )
-        self.core_trainer = CoreTrainer(config, X_train_all_f32)
+        self.core_trainer = CoreTrainer(config, X_train_all_f32, X_neg_f32)
         self.solver_config = solver_config
         self.prediction_time_solver_config = (
             IALSSolverConfigBuilder()
@@ -126,11 +132,19 @@ class IALSTrainer(TrainerBase):
     def user_scores(self, begin: int, end: int) -> DenseScoreArray:
         return self.core_trainer.user_scores(begin, end, self.solver_config)
 
-    def transform_user(self, X: InteractionMatrix) -> DenseMatrix:
-        return self.core_trainer.transform_user(X, self.prediction_time_solver_config)
+    def transform_user(
+        self, X: InteractionMatrix, X_neg: Optional[InteractionMatrix] = None
+    ) -> DenseMatrix:
+        return self.core_trainer.transform_user(
+            X, _optional_csr_to_csr(X_neg), self.prediction_time_solver_config
+        )
 
-    def transform_item(self, X: InteractionMatrix) -> DenseMatrix:
-        return self.core_trainer.transform_item(X, self.prediction_time_solver_config)
+    def transform_item(
+        self, X: InteractionMatrix, X_neg: Optional[InteractionMatrix] = None
+    ) -> DenseMatrix:
+        return self.core_trainer.transform_item(
+            X, _optional_csr_to_csr(X_neg), self.prediction_time_solver_config
+        )
 
 
 class IALSConfigScaling(enum.Enum):
@@ -302,6 +316,7 @@ class IALSRecommender(
         ialspp_subspace_dimension: int = 64,
         loss_type: Literal["IALSPP", "ORIGINAL"] = "IALSPP",
         nu_star: Optional[float] = None,
+        X_neg: Optional[InteractionMatrix] = None,
         random_seed: int = 42,
         n_threads: Optional[int] = None,
         train_epochs: int = 16,
@@ -327,6 +342,7 @@ class IALSRecommender(
         self.max_cg_steps = max_cg_steps
         self.ialspp_subspace_dimension = ialspp_subspace_dimension
         self.random_seed = random_seed
+        self.X_neg = X_neg
         self.n_threads = get_n_threads(n_threads)
         self.loss_type = str_to_loss_type(loss_type)
         self.nu_star = nu_star
@@ -370,6 +386,7 @@ class IALSRecommender(
             n_threads=self.n_threads,
             prediction_time_max_cg_steps=self.prediction_time_max_cg_steps,
             prediction_time_ialspp_iteration=self.prediction_time_ialspp_iteration,
+            X_neg=self.X_neg,
         )
 
     @property
@@ -418,7 +435,9 @@ class IALSRecommender(
             )
         )
 
-    def compute_item_embedding(self, X: InteractionMatrix) -> DenseMatrix:
+    def compute_item_embedding(
+        self, X: InteractionMatrix, X_neg: Optional[InteractionMatrix] = None
+    ) -> DenseMatrix:
         r"""Given an unknown items' interaction with known user,
         computes the latent factors of the items by least square (fixing user embeddings).
 
@@ -433,7 +452,8 @@ class IALSRecommender(
                 sps.csr_matrix(X).astype(np.float32),
                 self.confidence_scaling,
                 self.epsilon,
-            )
+            ),
+            X_neg,
         )
 
     def get_score_from_item_embedding(

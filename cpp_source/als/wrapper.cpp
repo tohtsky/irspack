@@ -103,7 +103,8 @@ PYBIND11_MODULE(_ials, m) {
            &SolverConfig::Builder::set_ialspp_iteration);
 
   py::class_<IALSTrainer>(m, "IALSTrainer")
-      .def(py::init<IALSModelConfig, const SparseMatrix &>())
+      .def(py::init<IALSModelConfig, const SparseMatrix &,
+                    const SparseMatrix &>())
       .def("step", &IALSTrainer::step)
       .def("user_scores", &IALSTrainer::user_scores)
       .def("transform_user", &IALSTrainer::transform_user)

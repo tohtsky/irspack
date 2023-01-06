@@ -105,6 +105,7 @@ struct Solver {
   }
 
   inline DenseMatrix X_to_vector(const SparseMatrix &X,
+                                 const SparseMatrix &X_neg,
                                  const DenseMatrix &other_factor,
                                  const IALSModelConfig &config,
                                  const SolverConfig &solver_config) const {
@@ -114,29 +115,43 @@ struct Solver {
          << " but other.factor.rows() = " << other_factor.rows() << ".";
       throw std::invalid_argument(ss.str());
     }
+    if (X_neg.cols() > 0 && X_neg.cols() != other_factor.rows()) {
+      std::stringstream ss;
+      ss << "Shape mismatch: X_neg.cols() = " << X_neg.cols()
+         << " but other.factor.rows() = " << other_factor.rows() << ".";
+      throw std::invalid_argument(ss.str());
+    }
+    if (X_neg.cols() > 0 && X_neg.rows() != X.rows()) {
+      std::stringstream ss;
+      ss << "Shape mismatch: X_neg.rows() = " << X_neg.rows()
+         << " but X.rows() = " << X.rows() << ".";
+      throw std::invalid_argument(ss.str());
+    }
+
     DenseMatrix result = DenseMatrix::Zero(X.rows(), P.rows());
     if (X.isCompressed()) {
-      this->step(result, X, other_factor, config, solver_config);
+      this->step(result, X, X_neg, other_factor, config, solver_config);
     } else {
       SparseMatrix X_compressed = X;
       X_compressed.makeCompressed();
-      this->step(result, X_compressed, other_factor, config, solver_config);
+      this->step(result, X_compressed, X_neg, other_factor, config,
+                 solver_config);
     }
     return result;
   }
 
 private:
   inline void step_cg(DenseMatrix &target_factor, const SparseMatrix &X,
+                      const SparseMatrix &X_neg,
                       const DenseMatrix &other_factor,
                       const IALSModelConfig &config,
                       const SolverConfig &solver_config) const {
 
     std::vector<std::thread> workers;
-
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config, &solver_config]() {
+      workers.emplace_back([this, &target_factor, &cursor, &X, &X_neg,
+                            &other_factor, &config, &solver_config]() {
         DenseVector b(P.rows()), x(P.rows()), r(P.rows()), p(P.rows()),
             Ap(P.rows());
         Real observation_bias =
@@ -173,6 +188,14 @@ private:
             r.noalias() -=
                 it.value() * vdotx * other_factor.row(it.col()).transpose();
           }
+          if (X_neg.cols() > 0) {
+            for (SparseMatrix::InnerIterator it(X_neg, cursor_local); it;
+                 ++it) {
+              Real vdotx = other_factor.row(it.col()) * x;
+              r.noalias() -=
+                  it.value() * vdotx * other_factor.row(it.col()).transpose();
+            }
+          }
 
           p = r;
 
@@ -188,6 +211,14 @@ private:
               Real vdotp = other_factor.row(it.col()) * p;
               Ap +=
                   (it.value() * vdotp) * other_factor.row(it.col()).transpose();
+            }
+            if (X_neg.cols() > 0) {
+              for (SparseMatrix::InnerIterator it(X_neg, cursor_local); it;
+                   ++it) {
+                Real vdotp = other_factor.row(it.col()) * p;
+                Ap += (it.value() * vdotp) *
+                      other_factor.row(it.col()).transpose();
+              }
             }
 
             Real alpha_denom = p.transpose() * Ap;
@@ -210,6 +241,7 @@ private:
   }
 
   inline void step_cholesky(DenseMatrix &target_factor, const SparseMatrix &X,
+                            const SparseMatrix &X_neg,
                             const DenseMatrix &other_factor,
                             const IALSModelConfig &config,
                             const SolverConfig &solver_config) const {
@@ -218,8 +250,8 @@ private:
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config]() {
+      workers.emplace_back([this, &target_factor, &cursor, &X, &X_neg,
+                            &other_factor, &config]() {
         BatchedRankUpdater<> bupdater(P.rows());
         DenseMatrix P_local(P.rows(), P.cols());
         DenseVector B(P.rows());
@@ -242,6 +274,15 @@ private:
             bupdater.add_row(P_adjoint, vcache, it.value());
             B.noalias() += (observation_bias + it.value()) * vcache;
             nnz++;
+          }
+          if (X_neg.cols() > 0) {
+            for (SparseMatrix::InnerIterator it(X_neg, cursor_local); it;
+                 ++it) {
+              int64_t other_index = it.col();
+              vcache = other_factor.row(other_index).transpose();
+              bupdater.add_row(P_adjoint, vcache, it.value());
+              nnz++;
+            }
           }
           bupdater.consume(P_adjoint);
           const Real regularization_this =
@@ -508,13 +549,14 @@ private:
 
 public:
   inline void step(DenseMatrix &target_factor, const SparseMatrix &X,
-                   const DenseMatrix &other_factor,
+                   const SparseMatrix &X_neg, const DenseMatrix &other_factor,
                    const IALSModelConfig &config,
                    const SolverConfig &solver_config) const {
     if (solver_config.solver_type == SolverType::CG) {
-      step_cg(target_factor, X, other_factor, config, solver_config);
+      step_cg(target_factor, X, X_neg, other_factor, config, solver_config);
     } else if (solver_config.solver_type == SolverType::Cholesky) {
-      step_cholesky(target_factor, X, other_factor, config, solver_config);
+      step_cholesky(target_factor, X, X_neg, other_factor, config,
+                    solver_config);
     } else {
       if (solver_config.ialspp_subspace_dimension > 1u) {
         step_ialspp(target_factor, X, other_factor, config, solver_config);
@@ -530,13 +572,17 @@ public:
 }; // namespace ials
 
 struct IALSTrainer {
-  inline IALSTrainer(const IALSModelConfig &config, const SparseMatrix &X)
+  inline IALSTrainer(const IALSModelConfig &config, const SparseMatrix &X,
+                     const SparseMatrix &X_neg)
       : config_(config), K(config.K), n_users(X.rows()), n_items(X.cols()),
         user(n_users, K), item(n_items, K), user_solver(config),
-        item_solver(config), X(X), X_t(X.transpose()) {
+        item_solver(config), X(X), X_t(X.transpose()), X_neg(X_neg),
+        X_neg_t(X_neg.transpose()) {
 
     this->X.makeCompressed();
     this->X_t.makeCompressed();
+    this->X_neg.makeCompressed();
+    this->X_neg_t.makeCompressed();
 
     user_solver.initialize(user, config);
     item_solver.initialize(item, config);
@@ -558,20 +604,23 @@ struct IALSTrainer {
   inline void step(const SolverConfig &solver_config) {
 
     user_solver.prepare_p(item, config_, solver_config);
-    user_solver.step(user, X, item, config_, solver_config);
+    user_solver.step(user, X, X_neg, item, config_, solver_config);
     item_solver.prepare_p(user, config_, solver_config);
-    item_solver.step(item, X_t, user, config_, solver_config);
+    item_solver.step(item, X_t, X_neg_t, user, config_, solver_config);
   };
 
   inline DenseMatrix transform_user(const SparseMatrix &X,
+                                    const SparseMatrix &X_neg,
                                     const SolverConfig &solver_config) const {
-    return this->user_solver.X_to_vector(X, item, config_, solver_config);
+    return this->user_solver.X_to_vector(X, X_neg, item, config_,
+                                         solver_config);
   }
 
   inline DenseMatrix transform_item(const SparseMatrix &X,
+                                    const SparseMatrix &X_neg,
                                     const SolverConfig &solver_config) const {
-    return this->item_solver.X_to_vector(X.transpose(), user, config_,
-                                         solver_config);
+    return this->item_solver.X_to_vector(X.transpose(), X_neg.transpose(), user,
+                                         config_, solver_config);
   }
 
   inline Real compute_loss(const SolverConfig &solver_config) {
@@ -695,6 +744,7 @@ public:
 
 private:
   SparseMatrix X, X_t;
+  SparseMatrix X_neg, X_neg_t;
 };
 } // namespace ials
 } // namespace irspack

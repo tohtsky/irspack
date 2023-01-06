@@ -1,5 +1,5 @@
 import math
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Literal, Optional, Tuple, Union, cast
 
 import numpy as np
 import pytest
@@ -37,6 +37,36 @@ def ials_grad(
             else:
                 sc = (alpha0 + weight(x)) * (uv[uind, iind] - 1)
 
+            result_u[uind, :] += v[iind] * sc
+            result_v[iind, :] += u[uind] * sc
+    result_u += reg * u
+    result_v += reg * v
+    return result_u, result_v
+
+
+def ials_grad_with_negative(
+    X: sps.csr_matrix,
+    X_neg: sps.csr_matrix,
+    u: np.ndarray,
+    v: np.ndarray,
+    reg: float,
+    alpha0: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    nu = u.shape[0]
+    ni = v.shape[0]
+    uv = u.dot(v.T)
+    result_u = np.zeros_like(u)
+    result_v = np.zeros_like(v)
+    for uind in range(nu):
+        for iind in range(ni):
+            x = X[uind, iind]
+            x_neg = X_neg[uind, iind]
+            if x == 0:
+                sc = alpha0 * uv[uind, iind]
+            else:
+                sc = (alpha0 + x) * (uv[uind, iind] - 1)
+            if x_neg != 0:
+                sc += x_neg * uv[uind, iind]
             result_u[uind, :] += v[iind] * sc
             result_v[iind, :] += u[uind] * sc
     result_u += reg * u
@@ -286,6 +316,52 @@ def test_ials_overfit_cholesky_logscale(
 
     np.testing.assert_allclose(grad_ivec_chol, np.zeros_like(grad_ivec_chol), atol=1e-5)
     np.testing.assert_allclose(grad_uvec_chol, np.zeros_like(grad_uvec_chol), atol=1e-5)
+
+
+def test_ials_cholesky_with_negative(
+    test_interaction_data: Dict[str, sps.csr_matrix]
+) -> None:
+
+    ALPHA0 = 0.1
+    REG = 0.5
+    N_COMPONENTS = 5
+    X = test_interaction_data["X_small"]
+    X.sort_indices()
+    X.data[:] = 1.0
+    X_neg = rowwise_train_test_split(
+        sps.csr_matrix(np.ones_like(X.todense()) - X), 0.5, random_state=0
+    )[0]
+    for method in ["CHOLESKY", "CG"]:
+        rec_chol = IALSRecommender(
+            X,
+            n_components=N_COMPONENTS,
+            alpha0=ALPHA0,
+            reg=REG,
+            nu=0,
+            nu_star=0,
+            solver_type=cast(Union[Literal["CHOLESKY"], Literal["CG"]], method),
+            loss_type="ORIGINAL",
+            train_epochs=100,
+            max_cg_steps=10,
+            init_std=1e-1,
+            prediction_time_max_cg_steps=10,
+            X_neg=X_neg,
+        )
+        rec_chol.learn()
+        assert rec_chol.trainer is not None
+        uvec_chol = rec_chol.get_user_embedding()
+        ivec_chol_cold = rec_chol.compute_item_embedding(X, X_neg)
+
+        grad_uvec_chol, grad_ivec_chol = ials_grad_with_negative(
+            X, X_neg, uvec_chol, ivec_chol_cold, REG, ALPHA0
+        )
+
+        np.testing.assert_allclose(
+            grad_ivec_chol, np.zeros_like(grad_ivec_chol), atol=1e-5
+        )
+        np.testing.assert_allclose(
+            grad_uvec_chol, np.zeros_like(grad_uvec_chol), atol=1e-5
+        )
 
 
 def test_ials_tuning_with_n_startup_trials(

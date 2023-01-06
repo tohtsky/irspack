@@ -4,8 +4,7 @@ from numpy import float32
 
 """irspack's core module for "IALSRecommender".
 Built to use
-	SSE, SSE2"""
-from __future__ import annotations
+	AVX SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2"""
 import irspack.recommenders._ials
 import typing
 import numpy
@@ -75,16 +74,25 @@ class IALSSolverConfigBuilder:
 class IALSTrainer:
     def __getstate__(self) -> tuple: ...
     def __init__(
-        self, arg0: IALSModelConfig, arg1: scipy.sparse.csr_matrix[numpy.float32]
+        self,
+        arg0: IALSModelConfig,
+        arg1: scipy.sparse.csr_matrix[numpy.float32],
+        arg2: scipy.sparse.csr_matrix[numpy.float32],
     ) -> None: ...
     def __setstate__(self, arg0: tuple) -> None: ...
     def compute_loss(self, arg0: IALSSolverConfig) -> float: ...
     def step(self, arg0: IALSSolverConfig) -> None: ...
     def transform_item(
-        self, arg0: scipy.sparse.csr_matrix[numpy.float32], arg1: IALSSolverConfig
+        self,
+        arg0: scipy.sparse.csr_matrix[numpy.float32],
+        arg1: scipy.sparse.csr_matrix[numpy.float32],
+        arg2: IALSSolverConfig,
     ) -> numpy.ndarray[numpy.float32, _Shape[m, n]]: ...
     def transform_user(
-        self, arg0: scipy.sparse.csr_matrix[numpy.float32], arg1: IALSSolverConfig
+        self,
+        arg0: scipy.sparse.csr_matrix[numpy.float32],
+        arg1: scipy.sparse.csr_matrix[numpy.float32],
+        arg2: IALSSolverConfig,
     ) -> numpy.ndarray[numpy.float32, _Shape[m, n]]: ...
     def user_scores(
         self, arg0: int, arg1: int, arg2: IALSSolverConfig
