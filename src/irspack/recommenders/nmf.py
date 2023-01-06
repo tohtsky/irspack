@@ -46,7 +46,8 @@ class NMFRecommender(BaseRecommender):
     def _learn(self) -> None:
         nmf_model = NMF(
             n_components=self.n_components,
-            alpha=self.alpha,
+            alpha_W=self.alpha,
+            alpha_H="same",
             init=self.init,
             l1_ratio=self.l1_ratio,
             beta_loss=self.beta_loss,

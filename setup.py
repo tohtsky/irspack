@@ -41,12 +41,12 @@ class get_eigen_include(object):
         download_target_dir = SETUP_DIRECTORY / "eigen3.zip"
         import zipfile
 
-        import requests
+        import httpx
 
-        response = requests.get(self.EIGEN3_URL, stream=True)
-        with download_target_dir.open("wb") as ofs:
-            for chunk in response.iter_content(chunk_size=1024):
-                ofs.write(chunk)
+        with httpx.stream("GET", self.EIGEN3_URL) as r:
+            with download_target_dir.open("wb") as ofs:
+                for chunk in r.iter_bytes(chunk_size=10):
+                    ofs.write(chunk)
 
         with zipfile.ZipFile(download_target_dir) as ifs:
             ifs.extractall()
