@@ -6,10 +6,13 @@ from numpy import float32
 Built to use
 	SSE, SSE2"""
 from __future__ import annotations
-import irspack.recommenders._ials
+
 import typing
+
 import numpy
 import scipy.sparse
+
+import irspack.recommenders._ials
 
 _Shape = typing.Tuple[int, ...]
 

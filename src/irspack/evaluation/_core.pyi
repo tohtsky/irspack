@@ -1,11 +1,12 @@
 m: int
 n: int
+import typing
+
+import numpy
+import scipy.sparse
 from numpy import float32
 
 import irspack.evaluation._core
-import typing
-import numpy
-import scipy.sparse
 
 _Shape = typing.Tuple[int, ...]
 

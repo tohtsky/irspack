@@ -3,28 +3,29 @@ on:
   push:
     branches:
       - main
+      - feature-py311
   release:
     types:
       - created
 env:
-  cibuildwheel_version: "2.7.0"
+  cibuildwheel_version: "2.13.0"
 jobs:
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: "3.7"
+          python-version: "3.11"
       - name: Build sdist
         run: pip install pybind11 setuptools_scm && python setup.py sdist
-      - uses: actions/upload-artifact@v2
-        with:
-          path: dist/*.tar.gz
+#      - uses: actions/upload-artifact@v2
+#        with:
+#          path: dist/*.tar.gz
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -55,7 +56,7 @@ jobs:
             name: mac-arm
             cibw:
               arch: universal2
-              build: "cp39* cp310*"
+              build: "cp39* cp310* cp311*"
               env: ""
 
           - os: ubuntu-20.04
@@ -70,7 +71,7 @@ jobs:
           - os: ubuntu-20.04
             name: manylinux2014
             cibw:
-              build: "cp38* cp39* cp310*"
+              build: "cp38* cp39* cp310* cp311*"
               skip: "*musllinux*"
               manylinux_image: manylinux2014
               env: CFLAGS='-march=core-avx-i'
@@ -108,6 +109,14 @@ jobs:
               manylinux_image: manylinux2014
               arch: aarch64
 
+          - os: ubuntu-20.04
+            name: manylinux_aarch64_cp311
+            cibw:
+              build: "cp311*"
+              skip: "*musllinux*"
+              manylinux_image: manylinux2014
+              arch: aarch64
+
           - os: windows-2019
             name: win_amd64
             architecture: x64
@@ -116,10 +125,10 @@ jobs:
               env: "CL='/arch:AVX'"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
       - name: register qemu
         if: contains(matrix.cibw.arch, 'aarch64')
@@ -130,33 +139,33 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
 
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
-
-  upload_pypi:
-    needs: [build_wheels, build_sdist]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v2
-        with:
-          name: artifact
-          path: dist
-      - name: Publish package to TestPyPI
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ secrets.TEST_PYPI_APITOKEN }}
-          packages_dir: dist/
-          repository_url: https://test.pypi.org/legacy/
-          verbose: true
-          skip_existing: true
-      - name: Publish package to PyPI
-        if: github.event_name == 'release'
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_APITOKEN }}
-          packages_dir: dist/
-          verbose: true
-          skip_existing: true
+#      - uses: actions/upload-artifact@v3
+#        with:
+#          path: ./wheelhouse/*.whl
+#
+#  upload_pypi:
+#    needs: [build_wheels, build_sdist]
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/download-artifact@v2
+#        with:
+#          name: artifact
+#          path: dist
+#      - name: Publish package to TestPyPI
+#        uses: pypa/gh-action-pypi-publish@master
+#        with:
+#          user: __token__
+#          password: ${{ secrets.TEST_PYPI_APITOKEN }}
+#          packages_dir: dist/
+#          repository_url: https://test.pypi.org/legacy/
+#          verbose: true
+#          skip_existing: true
+#      - name: Publish package to PyPI
+#        if: github.event_name == 'release'
+#        uses: pypa/gh-action-pypi-publish@master
+#        with:
+#          user: __token__
+#          password: ${{ secrets.PYPI_APITOKEN }}
+#          packages_dir: dist/
+#          verbose: true
+#          skip_existing: true
