@@ -234,7 +234,7 @@ class MultVAETrainer(TrainerBase):
             )
 
             mb_arrays.append(np.asarray(mvresult.log_softmax, dtype=np.float64))
-        score_concat = np.concatenate(mb_arrays, axis=0)
+        score_concat: DenseScoreArray = np.concatenate(mb_arrays, axis=0)
         return score_concat
 
     def run_epoch(self) -> None:

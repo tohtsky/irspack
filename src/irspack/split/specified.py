@@ -2,6 +2,7 @@ import uuid
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from scipy import sparse as sps
 
@@ -76,6 +77,10 @@ def holdout_specific_interactions(
     flg_column = np.zeros(df.shape[0])
     flg_column[interaction_indicator] = 1
     df[flg_colname] = flg_column
+
+    v_train_users: npt.ArrayLike
+    v_val_users: npt.ArrayLike
+    v_test_users: npt.ArrayLike
 
     validatable_users = np.unique(df[flg_column > 0][user_column])
     n_validatable_users: int = validatable_users.shape[0]

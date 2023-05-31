@@ -58,7 +58,9 @@ class NMFRecommender(BaseRecommender):
         self.H = self.nmf_model.components_
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        return self.W[user_indices].dot(self.H)
+        res: DenseScoreArray = self.W[user_indices].dot(self.H)
+        return res
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        return self.nmf_model.transform(X).dot(self.H)
+        res: DenseScoreArray = self.nmf_model.transform(X).dot(self.H)
+        return res

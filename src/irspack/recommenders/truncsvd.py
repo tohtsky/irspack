@@ -83,13 +83,18 @@ class TruncatedSVDRecommender(
         self.z_ = self.decomposer_.fit_transform(self.X_train_all)
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        return self.z[user_indices].dot(self.decomposer.components_)
+        res: DenseScoreArray = self.z[user_indices].dot(self.decomposer.components_)
+        return res
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
-        return self.z[begin:end].dot(self.decomposer.components_)
+        res: DenseScoreArray = self.z[begin:end].dot(self.decomposer.components_)
+        return res
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        return self.decomposer.transform(X).dot(self.decomposer.components_)
+        res: DenseScoreArray = self.decomposer.transform(X).dot(
+            self.decomposer.components_
+        )
+        return res
 
     def get_user_embedding(self) -> DenseMatrix:
         return self.z
@@ -97,12 +102,15 @@ class TruncatedSVDRecommender(
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return user_embedding.dot(self.decomposer.components_)
+        res: DenseScoreArray = user_embedding.dot(self.decomposer.components_)
+        return res
 
     def get_item_embedding(self) -> DenseMatrix:
-        return self.decomposer.components_.T
+        res: DenseMatrix = self.decomposer.components_.T
+        return res
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return self.z[user_indices].dot(item_embedding.T)
+        res: DenseScoreArray = self.z[user_indices].dot(item_embedding.T)
+        return res

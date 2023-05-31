@@ -1,6 +1,5 @@
 m: int
 n: int
-from numpy import float32
 
 """irspack's core module for "IALSRecommender".
 Built to use
@@ -13,8 +12,6 @@ import numpy
 import scipy.sparse
 
 import irspack.recommenders._ials
-
-_Shape = typing.Tuple[int, ...]
 
 __all__ = [
     "CG",
@@ -85,28 +82,32 @@ class IALSTrainer:
     def step(self, arg0: IALSSolverConfig) -> None: ...
     def transform_item(
         self, arg0: scipy.sparse.csr_matrix[numpy.float32], arg1: IALSSolverConfig
-    ) -> numpy.ndarray[numpy.float32, _Shape[m, n]]: ...
+    ) -> numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]: ...
     def transform_user(
         self, arg0: scipy.sparse.csr_matrix[numpy.float32], arg1: IALSSolverConfig
-    ) -> numpy.ndarray[numpy.float32, _Shape[m, n]]: ...
+    ) -> numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]: ...
     def user_scores(
         self, arg0: int, arg1: int, arg2: IALSSolverConfig
-    ) -> numpy.ndarray[numpy.float32, _Shape[m, n]]: ...
+    ) -> numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]: ...
     @property
-    def item(self) -> numpy.ndarray[numpy.float32, _Shape[m, n]]:
+    def item(self) -> numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]:
         """
-        :type: numpy.ndarray[numpy.float32, _Shape[m, n]]
+        :type: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]
         """
     @item.setter
-    def item(self, arg0: numpy.ndarray[numpy.float32, _Shape[m, n]]) -> None:
+    def item(
+        self, arg0: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]
+    ) -> None:
         pass
     @property
-    def user(self) -> numpy.ndarray[numpy.float32, _Shape[m, n]]:
+    def user(self) -> numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]:
         """
-        :type: numpy.ndarray[numpy.float32, _Shape[m, n]]
+        :type: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]
         """
     @user.setter
-    def user(self, arg0: numpy.ndarray[numpy.float32, _Shape[m, n]]) -> None:
+    def user(
+        self, arg0: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]
+    ) -> None:
         pass
     pass
 

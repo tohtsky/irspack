@@ -24,7 +24,7 @@ class EvaluatorCore:
     def get_ground_truth(self) -> scipy.sparse.csr_matrix[numpy.float64]: ...
     def get_metrics_f32(
         self,
-        score_array: numpy.ndarray[numpy.float32, _Shape[m, n]],
+        score_array: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]],
         cutoff: int,
         offset: int,
         n_threads: int,
@@ -32,7 +32,7 @@ class EvaluatorCore:
     ) -> Metrics: ...
     def get_metrics_f64(
         self,
-        score_array: numpy.ndarray[numpy.float64, _Shape[m, n]],
+        score_array: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float64]],
         cutoff: int,
         offset: int,
         n_threads: int,
