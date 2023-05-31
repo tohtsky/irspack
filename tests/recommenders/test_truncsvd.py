@@ -4,10 +4,10 @@ import scipy.sparse as sps
 
 RNS = np.random.RandomState(0)
 
-X = RNS.rand(200, 512)
-X[X <= 0.9] = 0
-X[X > 0.9] = 1
-X = sps.csr_matrix(X)
+X_dense = RNS.rand(200, 512)
+X_dense[X_dense <= 0.9] = 0
+X_dense[X_dense > 0.9] = 1
+X: sps.csr_matrix = sps.csr_matrix(X_dense)
 
 
 def test_truncsvd() -> None:

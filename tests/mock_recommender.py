@@ -11,7 +11,8 @@ class MockRecommender(BaseRecommender, register_class=False):
         self.scores = scores
 
     def get_score(self, user_indices: np.ndarray) -> np.ndarray:
-        return self.scores[user_indices]
+        scores: np.ndarray = self.scores[user_indices]
+        return scores
 
     def _learn(self) -> None:
         pass

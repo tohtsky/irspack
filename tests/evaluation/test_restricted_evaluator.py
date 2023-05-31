@@ -15,7 +15,8 @@ class MockRecommender(BaseRecommender, register_class=False):
         self.scores = scores
 
     def get_score(self, user_indices: np.ndarray) -> np.ndarray:
-        return self.scores[user_indices]
+        scores: np.ndarray = self.scores[user_indices]
+        return scores
 
     def _learn(self) -> None:
         pass
@@ -28,7 +29,7 @@ def test_restriction_global(U: int, I: int, R: int) -> None:
     except:
         pytest.skip()
     rns = np.random.RandomState(42)
-    recommendable = rns.choice(np.arange(I), replace=False, size=R)
+    recommendable = rns.choice(np.arange(I), replace=False, size=R).tolist()
     scores = rns.randn(U, I)
     X_gt = (rns.rand(U, I) >= 0.3).astype(np.float64)
     evaluator_ = Evaluator(

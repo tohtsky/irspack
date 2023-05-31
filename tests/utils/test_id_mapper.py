@@ -17,13 +17,14 @@ class MockRecommender(BaseRecommender):
         self.scores = scores
 
     def get_score(self, user_indices: np.ndarray) -> np.ndarray:
-        return self.scores[user_indices]
+        score: np.ndarray = self.scores[user_indices]
+        return score
 
     def _learn(self) -> None:
         pass
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        score = np.exp(X.toarray())
+        score: np.ndarray = np.exp(X.toarray())
         score /= score.sum(axis=1)[:, None]
         return score
 
@@ -96,7 +97,7 @@ def test_basic_usecase(dtype: str) -> None:
             rec, uid, cutoff=n_items, forbidden_item_ids=forbbiden_item
         )
         check_descending(recommended_with_restriction)
-        for iid, score in recommended_with_restriction:
+        for iid, _ in recommended_with_restriction:
             assert iid not in forbbiden_item
 
         random_allowed_items = list(
@@ -207,13 +208,12 @@ def test_basic_usecase(dtype: str) -> None:
     for i, result in enumerate(batch_result_dict):
         nnz = len(X[i].nonzero()[1])
         softmax_denom = X.shape[1] - nnz + np.exp(2) * nnz
-        for _, score in result:
-            assert score == pytest.approx(1 / softmax_denom)
+        for _, val in result:
+            assert val == pytest.approx(1 / softmax_denom)
 
 
 def test_item_id_mapper_per_user_allowed_item() -> None:
-    ids = [(i, f"{i}") for i in range(1, 11)]
-    np.random.shuffle(ids)
+    ids = [(i, f"{i}") for i in np.random.choice(10, size=10, replace=False) + 1]
     id_mapepr = ItemIDMapper(ids)
     N_users = 10
     score = np.random.random((N_users, len(ids)))
@@ -239,8 +239,7 @@ def test_item_id_mapper_per_user_allowed_item() -> None:
 
 
 def test_item_id_mapper_uniform_allowed_item() -> None:
-    ids = [(i, f"{i}") for i in range(1, 11)]
-    np.random.shuffle(ids)
+    ids = [(i, f"{i}") for i in np.random.choice(10, size=10, replace=False) + 1]
     id_mapepr = ItemIDMapper(ids)
     N_users = 10
     score = np.random.random((N_users, len(ids)))
