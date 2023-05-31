@@ -56,7 +56,7 @@ class NMFRecommender(BaseRecommender):
                 random_state=42,
             )
         else:
-            # argument "alpha" in NMF is not recommended since 1.0.0
+            # argument "alpha" in NMF was deprecated since 1.0.0
             nmf_model = NMF(
                 n_components=self.n_components,
                 alpha_W=self.alpha,
