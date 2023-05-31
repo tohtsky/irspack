@@ -143,8 +143,8 @@ def test_topk(X: sps.csr_matrix) -> None:
 def test_p3(X: sps.csr_matrix, alpha: float) -> None:
     rec = P3alphaRecommender(X, alpha=alpha, n_threads=4)
     rec.learn()
-    W: sps.csr_matrix = rec.W
-    sim = W.toarray()
+    W_csr: sps.csr_matrix = rec.W
+    W = W_csr.toarray()
 
     P_ui = np.power(X.toarray(), alpha)
     P_iu = np.power(X.T.toarray(), alpha)
