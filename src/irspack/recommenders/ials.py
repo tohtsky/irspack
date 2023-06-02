@@ -379,9 +379,10 @@ class IALSRecommender(
         return self.trainer
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        return self.trainer_as_ials.core_trainer.user[user_indices].dot(
+        res: DenseScoreArray = self.trainer_as_ials.core_trainer.user[user_indices].dot(
             self.get_item_embedding().T
         )
+        return res
 
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         return self.trainer_as_ials.user_scores(begin, end)
@@ -396,7 +397,8 @@ class IALSRecommender(
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return user_embedding.dot(self.get_item_embedding().T)
+        res: DenseScoreArray = user_embedding.dot(self.get_item_embedding().T)
+        return res
 
     def get_item_embedding(self) -> DenseMatrix:
         return self.trainer_as_ials.core_trainer.item
@@ -439,9 +441,10 @@ class IALSRecommender(
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return self.trainer_as_ials.core_trainer.user[user_indices].dot(
+        res: DenseScoreArray = self.trainer_as_ials.core_trainer.user[user_indices].dot(
             item_embedding.T
         )
+        return res
 
     @classmethod
     def tune_doubling_dimension(

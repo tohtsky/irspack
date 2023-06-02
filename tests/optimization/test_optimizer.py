@@ -61,6 +61,7 @@ class MockRecommender(BaseRecommender, register_class=False):
         pass
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
+        score: DenseScoreArray
         score = self.answer[user_indices] * self.p1
         score = score + 10 * self.rns.rand(*score.shape) * (1 - self.p1)
         return score

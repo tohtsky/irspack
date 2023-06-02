@@ -144,33 +144,41 @@ class BPRFMRecommender(
         return self.trainer.fm
 
     def get_score(self, index: UserIndexArray) -> np.ndarray:
-        return (
+        res: np.ndarray = (
             self.fm.user_embeddings[index].dot(self.fm.item_embeddings.T)
             + self.fm.item_biases[np.newaxis, :]
         )
+        return res
 
     def get_score_block(self, begin: int, end: int) -> np.ndarray:
-        return (
+        res: np.ndarray = (
             self.fm.user_embeddings[begin:end].dot(self.fm.item_embeddings.T)
             + self.fm.item_biases[np.newaxis, :]
         )
+        return res
 
     def get_user_embedding(self) -> DenseMatrix:
-        return self.fm.user_embeddings
+        res: DenseMatrix = self.fm.user_embeddings
+        return res
 
     def get_score_from_user_embedding(
         self, user_embedding: DenseMatrix
     ) -> DenseScoreArray:
-        return (
+        res: DenseScoreArray = (
             user_embedding.dot(self.fm.item_embeddings.T)
             + self.fm.item_biases[np.newaxis, :]
         )
+        return res
 
     def get_item_embedding(self) -> DenseMatrix:
-        return self.fm.item_embeddings
+        res: DenseMatrix = self.fm.item_embeddings
+        return res
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix
     ) -> DenseScoreArray:
         # ignore bias
-        return self.fm.user_embeddings[user_indices].dot(item_embedding.T)
+        res: DenseScoreArray = self.fm.user_embeddings[user_indices].dot(
+            item_embedding.T
+        )
+        return res

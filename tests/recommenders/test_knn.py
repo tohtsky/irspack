@@ -16,10 +16,10 @@ from irspack.recommenders.rp3 import RP3betaRecommender
 X_small = sps.csr_matrix(
     np.asfarray([[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])
 )
-X_many = np.random.rand(888, 512)
-X_many[X_many <= 0.9] = 0
-X_many[X_many > 0.9] = 1
-X_many = sps.csr_matrix(X_many)
+X_many_dense = np.random.rand(888, 512)
+X_many_dense[X_many_dense <= 0.9] = 0
+X_many_dense[X_many_dense > 0.9] = 1
+X_many = sps.csr_matrix(X_many_dense)
 X_many.sort_indices()
 
 X_many_dense = sps.csr_matrix(np.random.rand(133, 245))
@@ -33,7 +33,8 @@ def test_cosine(X: sps.csr_matrix, normalize: bool) -> None:
         X, shrinkage=0, n_threads=5, top_k=X.shape[1], normalize=normalize
     )
     rec.learn()
-    sim = rec.W.toarray()
+    W: sps.csr_matrix = rec.W
+    sim = W.toarray()
     manual = X.T.toarray()  # I x U
     norm = (manual**2).sum(axis=1) ** 0.5
     manual = manual.dot(manual.T)
@@ -51,7 +52,8 @@ def test_cosine(X: sps.csr_matrix, normalize: bool) -> None:
 def test_jaccard(X: sps.csr_matrix) -> None:
     rec = JaccardKNNRecommender(X, shrinkage=0, top_k=X.shape[1], n_threads=1)
     rec.learn()
-    sim = rec.W.toarray()
+    W: sps.csr_matrix = rec.W
+    sim = W.toarray()
     X_bin = X.copy()
     X_bin.sort_indices()
     X_bin.data[:] = 1
@@ -74,7 +76,8 @@ def test_asymmetric_cosine(X: sps.csr_matrix, alpha: float, shrinkage: float) ->
         X, shrinkage=shrinkage, alpha=alpha, n_threads=1, top_k=X.shape[1]
     )
     rec.learn()
-    sim = rec.W.toarray()
+    W: sps.csr_matrix = rec.W
+    sim = W.toarray()
 
     manual = X.T.toarray()  # I x U
     norm = (manual**2).sum(axis=1)
@@ -102,7 +105,8 @@ def test_tversky_index(
         X, shrinkage=shrinkage, alpha=alpha, beta=beta, n_threads=1, top_k=X.shape[1]
     )
     rec.learn()
-    sim = rec.W.toarray()
+    W: sps.csr_matrix = rec.W
+    sim = W.toarray()
     tested_index_row = RNS.randint(0, sim.shape[0], size=100)
     tested_index_col = RNS.randint(0, sim.shape[0], size=100)
     X_csc = X.tocsc()
@@ -130,7 +134,8 @@ def test_tversky_index(
 def test_topk(X: sps.csr_matrix) -> None:
     rec = CosineKNNRecommender(X, shrinkage=0, top_k=30, n_threads=5)
     rec.learn()
-    sim = rec.W.toarray()
+    W: sps.csr_matrix = rec.W
+    sim = W.toarray()
     assert np.all((sim > 0).sum(axis=1) <= 30)
 
 
@@ -138,7 +143,8 @@ def test_topk(X: sps.csr_matrix) -> None:
 def test_p3(X: sps.csr_matrix, alpha: float) -> None:
     rec = P3alphaRecommender(X, alpha=alpha, n_threads=4)
     rec.learn()
-    W = rec.W.toarray()
+    W_csr: sps.csr_matrix = rec.W
+    W = W_csr.toarray()
 
     P_ui = np.power(X.toarray(), alpha)
     P_iu = np.power(X.T.toarray(), alpha)
@@ -169,7 +175,8 @@ def test_p3(X: sps.csr_matrix, alpha: float) -> None:
 def test_rp3(X: sps.csr_matrix, alpha: float, beta: float) -> None:
     rec = RP3betaRecommender(X, alpha=alpha, beta=beta, n_threads=4)
     rec.learn()
-    W = rec.W.toarray()
+    W_csr: sps.csr_matrix = rec.W
+    W = W_csr.toarray()
     W_sum = W.sum(axis=1)
     W_sum = W_sum[W_sum >= 0]
 

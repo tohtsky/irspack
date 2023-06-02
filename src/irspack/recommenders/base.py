@@ -39,10 +39,13 @@ R = TypeVar("R", bound="BaseRecommender")
 
 
 def _sparse_to_array(U: Any) -> np.ndarray:
+    res: np.ndarray
     if sps.issparse(U):
-        return U.toarray()
+        res = U.toarray()
+        return res
     else:
-        return U
+        res = U
+        return res
 
 
 class CallBeforeFitError(Exception):

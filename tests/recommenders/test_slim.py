@@ -35,7 +35,8 @@ def test_slim_positive(test_interaction_data: Dict[str, sps.csr_matrix]) -> None
         tol=1e-8,
     )
     for iind in range(rec.W.shape[1]):
-        m = rec.W[:, iind].toarray().ravel()
+        W: sps.csr_matrix = rec.W
+        m = W[:, iind].toarray().ravel()
         Xcp = X.toarray()
         y = X[:, iind].toarray().ravel()
         Xcp[:, iind] = 0.0
@@ -68,7 +69,8 @@ def test_slim_allow_negative(test_interaction_data: Dict[str, sps.csr_matrix]) -
         alpha=alpha, l1_ratio=l1_ratio, fit_intercept=False, max_iter=ITER, tol=1e-8
     )
     for iind in range(rec.W.shape[1]):
-        m = rec.W[:, iind].toarray().ravel()
+        W: sps.csr_matrix = rec.W
+        m = W[:, iind].toarray().ravel()
         Xcp = X.toarray()
         y = X[:, iind].toarray().ravel()
         Xcp[:, iind] = 0.0
@@ -90,7 +92,8 @@ def test_slim_topk(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
         tol=0,
     )
     rec.learn()
-    W_non_restricted = rec.W.toarray()
+    W_non_restricted_csr: sps.csr_matrix = rec.W
+    W_non_restricted = W_non_restricted_csr.toarray()
 
     rec_restricted = SLIMRecommender(
         X,
@@ -103,7 +106,8 @@ def test_slim_topk(test_interaction_data: Dict[str, sps.csr_matrix]) -> None:
         top_k=1,
     )
     rec_restricted.learn()
-    W_restricted = rec_restricted.W.toarray()
+    W_restricted_csr: sps.csr_matrix = rec_restricted.W
+    W_restricted = W_restricted_csr.toarray()
     for i in range(rec.n_items):
         gt = W_non_restricted[:, i]
         target = W_restricted[:, i]

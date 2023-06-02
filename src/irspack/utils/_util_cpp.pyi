@@ -1,11 +1,12 @@
 m: int
 n: int
+import typing
+
+import numpy
+import scipy.sparse
 from numpy import float32
 
 import irspack.utils._util_cpp
-import typing
-import numpy
-import scipy.sparse
 
 _Shape = typing.Tuple[int, ...]
 
@@ -33,7 +34,7 @@ def remove_diagonal(
     pass
 
 def retrieve_recommend_from_score_f32(
-    score: numpy.ndarray[numpy.float32, _Shape[m, n]],
+    score: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]],
     allowed_indices: typing.List[typing.List[int]],
     cutoff: int,
     n_threads: int = 1,
@@ -41,7 +42,7 @@ def retrieve_recommend_from_score_f32(
     pass
 
 def retrieve_recommend_from_score_f64(
-    score: numpy.ndarray[numpy.float64, _Shape[m, n]],
+    score: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float64]],
     allowed_indices: typing.List[typing.List[int]],
     cutoff: int,
     n_threads: int = 1,
@@ -88,7 +89,7 @@ def sparse_mm_threaded(
     arg0: scipy.sparse.csr_matrix[numpy.float64],
     arg1: scipy.sparse.csc_matrix[numpy.float64],
     arg2: int,
-) -> numpy.ndarray[numpy.float64, _Shape[m, n]]:
+) -> numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float64]]:
     pass
 
 def tf_idf_weight(

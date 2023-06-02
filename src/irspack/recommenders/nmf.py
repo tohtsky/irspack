@@ -1,5 +1,7 @@
 from typing import Optional
 
+import sklearn
+from packaging import version
 from sklearn.decomposition import NMF
 
 from ..definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
@@ -44,21 +46,27 @@ class NMFRecommender(BaseRecommender):
         self.init = init
 
     def _learn(self) -> None:
-        nmf_model = NMF(
+        # argument "alpha" in NMF was deprecated since 1.0.0
+        old_version = version.parse(sklearn.__version__) < version.parse("1.0.0")
+        alpha_name = "alpha" if old_version else "alpha_W"
+        params = dict(
             n_components=self.n_components,
-            alpha=self.alpha,
             init=self.init,
             l1_ratio=self.l1_ratio,
             beta_loss=self.beta_loss,
             random_state=42,
         )
+        params[alpha_name] = self.alpha
+        nmf_model = NMF(**params)
         self.nmf_model = nmf_model
         self.nmf_model.fit(self.X_train_all)
         self.W = self.nmf_model.fit_transform(self.X_train_all.tocsr())
         self.H = self.nmf_model.components_
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
-        return self.W[user_indices].dot(self.H)
+        res: DenseScoreArray = self.W[user_indices].dot(self.H)
+        return res
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        return self.nmf_model.transform(X).dot(self.H)
+        res: DenseScoreArray = self.nmf_model.transform(X).dot(self.H)
+        return res

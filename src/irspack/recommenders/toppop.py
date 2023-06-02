@@ -31,7 +31,7 @@ class TopPopRecommender(BaseRecommender):
         self.score_ = None
 
     def _learn(self) -> None:
-        self.score_ = self.X_train_all.sum(axis=0).astype(np.float64)
+        self.score_ = self.X_train_all.sum(axis=0).astype(np.float64).A
 
     @property
     def score(self) -> np.ndarray:
@@ -41,8 +41,10 @@ class TopPopRecommender(BaseRecommender):
 
     def get_score(self, user_indices: UserIndexArray) -> DenseScoreArray:
         n_users: int = user_indices.shape[0]
-        return np.repeat(self.score, n_users, axis=0).A
+        res: DenseScoreArray = np.repeat(self.score, n_users, axis=0)
+        return res
 
     def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
         n_users: int = X.shape[0]
-        return np.repeat(self.score, n_users, axis=0).A
+        res: DenseScoreArray = np.repeat(self.score, n_users, axis=0)
+        return res
