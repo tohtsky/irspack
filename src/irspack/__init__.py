@@ -1,8 +1,10 @@
 try:
-    from importlib.metadata import PackageNotFoundError, version
+    from importlib.metadata import version
+    from importlib.metadata import PackageNotFoundError
 except ImportError:
     # Python < 3.8
-    from importlib_metadata import PackageNotFoundError, version
+    from importlib_metadata import version
+    from importlib_metadata import PackageNotFoundError
 
 try:
     __version__ = version("irspack")
