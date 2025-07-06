@@ -1,8 +1,12 @@
-from pkg_resources import DistributionNotFound, get_distribution
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:
+    # Python < 3.8
+    from importlib_metadata import version, PackageNotFoundError
 
 try:
-    __version__ = get_distribution("irspack").version
-except DistributionNotFound:  # pragma: no cover
+    __version__ = version("irspack")
+except PackageNotFoundError:  # pragma: no cover
     # package is not installed
     pass  # pragma: no cover
 
