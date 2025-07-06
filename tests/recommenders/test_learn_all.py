@@ -9,11 +9,17 @@ from irspack import BaseRecommender, Evaluator, get_recommender_class
 from irspack.recommenders.base import RecommenderMeta
 
 X_train = sps.csr_matrix(
-    np.asarray([[1, 1, 2, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]], dtype=float)
+    np.asarray(
+        [[1, 1, 2, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]],
+        dtype=float,
+    )
 )
 
 X_test = sps.csr_matrix(
-    np.asarray([[0, 0, 0, 1, 1], [1, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0]], dtype=float)
+    np.asarray(
+        [[0, 0, 0, 1, 1], [1, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0]],
+        dtype=float,
+    )
 )
 
 rec_classes = list(RecommenderMeta.recommender_name_vs_recommender_class.keys())

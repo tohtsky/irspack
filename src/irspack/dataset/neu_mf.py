@@ -64,6 +64,7 @@ class NeuMFML1MDownloader(NeuMFDownloader):
         force_download:
             If `True`, the class will not prompt for the permission and start downloading immediately.
     """
+
     DEFAULT_PATH = Path("~/.neumf-ml-1m.zip").expanduser()
 
     TRAIN_URL = "https://raw.githubusercontent.com/tohtsky/neural_collaborative_filtering/master/Data/ml-1m.train.rating"
@@ -81,6 +82,7 @@ class NeuMFMPinterestDownloader(NeuMFDownloader):
         force_download:
             If `True`, the class will not prompt for the permission and start downloading immediately.
     """
+
     DEFAULT_PATH = Path("~/.neumf-pinterest.zip").expanduser()
 
     TRAIN_URL = "https://raw.githubusercontent.com/tohtsky/neural_collaborative_filtering/master/Data/pinterest-20.train.rating"

@@ -9,7 +9,8 @@ import scipy.sparse as sps
 def test_interaction_data() -> Dict[str, sps.csr_matrix]:
     X_small = sps.csr_matrix(
         np.asarray(
-            [[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]], dtype=float
+            [[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]],
+            dtype=float,
         )
     )
     return {"X_small": X_small}
