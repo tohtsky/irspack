@@ -25,8 +25,3 @@ repos:
     rev: 24.10.0
     hooks:
       - id: black
-  - repo: https://github.com/hadialqattan/pycln
-    rev: v2.4.0
-    hooks:
-      - id: pycln
-        args: [--all]

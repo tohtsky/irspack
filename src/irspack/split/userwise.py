@@ -74,6 +74,7 @@ class UserTrainTestInteractionPair:
         self.n_items = self.X_train.shape[1]
         self.X_all = sps.csr_matrix(self.X_train + self.X_test)
         if item_ids is not None:
+            assert self.X_test is not None  # for mypy
             if len(item_ids) != self.X_test.shape[1]:
                 raise ValueError("X_train.shape[1] != len(item_ids)")
         self.item_ids = item_ids
