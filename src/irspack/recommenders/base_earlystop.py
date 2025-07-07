@@ -15,7 +15,8 @@ if TYPE_CHECKING:
 
 class TrainerBase(ABC):
     """The trainer class for early-stoppable recommenders.
-    The training logic of such recommenders (run-epoch, get-score) will be implemtented in the trainers."""
+    The training logic of such recommenders (run-epoch, get-score) will be implemtented in the trainers.
+    """
 
     def __init__(self, **kwargs: Any) -> None:
         pass

@@ -10,7 +10,10 @@ from irspack.utils import (
 )
 
 X = sps.csr_matrix(
-    np.asfarray([[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])
+    np.asarray(
+        [[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]],
+        dtype=float,
+    )
 )
 X.sort_indices()
 X_array = X.toarray()

@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.11'
+          python-version: '3.13'
       - name: Build sdist
         run: pip install pybind11 setuptools_scm && python setup.py sdist
       - uses: actions/upload-artifact@v2
@@ -55,7 +55,7 @@ jobs:
             name: mac-arm
             cibw:
               arch: universal2
-              build: 'cp39* cp310* cp311*'
+              build: 'cp39* cp310* cp311* cp312* cp313*'
               env: ''
 
           - os: ubuntu-20.04
@@ -70,7 +70,7 @@ jobs:
           - os: ubuntu-20.04
             name: manylinux2014
             cibw:
-              build: 'cp38* cp39* cp310* cp311*'
+              build: 'cp38* cp39* cp310* cp311* cp312* cp313*'
               skip: '*musllinux*'
               manylinux_image: manylinux2014
               env: CFLAGS='-march=core-avx-i'
@@ -112,6 +112,22 @@ jobs:
             name: manylinux_aarch64_cp311
             cibw:
               build: 'cp311*'
+              skip: '*musllinux*'
+              manylinux_image: manylinux2014
+              arch: aarch64
+
+          - os: ubuntu-20.04
+            name: manylinux_aarch64_cp312
+            cibw:
+              build: 'cp312*'
+              skip: '*musllinux*'
+              manylinux_image: manylinux2014
+              arch: aarch64
+
+          - os: ubuntu-20.04
+            name: manylinux_aarch64_cp313
+            cibw:
+              build: 'cp313*'
               skip: '*musllinux*'
               manylinux_image: manylinux2014
               arch: aarch64

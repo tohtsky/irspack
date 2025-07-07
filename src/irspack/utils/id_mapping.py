@@ -304,9 +304,9 @@ class ItemIDMapper(Generic[ItemIdType]):
             allowed_item_indices = [self._item_id_list_to_index_list(allowed_item_ids)]
         if forbidden_item_ids is not None:
             for u, forbidden_ids_per_user in enumerate(forbidden_item_ids):
-                score[
-                    u, self._item_id_list_to_index_list(forbidden_ids_per_user)
-                ] = -np.inf
+                score[u, self._item_id_list_to_index_list(forbidden_ids_per_user)] = (
+                    -np.inf
+                )
 
         raw_result = retrieve_recommend_from_score(
             score,

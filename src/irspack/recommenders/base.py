@@ -493,7 +493,6 @@ class BaseRecommenderWithItemEmbedding:
 
 
 def get_recommender_class(recommender_name: str) -> Type[BaseRecommender]:
-
     r"""Get recommender class from its class name.
 
     Args:
@@ -502,7 +501,7 @@ def get_recommender_class(recommender_name: str) -> Type[BaseRecommender]:
     Returns:
         The recommender class with its class name being `recommender_name`.
     """
-    result: Type[
-        BaseRecommender
-    ] = RecommenderMeta.recommender_name_vs_recommender_class[recommender_name]
+    result: Type[BaseRecommender] = (
+        RecommenderMeta.recommender_name_vs_recommender_class[recommender_name]
+    )
     return result

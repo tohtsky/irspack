@@ -229,7 +229,7 @@ def test_item_id_mapper_per_user_allowed_item() -> None:
         zip(recommendation, per_user_allowed_item_ids)
     ):
         previous_score: Optional[float] = None
-        for ((id_int, id_str), score_value) in rec:
+        for (id_int, id_str), score_value in rec:
             assert (id_int, id_str) in allowed_item_ids_for_user
             item_index = ids.index((id_int, f"{id_int}"))
             assert score[i, item_index] == pytest.approx(score_value)
@@ -252,7 +252,7 @@ def test_item_id_mapper_uniform_allowed_item() -> None:
     assert len(recommendation) == score.shape[0]
     for i, rec in enumerate(recommendation):
         previous_score: Optional[float] = None
-        for ((id_int, id_str), score_value) in rec:
+        for (id_int, id_str), score_value in rec:
             assert (id_int, id_str) in allowed_items_uniform
             item_index = ids.index((id_int, f"{id_int}"))
             assert score[i, item_index] == pytest.approx(score_value)

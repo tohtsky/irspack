@@ -48,9 +48,7 @@ class BaseUserKNNRecommender(BaseUserSimilarityRecommender):
         self.n_threads = get_n_threads(n_threads)
 
     @abstractmethod
-    def _create_computer(
-        self, X: InteractionMatrix
-    ) -> Union[
+    def _create_computer(self, X: InteractionMatrix) -> Union[
         CosineSimilarityComputer,
         AsymmetricSimilarityComputer,
         JaccardSimilarityComputer,

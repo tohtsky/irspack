@@ -9,6 +9,7 @@ class CiteULikeADataManager(SingleZipDownloader):
     r"""Data manager for CiteULike-a dataset, which has been originally used
     in the paper "Collaborative Topic Regression with Social Regularization".
     """
+
     DOWNLOAD_URL = (
         "https://github.com/tohtsky/citeulike-a/archive/refs/heads/master.zip"
     )

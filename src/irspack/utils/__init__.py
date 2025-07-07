@@ -120,7 +120,7 @@ def df_to_sparse(
     if rating_column is None:
         data = np.ones(df.shape[0])
     else:
-        data = np.asfarray(df[rating_column].values)
+        data = np.asarray(df[rating_column].values, dtype=float)
     return (
         sps.csr_matrix(
             (data, (row, col)), shape=(len(unique_user_ids), len(unique_item_ids))

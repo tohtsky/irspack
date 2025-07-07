@@ -14,7 +14,10 @@ from irspack.recommenders.p3 import P3alphaRecommender
 from irspack.recommenders.rp3 import RP3betaRecommender
 
 X_small = sps.csr_matrix(
-    np.asfarray([[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]])
+    np.asarray(
+        [[1, 1, 2, 3, 4], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]],
+        dtype=float,
+    )
 )
 X_many_dense = np.random.rand(888, 512)
 X_many_dense[X_many_dense <= 0.9] = 0

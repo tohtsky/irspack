@@ -77,7 +77,8 @@ class Optimizer:
         validate_epoch (int, optional):
             The frequency of validation score measurement. Defaults to 5.
         score_degradation_max (int, optional):
-            Maximal number of allowed score degradation. Defaults to 5. Defaults to 5."""
+            Maximal number of allowed score degradation. Defaults to 5. Defaults to 5.
+    """
 
     def __init__(
         self,

@@ -94,16 +94,19 @@ class IALSTrainer:
         """
         :type: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]
         """
+
     @item.setter
     def item(
         self, arg0: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]
     ) -> None:
         pass
+
     @property
     def user(self) -> numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]:
         """
         :type: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]
         """
+
     @user.setter
     def user(
         self, arg0: numpy.ndarray[typing.Tuple[int, int], numpy.dtype[numpy.float32]]
@@ -134,6 +137,7 @@ class LossType:
         """
         :type: str
         """
+
     @property
     def value(self) -> int:
         """
@@ -169,6 +173,7 @@ class SolverType:
         """
         :type: str
         """
+
     @property
     def value(self) -> int:
         """
