@@ -22,7 +22,7 @@ jobs:
           python-version: '3.13'
       - name: Build sdist
         run: pip install pybind11 setuptools_scm && python setup.py sdist
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
   build_wheels:
@@ -58,7 +58,7 @@ jobs:
               build: 'cp39* cp310* cp311* cp312* cp313*'
               env: ''
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux1
             cibw:
               build: 'cp37*'
@@ -67,7 +67,7 @@ jobs:
               env: CFLAGS='-march=core-avx-i'
               arch: auto64
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux2014
             cibw:
               build: 'cp38* cp39* cp310* cp311* cp312* cp313*'
@@ -76,7 +76,7 @@ jobs:
               env: CFLAGS='-march=core-avx-i'
               arch: auto64
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux_aarch64_cp37
             cibw:
               build: 'cp37*'
@@ -84,7 +84,7 @@ jobs:
               manylinux_image: manylinux2014
               arch: aarch64
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux_aarch64_cp38
             cibw:
               build: 'cp38*'
@@ -92,7 +92,7 @@ jobs:
               manylinux_image: manylinux2014
               arch: aarch64
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux_aarch64_cp39
             cibw:
               build: 'cp39*'
@@ -100,7 +100,7 @@ jobs:
               manylinux_image: manylinux2014
               arch: aarch64
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux_aarch64_cp310
             cibw:
               build: 'cp310*'
@@ -108,7 +108,7 @@ jobs:
               manylinux_image: manylinux2014
               arch: aarch64
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux_aarch64_cp311
             cibw:
               build: 'cp311*'
@@ -116,7 +116,7 @@ jobs:
               manylinux_image: manylinux2014
               arch: aarch64
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux_aarch64_cp312
             cibw:
               build: 'cp312*'
@@ -124,7 +124,7 @@ jobs:
               manylinux_image: manylinux2014
               arch: aarch64
 
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             name: manylinux_aarch64_cp313
             cibw:
               build: 'cp313*'
@@ -154,7 +154,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
