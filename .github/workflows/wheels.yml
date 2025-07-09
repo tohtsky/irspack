@@ -26,8 +26,6 @@ jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    env:
-      CIBW_ENVIRONMENT: "${{ matrix.cibw.env || '' }}"
     strategy:
       matrix:
         include:
