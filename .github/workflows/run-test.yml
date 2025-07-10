@@ -16,8 +16,6 @@ jobs:
           python-version: '3.13'
       - name: Build irspack (ubuntu)
         run: |
-          ls
-          ls ext/nanobind
           pip install --upgrade pip setuptools wheel
           sudo apt-get install lcov
           FLAGS="-fprofile-arcs -ftest-coverage"
