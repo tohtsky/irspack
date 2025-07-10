@@ -1,10 +1,9 @@
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    __version__ = version("irspack")
+    from ._version import __version__
 except PackageNotFoundError:  # pragma: no cover
-    # package is not installed
-    pass  # pragma: no cover
+    ___version__ = "0.0.0"
 
 from .definitions import DenseScoreArray, InteractionMatrix, UserIndexArray
 from .evaluation import *

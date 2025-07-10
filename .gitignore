@@ -28,3 +28,4 @@ docs/build/
 docs/source/api_reference/
 .cache/
 .coverage
+src/irspack/_version.py

@@ -7,6 +7,7 @@
 #include <nanobind/eigen/dense.h>
 #include <nanobind/eigen/sparse.h>
 #include <nanobind/stl/tuple.h>
+#include <nanobind/stl/string.h>
 #include <tuple>
 
 using namespace irspack::ials;
@@ -18,7 +19,7 @@ NB_MODULE(_ials_core, m) {
              << "Built to use" << std::endl
              << "\t" << Eigen::SimdInstructionSetsInUse();
 
-  // m.doc() = doc_stream.str();
+  m.doc() = doc_stream.str();
 
   nanobind::enum_<LossType>(m, "LossType")
       .value("ORIGINAL", LossType::ORIGINAL)
