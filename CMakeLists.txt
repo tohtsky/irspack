@@ -33,7 +33,10 @@ include(CPack)
 
 # Detect the installed nanobind package and import it into CMake
 find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ext/nanobind)
+execute_process(
+  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+find_package(nanobind CONFIG REQUIRED)
 
 nanobind_add_module(_ials_core cpp_source/als/wrapper.cpp)
 nanobind_add_module(_knn cpp_source/knn/wrapper.cpp)
