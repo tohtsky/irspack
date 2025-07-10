@@ -2,10 +2,11 @@
 #include "IALSTrainer.hpp"
 #include <Eigen/Sparse>
 #include <cstddef>
+#include <nanobind/nanobind.h>
 #include <nanobind/nb_defs.h>
 #include <nanobind/eigen/dense.h>
 #include <nanobind/eigen/sparse.h>
-#include <nanobind/nanobind.h>
+#include <nanobind/stl/tuple.h>
 #include <tuple>
 
 using namespace irspack::ials;
@@ -17,18 +18,18 @@ NB_MODULE(_ials_core, m) {
              << "Built to use" << std::endl
              << "\t" << Eigen::SimdInstructionSetsInUse();
 
-  m.doc() = doc_stream.str();
+  // m.doc() = doc_stream.str();
 
-  // nanobind::enum_<LossType>(m, "LossType")
-  //     .value("ORIGINAL", LossType::ORIGINAL)
-  //     .value("IALSPP", LossType::IALSPP)
-  //     .export_values();
+  nanobind::enum_<LossType>(m, "LossType")
+      .value("ORIGINAL", LossType::ORIGINAL)
+      .value("IALSPP", LossType::IALSPP)
+      .export_values();
 
-  // nanobind::enum_<SolverType>(m, "SolverType")
-  //     .value("CHOLESKY", SolverType::Cholesky)
-  //     .value("CG", SolverType::CG)
-  //     .value("IALSPP", SolverType::IALSPP)
-  //     .export_values();
+  nanobind::enum_<SolverType>(m, "SolverType")
+      .value("CHOLESKY", SolverType::Cholesky)
+      .value("CG", SolverType::CG)
+      .value("IALSPP", SolverType::IALSPP)
+      .export_values();
 
   auto model_config =
       nanobind::class_<IALSModelConfig>(m, "IALSModelConfig")

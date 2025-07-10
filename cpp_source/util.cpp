@@ -2,6 +2,11 @@
 #include <cstddef>
 #include <nanobind/nanobind.h>
 #include <nanobind/nb_defs.h>
+#include <nanobind/eigen/dense.h>
+#include <nanobind/eigen/sparse.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/vector.h>
+
 
 using namespace irspack;
 NB_MODULE(_util_cpp, m) {

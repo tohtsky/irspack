@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <map>
 #include <future>
 #include <iterator>
 #include <string>
@@ -15,6 +16,11 @@
 #include <nanobind/nb_defs.h>
 #include <nanobind/eigen/dense.h>
 #include <nanobind/eigen/sparse.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/tuple.h>
+
 
 #include "argcheck.hpp"
 

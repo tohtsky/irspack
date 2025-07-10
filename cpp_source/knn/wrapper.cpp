@@ -1,12 +1,10 @@
-#include "knn.hpp"
 #include "similarities.hpp"
 #include <Eigen/Sparse>
 #include <cstddef>
+#include <nanobind/nanobind.h>
 #include <nanobind/nb_defs.h>
 #include <nanobind/eigen/dense.h>
 #include <nanobind/eigen/sparse.h>
-#include <nanobind/nanobind.h>
-#include <stdexcept>
 
 using Real = double;
 

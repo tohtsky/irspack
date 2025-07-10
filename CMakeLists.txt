@@ -30,17 +30,20 @@ find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ext/nanobind)
 
 nanobind_add_module(_ials_core cpp_source/als/wrapper.cpp)
-nanobind_add_module(irspack.recommenders._knn cpp_source/knn/wrapper.cpp)
-nanobind_add_module(irspack.utils._util_cpp cpp_source/util.cpp)
+nanobind_add_module(_knn cpp_source/knn/wrapper.cpp)
+nanobind_add_module(_util_cpp cpp_source/util.cpp)
 nanobind_add_module(_core_evaluator cpp_source/evaluator.cpp)
 
 install(TARGETS _ials_core LIBRARY DESTINATION irspack/recommenders)
 install(TARGETS _core_evaluator LIBRARY DESTINATION irspack/evaluation)
+install(TARGETS _util_cpp LIBRARY DESTINATION irspack/utils)
+install(TARGETS _knn LIBRARY DESTINATION irspack/recommenders)
 
-#nanobind_add_stub(
-#  _ials_core_stub
-#  MODULE irspack.recommenders._ials_core
-#  OUTPUT irspack.recommenders._ials_core.pyi
-#  PYTHON_PATH "./src"
-#  DEPENDS _ials_core
-#)
+
+nanobind_add_stub(
+  _ials_core_stub
+  MODULE irspack.recommenders._ials_core
+  OUTPUT irspack.recommenders._ials_core.pyi
+  PYTHON_PATH "./src"
+  DEPENDS _ials_core
+)
