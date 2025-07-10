@@ -1,8 +1,9 @@
 [project]
+name = "irspack"
 license = "MIT"
 dynamic = ["version"]
-name = "irspack"
 description = "Implicit feedback-based recommender systems, packed for practitioners."
+readme = "Readme.md"
 authors = [
     { name = "Tomoki Ohtsuki", email = "tomoki.ohtsuki.19937@outlook.jp" },
 ]
