@@ -23,9 +23,9 @@ from ..optimization.parameter_range import (
     ParameterRange,
     UniformIntegerRange,
 )
-from ._ials import IALSModelConfigBuilder, IALSSolverConfigBuilder
-from ._ials import IALSTrainer as CoreTrainer
-from ._ials import LossType, SolverType
+from ._ials_core import IALSModelConfigBuilder, IALSSolverConfigBuilder
+from ._ials_core import IALSTrainer as CoreTrainer
+from ._ials_core import LossType, SolverType
 from .base import (
     BaseRecommenderWithItemEmbedding,
     BaseRecommenderWithUserEmbedding,

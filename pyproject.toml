@@ -1,30 +1,69 @@
-[build-system]
-requires = [
-  "setuptools>=42",
-  "wheel",
-  "pybind11>=2.8.0",
-  "requests",
-  "setuptools_scm[toml]>=6.2",
+[project]
+license = "MIT"
+dynamic = ["version"]
+name = "irspack"
+description = "Implicit feedback-based recommender systems, packed for practitioners."
+authors = [
+    { name = "Tomoki Ohtsuki", email = "tomoki.ohtsuki.19937@outlook.jp" },
+]
+dependencies = [
+  "httpx",
+  "gidgethub[httpx]>4.0.0",
+  "numpy >= 2.0",
+  "fastprogress >= 0.2",
+  "optuna>=2.5.0",
+  "pandas>=2.2.0",
+  "scikit-learn>=0.21.0",
+  "scipy>=1.0",
+  "colorlog>=4",
+  "pydantic>=2.0"
 ]
 
-build-backend = "setuptools.build_meta"
+[project.urls]
+Homepage = "https://github.com/tohtsky/irspack"
+
+[tool.scikit-build]
+# Protect the configuration against future changes in scikit-build-core
+minimum-version = "0.4"
+# Setuptools-style build caching in a local directory
+build-dir = "build/{wheel_tag}"
+# Build stable ABI wheels for CPython 3.12+
+wheel.py-api = "cp312"
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+sdist.include = ["src/irspack/_version.py"]
+
+
+[build-system]
+requires = ["scikit-build-core >=0.4.3", "nanobind >=1.3.2", "requests", "setuptools_scm[toml]>=8", "setuptools>=64", "wheel"]
+build-backend = "scikit_build_core.build"
+
+[tool.setuptools_scm]
+write_to = "src/irspack/_version.py"
+local_scheme = "no-local-version"
 
 [tool.black]
-ensure_newline_before_comments = true
-force_grid_wrap = 0
-include_trailing_comma = true
-line_length = 88
-multi_line_output = 3
-use_parentheses = true
 
 [tool.isort]
 ensure_newline_before_comments = true
 force_grid_wrap = 0
 include_trailing_comma = true
-known_third_party = ["pybind11"]
+known_third_party = ["nanobind"]
 line_length = 88
 multi_line_output = 3
 use_parentheses = true
 
 [tool.pycln]
 all = true
+
+[tool.cibuildwheel]
+build-verbosity = 1
+skip = ["cp38-*", "pp38-*"]
+archs = ["auto64"]
+
+[tool.cibuildwheel.linux]
+# Export a variable
+environment-pass = ["CFLAGS", "CXXFLAGS"]
+
+
+[tool.cibuildwheel.macos.environment]
+MACOSX_DEPLOYMENT_TARGET = "10.14"

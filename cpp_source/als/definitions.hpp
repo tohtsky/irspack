@@ -1,6 +1,5 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
-#include <vector>
 
 namespace irspack {
 namespace ials {

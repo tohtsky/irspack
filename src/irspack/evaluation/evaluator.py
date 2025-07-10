@@ -8,7 +8,7 @@ from scipy import sparse as sps
 
 from .._threading import get_n_threads
 from ..definitions import DenseScoreArray, InteractionMatrix
-from ._core import EvaluatorCore, Metrics
+from ._core_evaluator import EvaluatorCore, Metrics
 
 if TYPE_CHECKING:
     from ..recommenders.base import BaseRecommender
