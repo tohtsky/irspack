@@ -1,9 +1,0 @@
-numpy >= 1.11
-fastprogress >= 0.2
-optuna>=2.5.0
-pandas>=1.0.0
-scikit-learn>=0.21.0
-scipy>=1.0
-colorlog>=4
-pybind11>=2.4
-requests

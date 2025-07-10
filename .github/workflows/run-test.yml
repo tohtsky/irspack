@@ -8,6 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          submodule: recursive
           fetch-depth: 0
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -17,7 +18,6 @@ jobs:
         run: |
           pip install --upgrade pip setuptools wheel
           sudo apt-get install lcov
-          pip install pybind11 numpy
           FLAGS="-fprofile-arcs -ftest-coverage"
           export CFLAGS="$FLAGS"
           export CXXFLAGS="$FLAGS"
