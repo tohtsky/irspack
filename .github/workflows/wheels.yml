@@ -12,15 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodule: recursive
-          fetch-depth: 0
       - uses: actions/setup-python@v3
         name: Install Python
         with:
           python-version: '3.13'
       - name: Build sdist
-        run: pip install pybind11 setuptools_scm && python setup.py sdist
+        run: python -m build --sdist  
       - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
