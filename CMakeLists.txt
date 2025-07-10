@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.15...3.27)
 project(irspack VERSION 0.1.0)
-include(FetchContent)
-
 
 if (CMAKE_VERSION VERSION_LESS 3.18)
   set(DEV_MODULE Development)
