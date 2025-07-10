@@ -6,10 +6,6 @@ description = "Implicit feedback-based recommender systems, packed for practitio
 authors = [
     { name = "Tomoki Ohtsuki", email = "tomoki.ohtsuki.19937@outlook.jp" },
 ]
-classifiers = [
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3 :: Only"
-]
 dependencies = [
   "httpx",
   "gidgethub[httpx]>4.0.0",
@@ -41,6 +37,7 @@ requires = ["scikit-build-core >=0.4.3", "nanobind >=1.3.2", "requests", "setupt
 build-backend = "scikit_build_core.build"
 
 [tool.setuptools_scm]
+version_file = "irspack/_version.py"
 
 [tool.black]
 
