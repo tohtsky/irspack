@@ -1,20 +1,20 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
+#include <numeric>
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <future>
-#include <iostream>
 #include <iterator>
-#include <stdexcept>
 #include <string>
+#include <tuple>
 #include <unordered_set>
-#include <valarray>
 #include <vector>
 
-#include <pybind11/eigen.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/nb_defs.h>
+#include <nanobind/eigen/dense.h>
+#include <nanobind/eigen/sparse.h>
 
 #include "argcheck.hpp"
 
@@ -416,48 +416,49 @@ Metrics evaluate_list_vs_list(const vector<vector<size_t>> &recommendation,
 
 } // namespace irspack
 
-namespace py = pybind11;
 using namespace irspack;
 using namespace irspack::evaluation;
 using std::vector;
 
-PYBIND11_MODULE(_core, m) {
-  py::class_<Metrics>(m, "Metrics")
-      .def(py::init<size_t>())
+NB_MODULE(_core_evaluator, m) {
+  nanobind::class_<Metrics>(m, "Metrics")
+      .def(nanobind::init<size_t>())
       .def("merge",
            [](Metrics &this_, const Metrics &other) { this_.merge(other); })
       .def("as_dict", &Metrics::as_dict);
 
-  py::class_<EvaluatorCore>(m, "EvaluatorCore")
-      .def(py::init<const SparseMatrix &, const vector<vector<size_t>> &>(),
-           py::arg("grount_truth"), py::arg("recommendable"))
+  nanobind::class_<EvaluatorCore>(m, "EvaluatorCore")
+      .def(nanobind::init<const SparseMatrix &, const vector<vector<size_t>> &>(),
+           nanobind::arg("grount_truth"), nanobind::arg("recommendable"))
       .def("get_metrics_f64",
            static_cast<Metrics (EvaluatorCore::*)(
                const Eigen::Ref<DenseMatrix<double>> &, size_t, size_t, size_t,
                bool)>(&EvaluatorCore::get_metrics<double>),
-           py::arg("score_array"), py::arg("cutoff"), py::arg("offset"),
-           py::arg("n_threads"), py::arg("recall_with_cutoff") = false)
+           nanobind::arg("score_array"), nanobind::arg("cutoff"), nanobind::arg("offset"),
+           nanobind::arg("n_threads"), nanobind::arg("recall_with_cutoff") = false)
       .def("get_metrics_f32",
            static_cast<Metrics (EvaluatorCore::*)(
                const Eigen::Ref<DenseMatrix<float>> &, size_t, size_t, size_t,
                bool)>(&EvaluatorCore::get_metrics<float>),
-           py::arg("score_array"), py::arg("cutoff"), py::arg("offset"),
-           py::arg("n_threads"), py::arg("recall_with_cutoff") = false)
+           nanobind::arg("score_array"), nanobind::arg("cutoff"), nanobind::arg("offset"),
+           nanobind::arg("n_threads"), nanobind::arg("recall_with_cutoff") = false)
       .def("get_ground_truth", &EvaluatorCore::get_ground_truth)
       .def("cache_X_as_set", &EvaluatorCore::cache_X_map)
-      .def(py::pickle(
-          [](const EvaluatorCore &evaluator) {
-            return py::make_tuple(evaluator.get_ground_truth(),
-                                  evaluator.get_recommendable_items());
-          },
-          [](py::tuple t) {
-            if (t.size() != 2)
-              throw std::runtime_error("invalid state");
-            return EvaluatorCore(t[0].cast<SparseMatrix>(),
-                                 t[1].cast<vector<vector<size_t>>>());
-          }));
+      .def("__getstate__", [](const EvaluatorCore & evaluator) {
+            return std::make_tuple(
+                evaluator.get_ground_truth(), evaluator.get_recommendable_items()
+            );
+      })
+      .def("__setstate__", [](EvaluatorCore & evaluator, const std::tuple<SparseMatrix, vector<vector<size_t>>>& state) {
+        new (&evaluator) EvaluatorCore(
+          std::get<0>(state),
+          std::get<1>(state)
 
+
+        );
+      }
+      );
   m.def("evaluate_list_vs_list", &evaluate_list_vs_list,
-        py::arg("recomemndations"), py::arg("grount_truths"),
-        py::arg("n_items"), py::arg("n_threads"));
+        nanobind::arg("recomemndations"), nanobind::arg("grount_truths"),
+        nanobind::arg("n_items"), nanobind::arg("n_threads"));
 }

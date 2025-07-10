@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from .._threading import get_n_threads
-from ._core import evaluate_list_vs_list
+from ._core_evaluator import evaluate_list_vs_list
 
 
 def evaluate_recommendation_df(

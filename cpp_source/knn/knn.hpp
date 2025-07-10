@@ -4,7 +4,6 @@
 #include <Eigen/Sparse>
 #include <cstddef>
 #include <future>
-#include <iostream>
 #include <random>
 #include <stdexcept>
 #include <thread>

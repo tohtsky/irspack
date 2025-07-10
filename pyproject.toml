@@ -1,13 +1,28 @@
-[build-system]
-requires = [
-  "setuptools>=42",
-  "wheel",
-  "pybind11>=2.8.0",
-  "requests",
-  "setuptools_scm[toml]>=6.2",
+[project]
+name = "irspack"
+version = "0.4.0"
+description = "Implicit feedback-based recommender systems, packed for practitioners."
+authors = [
+    { name = "Tomoki Ohtsuki", email = "tomoki.ohtsuki.19937@outlook.jp" },
+]
+classifiers = [
+    "License :: MIT",
 ]
 
-build-backend = "setuptools.build_meta"
+[tool.scikit-build]
+# Protect the configuration against future changes in scikit-build-core
+minimum-version = "0.4"
+
+# Setuptools-style build caching in a local directory
+build-dir = "build/{wheel_tag}"
+
+# Build stable ABI wheels for CPython 3.12+
+wheel.py-api = "cp312"
+
+[build-system]
+requires = ["scikit-build-core >=0.4.3", "nanobind >=1.3.2", "requests", "setuptools_scm[toml]>=6.2", "setuptools>=42", "wheel"]
+build-backend = "scikit_build_core.build"
+
 
 [tool.black]
 ensure_newline_before_comments = true
@@ -21,10 +36,18 @@ use_parentheses = true
 ensure_newline_before_comments = true
 force_grid_wrap = 0
 include_trailing_comma = true
-known_third_party = ["pybind11"]
+known_third_party = ["nanobind"]
 line_length = 88
 multi_line_output = 3
 use_parentheses = true
 
 [tool.pycln]
 all = true
+
+[tool.cibuildwheel]
+build-verbosity = 1
+skip = ["cp38-*", "pp38-*"]
+archs = ["auto64"]
+
+[tool.cibuildwheel.macos.environment]
+MACOSX_DEPLOYMENT_TARGET = "10.14"

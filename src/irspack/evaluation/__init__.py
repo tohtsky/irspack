@@ -1,4 +1,4 @@
-from ._core import EvaluatorCore, Metrics
+from ._core_evaluator import EvaluatorCore, Metrics
 from .evaluator import (
     METRIC_NAMES,
     Evaluator,
