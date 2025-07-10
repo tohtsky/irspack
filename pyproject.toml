@@ -17,7 +17,8 @@ dependencies = [
   "pandas>=1.0.0",
   "scikit-learn>=0.21.0",
   "scipy>=1.0",
-  "colorlog>=4"
+  "colorlog>=4",
+  "pydantic>=2.0"
 ]
 
 [tool.scikit-build]
