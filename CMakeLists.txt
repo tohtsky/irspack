@@ -38,12 +38,3 @@ install(TARGETS _ials_core LIBRARY DESTINATION irspack/recommenders)
 install(TARGETS _core_evaluator LIBRARY DESTINATION irspack/evaluation)
 install(TARGETS _util_cpp LIBRARY DESTINATION irspack/utils)
 install(TARGETS _knn LIBRARY DESTINATION irspack/recommenders)
-
-
-nanobind_add_stub(
-  _ials_core_stub
-  MODULE irspack.recommenders._ials_core
-  OUTPUT irspack.recommenders._ials_core.pyi
-  PYTHON_PATH "./src"
-  DEPENDS _ials_core
-)
