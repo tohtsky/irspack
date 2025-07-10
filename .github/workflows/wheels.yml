@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Build sdist
-        run: python -m build --sdist  
+        run: pip install wheel setuptools && python -m build --sdist  
       - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
