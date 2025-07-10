@@ -39,7 +39,7 @@ build-backend = "scikit_build_core.build"
 
 [tool.setuptools_scm]
 write_to = "src/irspack/_version.py"
-
+local_scheme = "no-local-version"
 
 [tool.black]
 
