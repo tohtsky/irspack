@@ -60,5 +60,10 @@ build-verbosity = 1
 skip = ["cp38-*", "pp38-*"]
 archs = ["auto64"]
 
+[tool.cibuildwheel.linux]
+# Export a variable
+environment-pass = ["CFLAGS", "CXXFLAGS"]
+
+
 [tool.cibuildwheel.macos.environment]
 MACOSX_DEPLOYMENT_TARGET = "10.14"
