@@ -34,7 +34,7 @@ The binaries have been compiled to use AVX instruction. If you want to use AVX2/
 CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
 ```
 
-In that case, you must have a decent version of C++ compiler (with C++11 support). If it doesn't work, feel free to make an issue!
+In that case, you must have a decent version of C++ compiler (with C++17 support). If it doesn't work, feel free to make an issue!
 
 ## Optional Dependencies
 
