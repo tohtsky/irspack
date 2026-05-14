@@ -29,16 +29,16 @@ include(CPack)
 
 
 # Detect the installed nanobind package and import it into CMake
-find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
+find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} ${SKBUILD_SABI_COMPONENT} REQUIRED)
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
-nanobind_add_module(_ials_core cpp_source/als/wrapper.cpp)
-nanobind_add_module(_knn cpp_source/knn/wrapper.cpp)
-nanobind_add_module(_util_cpp cpp_source/util.cpp)
-nanobind_add_module(_core_evaluator cpp_source/evaluator.cpp)
+nanobind_add_module(_ials_core STABLE_ABI cpp_source/als/wrapper.cpp)
+nanobind_add_module(_knn STABLE_ABI cpp_source/knn/wrapper.cpp)
+nanobind_add_module(_util_cpp STABLE_ABI cpp_source/util.cpp)
+nanobind_add_module(_core_evaluator STABLE_ABI cpp_source/evaluator.cpp)
 
 install(TARGETS _ials_core LIBRARY DESTINATION irspack/recommenders)
 install(TARGETS _core_evaluator LIBRARY DESTINATION irspack/evaluation)
