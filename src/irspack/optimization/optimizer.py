@@ -93,7 +93,6 @@ class Optimizer:
     ):
 
         if logger is None:
-
             logger = get_default_logger()
 
         self.logger = logger

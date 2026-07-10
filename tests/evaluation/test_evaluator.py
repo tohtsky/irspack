@@ -239,3 +239,34 @@ def test_recommender_check(U: int, I: int, C: int) -> None:
         eval.get_score(mock_rec_too_few_items)
     moc_rec_valid = MockRecommender(sps.csr_matrix((U, I)), scores)
     eval.get_score(moc_rec_valid)
+
+
+def test_score_from_score_matrix() -> None:
+    scores = np.array([[0.1, 0.9], [0.8, 0.2]], dtype=np.float32)
+    original_scores = scores.copy()
+    ground_truth = sps.csr_matrix([[0, 1], [1, 0]])
+    mask = sps.csr_matrix([[1, 0], [0, 0]])
+    evaluator = Evaluator(ground_truth, cutoff=1, masked_interactions=mask, mb_size=1)
+
+    assert evaluator.get_score_from_score_matrix(scores)["recall"] == 1.0
+    assert evaluator.get_scores_from_score_matrix(scores, [1])["recall@1"] == 1.0
+    np.testing.assert_array_equal(scores, original_scores)
+
+    with pytest.raises(ValueError, match="shape"):
+        evaluator.get_score_from_score_matrix(scores[:, :1])
+    with pytest.raises(ValueError, match="dtype"):
+        evaluator.get_score_from_score_matrix(scores.astype(np.float16))
+
+
+def test_score_from_score_matrix_cold_user_masks_input() -> None:
+    input_interaction = sps.csr_matrix([[1, 0]])
+    ground_truth = sps.csr_matrix([[0, 1]])
+    evaluator = EvaluatorWithColdUser(input_interaction, ground_truth, cutoff=1)
+
+    # The seen item has the highest raw score and must be excluded.
+    assert (
+        evaluator.get_score_from_score_matrix(np.array([[1.0, 0.0]], dtype=np.float64))[
+            "recall"
+        ]
+        == 1.0
+    )

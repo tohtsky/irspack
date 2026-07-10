@@ -23,6 +23,7 @@ settings.json
 coverage_result
 Pipfile
 Pipfile.lock
+.venv/
 pybind11
 docs/build/
 docs/source/api_reference/

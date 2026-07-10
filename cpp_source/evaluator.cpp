@@ -428,14 +428,15 @@ using std::vector;
 
 NB_MODULE(_core_evaluator, m) {
   nanobind::class_<Metrics>(m, "Metrics")
-      .def(nanobind::init<size_t>())
+      .def(nanobind::init<size_t>(), nanobind::arg("n_item"))
       .def("merge",
-           [](Metrics &this_, const Metrics &other) { this_.merge(other); })
+           [](Metrics &this_, const Metrics &other) { this_.merge(other); },
+           nanobind::arg("other"))
       .def("as_dict", &Metrics::as_dict);
 
   nanobind::class_<EvaluatorCore>(m, "EvaluatorCore")
       .def(nanobind::init<const SparseMatrix &, const vector<vector<size_t>> &>(),
-           nanobind::arg("grount_truth"), nanobind::arg("recommendable"))
+           nanobind::arg("ground_truth"), nanobind::arg("recommendable"))
       .def("get_metrics_f64",
            static_cast<Metrics (EvaluatorCore::*)(
                const Eigen::Ref<DenseMatrix<double>> &, size_t, size_t, size_t,
@@ -449,7 +450,8 @@ NB_MODULE(_core_evaluator, m) {
            nanobind::arg("score_array"), nanobind::arg("cutoff"), nanobind::arg("offset"),
            nanobind::arg("n_threads"), nanobind::arg("recall_with_cutoff") = false)
       .def("get_ground_truth", &EvaluatorCore::get_ground_truth)
-      .def("cache_X_as_set", &EvaluatorCore::cache_X_map)
+      .def("cache_X_as_set", &EvaluatorCore::cache_X_map,
+           nanobind::arg("n_threads"))
       .def("__getstate__", [](const EvaluatorCore & evaluator) {
             return std::make_tuple(
                 evaluator.get_ground_truth(), evaluator.get_recommendable_items()
@@ -465,6 +467,6 @@ NB_MODULE(_core_evaluator, m) {
       }
       );
   m.def("evaluate_list_vs_list", &evaluate_list_vs_list,
-        nanobind::arg("recomemndations"), nanobind::arg("grount_truths"),
+        nanobind::arg("recommendations"), nanobind::arg("ground_truths"),
         nanobind::arg("n_items"), nanobind::arg("n_threads"));
 }

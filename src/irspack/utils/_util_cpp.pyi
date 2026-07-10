@@ -1,23 +1,26 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-import scipy.sparse
-from numpy.typing import ArrayLike
+import numpy
+import scipy
+from numpy.typing import NDArray
 
 def remove_diagonal(
-    arg: scipy.sparse.csr_matrix[float], /
+    X: scipy.sparse.csr_matrix[float],
 ) -> scipy.sparse.csr_matrix[float]: ...
 def sparse_mm_threaded(
-    arg0: scipy.sparse.csr_matrix[float],
-    arg1: scipy.sparse.csc_matrix[float],
-    arg2: int,
-    /,
-) -> Annotated[ArrayLike, dict(dtype="float64", shape=(None, None), order="C")]: ...
+    left: scipy.sparse.csr_matrix[float],
+    right: scipy.sparse.csc_matrix[float],
+    n_threads: int,
+) -> Annotated[NDArray[numpy.float64], dict(shape=(None, None), order="C")]: ...
 def rowwise_train_test_split_by_ratio(
-    arg0: scipy.sparse.csr_matrix[float], arg1: int, arg2: float, arg3: bool, /
+    X: scipy.sparse.csr_matrix[float],
+    random_seed: int,
+    heldout_ratio: float,
+    n_test_ceil: bool,
 ) -> tuple[scipy.sparse.csr_matrix[float], scipy.sparse.csr_matrix[float]]: ...
 def rowwise_train_test_split_by_fixed_n(
-    arg0: scipy.sparse.csr_matrix[float], arg1: int, arg2: int, /
+    X: scipy.sparse.csr_matrix[float], random_seed: int, n_held_out: int
 ) -> tuple[scipy.sparse.csr_matrix[float], scipy.sparse.csr_matrix[float]]: ...
 def okapi_BM_25_weight(
     X: scipy.sparse.csr_matrix[float], k1: float = 1.2, b: float = 0.75
@@ -44,13 +47,13 @@ def slim_weight_positive_only(
     top_k: int = -1,
 ) -> scipy.sparse.csc_matrix[float]: ...
 def retrieve_recommend_from_score_f64(
-    score: Annotated[ArrayLike, dict(dtype="float64", shape=(None, None), order="C")],
+    score: Annotated[NDArray[numpy.float64], dict(shape=(None, None), order="C")],
     allowed_indices: Sequence[Sequence[int]],
     cutoff: int,
     n_threads: int = 1,
 ) -> list[list[tuple[int, float]]]: ...
 def retrieve_recommend_from_score_f32(
-    score: Annotated[ArrayLike, dict(dtype="float32", shape=(None, None), order="C")],
+    score: Annotated[NDArray[numpy.float32], dict(shape=(None, None), order="C")],
     allowed_indices: Sequence[Sequence[int]],
     cutoff: int,
     n_threads: int = 1,

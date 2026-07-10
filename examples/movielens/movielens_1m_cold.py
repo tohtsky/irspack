@@ -21,7 +21,6 @@ from irspack.evaluation import EvaluatorWithColdUser
 from irspack.split import split_dataframe_partial_user_holdout
 
 if __name__ == "__main__":
-
     BASE_CUTOFF = 20
 
     data_manager = MovieLens1MDataManager()
