@@ -68,6 +68,9 @@ struct Solver {
   inline void prepare_p(const DenseMatrix &other_factor,
                         const IALSModelConfig &model_config,
                         const SolverConfig &solver_config) {
+    if (solver_config.n_threads == 0u) {
+      throw std::invalid_argument("n_threads must be strictly positive.");
+    }
     const int64_t mb_size = 16;
     P = DenseMatrix::Zero(other_factor.cols(), other_factor.cols());
 
@@ -164,12 +167,14 @@ private:
       throw std::invalid_argument("Feature prior shape does not match factor.");
     }
 
-    std::vector<std::thread> workers;
+    std::vector<std::future<void>> workers;
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config, &solver_config, prior]() {
+      workers.emplace_back(std::async(
+          std::launch::async,
+          [this, &target_factor, &cursor, &X, &other_factor, &config,
+           &solver_config, prior]() {
         DenseVector b(P.rows()), x(P.rows()), r(P.rows()), p(P.rows()),
             Ap(P.rows());
         Real observation_bias =
@@ -220,7 +225,7 @@ private:
 
           for (size_t cg_iter = 0; cg_iter < cg_max_iter; cg_iter++) {
             Real r2 = r.squaredNorm();
-            if (prior && r2 <= static_cast<Real>(1e-20)) {
+            if (r2 <= static_cast<Real>(1e-20)) {
               break;
             }
             Ap = P * p;
@@ -231,11 +236,16 @@ private:
                   (it.value() * vdotp) * other_factor.row(it.col()).transpose();
             }
 
-            const Real alpha = r2 / p.dot(Ap);
+            const Real denominator = p.dot(Ap);
+            if (!(denominator > static_cast<Real>(0)) ||
+                !std::isfinite(denominator)) {
+              throw std::runtime_error(
+                  "Conjugate-gradient solver encountered a singular system.");
+            }
+            const Real alpha = r2 / denominator;
             x.noalias() += alpha * p;
             r.noalias() -= alpha * Ap;
-            if (prior ? r.squaredNorm() <= static_cast<Real>(1e-20)
-                      : r.norm() <= static_cast<Real>(1e-10)) {
+            if (r.squaredNorm() <= static_cast<Real>(1e-20)) {
               break;
             }
             Real beta = r.squaredNorm() / r2;
@@ -243,10 +253,10 @@ private:
           }
           target_factor.row(cursor_local) = x.transpose();
         }
-      });
+      }));
     }
     for (auto &w : workers) {
-      w.join();
+      w.get();
     }
   }
 
@@ -255,12 +265,13 @@ private:
                             const IALSModelConfig &config,
                             const SolverConfig &solver_config) const {
 
-    std::vector<std::thread> workers;
+    std::vector<std::future<void>> workers;
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config]() {
+      workers.emplace_back(std::async(
+          std::launch::async,
+          [this, &target_factor, &cursor, &X, &other_factor, &config]() {
         BatchedRankUpdater<> bupdater(P.rows());
         DenseMatrix P_local(P.rows(), P.cols());
         DenseVector B(P.rows());
@@ -293,12 +304,19 @@ private:
           }
 
           Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> llt(P_local);
-          target_factor.row(cursor_local) = llt.solve(B);
+          if (llt.info() != Eigen::Success) {
+            throw std::runtime_error("Cholesky decomposition failed.");
+          }
+          DenseVector solution = llt.solve(B);
+          if (llt.info() != Eigen::Success || !solution.allFinite()) {
+            throw std::runtime_error("Cholesky solve failed.");
+          }
+          target_factor.row(cursor_local) = solution.transpose();
         }
-      });
+      }));
     }
     for (auto &w : workers) {
-      w.join();
+      w.get();
     }
   }
 
@@ -311,11 +329,13 @@ private:
         prior.cols() != target_factor.cols()) {
       throw std::invalid_argument("Feature prior shape does not match factor.");
     }
-    std::vector<std::thread> workers;
+    std::vector<std::future<void>> workers;
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &prior, &config]() {
+      workers.emplace_back(std::async(
+          std::launch::async,
+          [this, &target_factor, &cursor, &X, &other_factor, &prior,
+           &config]() {
         BatchedRankUpdater<> bupdater(P.rows());
         DenseMatrix P_local(P.rows(), P.cols());
         DenseVector B(P.rows()), vcache(P.rows());
@@ -339,14 +359,19 @@ private:
           bupdater.consume(P_adjoint);
           P_local.diagonal().array() += diagonal;
           Eigen::LLT<Eigen::Ref<DenseMatrix>, Eigen::Upper> llt(P_local);
-          if (llt.info() != Eigen::Success)
+          if (llt.info() != Eigen::Success) {
             throw std::runtime_error("Cholesky decomposition failed.");
-          target_factor.row(row) = llt.solve(B);
+          }
+          DenseVector solution = llt.solve(B);
+          if (llt.info() != Eigen::Success || !solution.allFinite()) {
+            throw std::runtime_error("Cholesky solve failed.");
+          }
+          target_factor.row(row) = solution.transpose();
         }
-      });
+      }));
     }
     for (auto &worker : workers)
-      worker.join();
+      worker.get();
   }
 
   inline DenseVector _prediction(const SparseMatrix &X_compressed,
@@ -601,6 +626,21 @@ public:
                               const DenseMatrix &prior,
                               const IALSModelConfig &config,
                               const SolverConfig &solver_config) const {
+    if (config.alpha0 == static_cast<Real>(0)) {
+      const Real empty_row_regularization =
+          compute_reg(0, other_factor.rows(), config);
+      if (!(empty_row_regularization > static_cast<Real>(0)) ||
+          !std::isfinite(empty_row_regularization)) {
+        for (int64_t row = 0; row < X.rows(); ++row) {
+          if (X.outerIndexPtr()[row] == X.outerIndexPtr()[row + 1]) {
+            throw std::invalid_argument(
+                "Feature-prior embedding is not uniquely defined for an "
+                "empty interaction row when alpha0 and its regularization "
+                "are zero.");
+          }
+        }
+      }
+    }
     if (solver_config.solver_type == SolverType::CG) {
       step_cg(target_factor, X, other_factor, config, solver_config, &prior);
     } else if (solver_config.solver_type == SolverType::Cholesky) {
@@ -786,9 +826,12 @@ struct IALSTrainer {
   inline Real compute_loss(const SolverConfig &solver_config) {
     this->user_solver.prepare_p(item, config_, solver_config);
     this->item_solver.prepare_p(user, config_, solver_config);
-    Real loss =
-        (this->user_solver.P.array() * this->item_solver.P.array()).sum() /
-        this->config_.alpha0;
+    Real loss = 0;
+    if (this->config_.alpha0 != static_cast<Real>(0)) {
+      loss =
+          (this->user_solver.P.array() * this->item_solver.P.array()).sum() /
+          this->config_.alpha0;
+    }
     {
       std::atomic<uint64_t> cursor(0);
       std::vector<std::future<Real>> workers;
@@ -888,6 +931,8 @@ struct IALSTrainer {
 
   DenseMatrix user_scores(size_t userblock_begin, size_t userblock_end,
                           const SolverConfig &solver_config) {
+    irspack::check_arg(solver_config.n_threads > 0,
+                       "n_threads must be strictly positive.");
     irspack::check_arg(
         userblock_end >= userblock_begin,
         "userblock_end must be greater than or equal to userblock_begin");
