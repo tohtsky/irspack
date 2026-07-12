@@ -157,14 +157,19 @@ private:
   inline void step_cg(DenseMatrix &target_factor, const SparseMatrix &X,
                       const DenseMatrix &other_factor,
                       const IALSModelConfig &config,
-                      const SolverConfig &solver_config) const {
+                      const SolverConfig &solver_config,
+                      const DenseMatrix *prior = nullptr) const {
+    if (prior && (prior->rows() != target_factor.rows() ||
+                  prior->cols() != target_factor.cols())) {
+      throw std::invalid_argument("Feature prior shape does not match factor.");
+    }
 
     std::vector<std::thread> workers;
 
     std::atomic<int> cursor(0);
     for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
       workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &config, &solver_config]() {
+                            &config, &solver_config, prior]() {
         DenseVector b(P.rows()), x(P.rows()), r(P.rows()), p(P.rows()),
             Ap(P.rows());
         Real observation_bias =
@@ -176,23 +181,28 @@ private:
             break;
           }
 
-          b.array() = 0;
-
           x = target_factor.row(cursor_local)
                   .transpose(); // use the previous value
 
-          size_t nnz = 0;
+          const int64_t nnz =
+              X.outerIndexPtr()[cursor_local + 1] -
+              X.outerIndexPtr()[cursor_local];
+          const Real regularization_this =
+              this->compute_reg(nnz, other_factor.rows(), config);
+          if (!prior && nnz == 0u) {
+            target_factor.row(cursor_local).array() = 0;
+            continue;
+          }
+
+          if (prior) {
+            b.noalias() = regularization_this *
+                          prior->row(cursor_local).transpose();
+          } else {
+            b.setZero();
+          }
           for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
             b.noalias() += (observation_bias + it.value()) *
                            other_factor.row(it.col()).transpose();
-            nnz++;
-          }
-
-          const Real regularization_this =
-              this->compute_reg(nnz, other_factor.rows(), config);
-          if (nnz == 0u) {
-            target_factor.row(cursor_local).array() = 0;
-            continue;
           }
           r = b - P * x;
           r -= regularization_this * x;
@@ -210,6 +220,9 @@ private:
 
           for (size_t cg_iter = 0; cg_iter < cg_max_iter; cg_iter++) {
             Real r2 = r.squaredNorm();
+            if (prior && r2 <= static_cast<Real>(1e-20)) {
+              break;
+            }
             Ap = P * p;
             Ap += regularization_this * p;
             for (SparseMatrix::InnerIterator it(X, cursor_local); it; ++it) {
@@ -218,11 +231,11 @@ private:
                   (it.value() * vdotp) * other_factor.row(it.col()).transpose();
             }
 
-            Real alpha_denom = p.transpose() * Ap;
-            Real alpha = r2 / alpha_denom;
+            const Real alpha = r2 / p.dot(Ap);
             x.noalias() += alpha * p;
             r.noalias() -= alpha * Ap;
-            if (r.norm() <= 1e-10) {
+            if (prior ? r.squaredNorm() <= static_cast<Real>(1e-20)
+                      : r.norm() <= static_cast<Real>(1e-10)) {
               break;
             }
             Real beta = r.squaredNorm() / r2;
@@ -287,73 +300,6 @@ private:
     for (auto &w : workers) {
       w.join();
     }
-  }
-
-  inline void step_cg_with_prior(
-      DenseMatrix &target_factor, const SparseMatrix &X,
-      const DenseMatrix &other_factor, const DenseMatrix &prior,
-      const IALSModelConfig &config,
-      const SolverConfig &solver_config) const {
-    if (prior.rows() != target_factor.rows() ||
-        prior.cols() != target_factor.cols()) {
-      throw std::invalid_argument("Feature prior shape does not match factor.");
-    }
-    std::vector<std::thread> workers;
-    std::atomic<int> cursor(0);
-    for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
-      workers.emplace_back([this, &target_factor, &cursor, &X, &other_factor,
-                            &prior, &config, &solver_config]() {
-        DenseVector b(P.rows()), x(P.rows()), r(P.rows()), p(P.rows()),
-            Ap(P.rows());
-        const Real observation_bias =
-            config.loss_type == LossType::IALSPP ? 0.0 : config.alpha0;
-        while (true) {
-          const int row = cursor.fetch_add(1);
-          if (row >= target_factor.rows())
-            break;
-
-          int64_t nnz = X.outerIndexPtr()[row + 1] - X.outerIndexPtr()[row];
-          const Real diagonal = compute_reg(nnz, other_factor.rows(), config);
-          b.noalias() = diagonal * prior.row(row).transpose();
-          x = target_factor.row(row).transpose();
-          for (SparseMatrix::InnerIterator it(X, row); it; ++it) {
-            b.noalias() += (observation_bias + it.value()) *
-                           other_factor.row(it.col()).transpose();
-          }
-          r = b - P * x - diagonal * x;
-          for (SparseMatrix::InnerIterator it(X, row); it; ++it) {
-            const Real vdotx = other_factor.row(it.col()) * x;
-            r.noalias() -=
-                it.value() * vdotx * other_factor.row(it.col()).transpose();
-          }
-          p = r;
-          const size_t cg_max_iter = solver_config.max_cg_steps == 0u
-                                         ? P.rows()
-                                         : solver_config.max_cg_steps;
-          for (size_t cg_iter = 0; cg_iter < cg_max_iter; ++cg_iter) {
-            const Real r2 = r.squaredNorm();
-            if (r2 <= static_cast<Real>(1e-20))
-              break;
-            Ap = P * p + diagonal * p;
-            for (SparseMatrix::InnerIterator it(X, row); it; ++it) {
-              const Real vdotp = other_factor.row(it.col()) * p;
-              Ap.noalias() += it.value() * vdotp *
-                              other_factor.row(it.col()).transpose();
-            }
-            const Real alpha = r2 / p.dot(Ap);
-            x.noalias() += alpha * p;
-            r.noalias() -= alpha * Ap;
-            const Real next_r2 = r.squaredNorm();
-            if (next_r2 <= static_cast<Real>(1e-20))
-              break;
-            p.noalias() = r + (next_r2 / r2) * p;
-          }
-          target_factor.row(row) = x.transpose();
-        }
-      });
-    }
-    for (auto &worker : workers)
-      worker.join();
   }
 
   inline void step_cholesky_with_prior(
@@ -656,8 +602,7 @@ public:
                               const IALSModelConfig &config,
                               const SolverConfig &solver_config) const {
     if (solver_config.solver_type == SolverType::CG) {
-      step_cg_with_prior(target_factor, X, other_factor, prior, config,
-                         solver_config);
+      step_cg(target_factor, X, other_factor, config, solver_config, &prior);
     } else if (solver_config.solver_type == SolverType::Cholesky) {
       step_cholesky_with_prior(target_factor, X, other_factor, prior, config,
                                solver_config);
