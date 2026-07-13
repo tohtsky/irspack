@@ -20,7 +20,6 @@ from irspack import (
 from irspack.dataset import MovieLens20MDataManager
 
 if __name__ == "__main__":
-
     BASE_CUTOFF = 100
 
     # We follow the preprocessing of Mult-VAE implementation (https://github.com/dawenl/vae_cf)

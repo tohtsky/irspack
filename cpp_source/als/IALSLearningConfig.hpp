@@ -14,11 +14,19 @@ using namespace std;
 
 struct IALSModelConfig {
   inline IALSModelConfig(size_t K, Real alpha0, Real reg, Real nu,
-                         Real init_stdev, int random_seed, LossType loss_type)
+                         Real init_stdev, int random_seed, LossType loss_type,
+                         Real lambda_user_feature = 0,
+                         Real lambda_item_feature = 0,
+                         size_t feature_warmup_epochs = 0)
       : K(K), alpha0(alpha0), reg(reg), nu(nu), init_stdev(init_stdev),
-        random_seed(random_seed), loss_type(loss_type) {}
+        lambda_user_feature(lambda_user_feature),
+        lambda_item_feature(lambda_item_feature),
+        feature_warmup_epochs(feature_warmup_epochs), random_seed(random_seed),
+        loss_type(loss_type) {}
   const size_t K;
   const Real alpha0, reg, nu, init_stdev;
+  const Real lambda_user_feature, lambda_item_feature;
+  const size_t feature_warmup_epochs;
   int random_seed;
   LossType loss_type;
 
@@ -30,10 +38,14 @@ struct IALSModelConfig {
     size_t K = 16;
     int random_seed = 42;
     LossType loss_type = LossType::IALSPP;
+    Real lambda_user_feature = 0;
+    Real lambda_item_feature = 0;
+    size_t feature_warmup_epochs = 0;
     inline Builder() {}
     inline IALSModelConfig build() {
       return IALSModelConfig(K, alpha0, reg, nu, init_stdev, random_seed,
-                             loss_type);
+                             loss_type, lambda_user_feature,
+                             lambda_item_feature, feature_warmup_epochs);
     }
 
     Builder &set_alpha0(Real alpha0) {
@@ -65,6 +77,18 @@ struct IALSModelConfig {
     }
     Builder &set_loss_type(LossType loss_type) {
       this->loss_type = loss_type;
+      return *this;
+    }
+    Builder &set_lambda_user_feature(Real value) {
+      lambda_user_feature = value;
+      return *this;
+    }
+    Builder &set_lambda_item_feature(Real value) {
+      lambda_item_feature = value;
+      return *this;
+    }
+    Builder &set_feature_warmup_epochs(size_t value) {
+      feature_warmup_epochs = value;
       return *this;
     }
   };

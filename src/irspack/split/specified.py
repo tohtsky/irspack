@@ -2,7 +2,6 @@ import uuid
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 from scipy import sparse as sps
 
@@ -19,7 +18,7 @@ def holdout_specific_interactions(
     validatable_user_ratio_val: float = 0.2,
     validatable_user_ratio_test: float = 0.2,
     random_state: OptionalRandomState = None,
-) -> Tuple[List[Any], Dict[str, UserTrainTestInteractionPair]]:
+) -> Tuple[np.ndarray, Dict[str, UserTrainTestInteractionPair]]:
     """Holds-out (part of) the interactions specified by the users.
 
     All the users will be split into two category:
@@ -78,9 +77,9 @@ def holdout_specific_interactions(
     flg_column[interaction_indicator] = 1
     df[flg_colname] = flg_column
 
-    v_train_users: npt.ArrayLike
-    v_val_users: npt.ArrayLike
-    v_test_users: npt.ArrayLike
+    v_train_users: List[Any]
+    v_val_users: List[Any]
+    v_test_users: List[Any]
 
     validatable_users = np.unique(df[flg_column > 0][user_column])
     n_validatable_users: int = validatable_users.shape[0]
@@ -88,11 +87,11 @@ def holdout_specific_interactions(
 
     rns = convert_randomstate(random_state)
     if val_test_ratio >= 1.0:
-        v_train_users = np.ndarray((0,), dtype=validatable_users.dtype)
-        v_val_test_users = validatable_users
+        v_train_users = []
+        v_val_test_users = validatable_users.tolist()
     else:
         v_val_test_users, v_train_users = _split_list(
-            validatable_users,
+            validatable_users.tolist(),
             int(v_user_ratio_train * n_validatable_users),
             rns,
         )

@@ -22,6 +22,23 @@ Some of its features include:
 
 # Installation & Optional Dependencies
 
+## Development with uv
+
+This repository uses [uv](https://docs.astral.sh/uv/) for dependency
+resolution and virtual-environment management. To set up a development
+environment and install the locked dependencies, run:
+
+```sh
+uv sync
+uv run pytest
+```
+
+Documentation and notebook dependencies can be installed with
+`uv sync --group docs`.
+
+Use `uv lock --upgrade` when intentionally updating dependencies. The lock
+file is committed so that local development and CI use the same versions.
+
 In most cases, you can install the pre-build binaries via
 
 ```sh

@@ -11,7 +11,7 @@ Notable features include:
 
    -  `optuna <https://optuna.org/>`_-backed, efficient hyperparameter optimization.
       In particular, `pruning <https://optuna.readthedocs.io/en/stable/tutorial/007_pruning.html?>`_ is used to speed-up the parameter search for several algorithms.
-   -  Implementation of several parallelizable algorithms with `Pybind11 <https://github.com/pybind/pybind11>`_ and `Eigen <http://eigen.tuxfamily.org/index.php?title=Main_Page>`_.
+   -  Implementation of several parallelizable algorithms with `nanobind <https://github.com/wjakob/nanobind>`_ and `Eigen <http://eigen.tuxfamily.org/index.php?title=Main_Page>`_.
       Evaluation of recommenders' performance (which involves score-sorting and ranking metric computation) can be also done efficiently using these technologies.
 
 Installation
@@ -40,6 +40,7 @@ install it from source by e.g., : ::
    :caption: Details
    :maxdepth: 1
 
+   feature_aware_ials
    api_reference
 
 

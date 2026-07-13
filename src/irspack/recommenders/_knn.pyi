@@ -1,4 +1,4 @@
-import scipy.sparse
+import scipy
 
 class CosineSimilarityComputer:
     def __init__(
@@ -10,7 +10,7 @@ class CosineSimilarityComputer:
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_similarity(
-        self, arg0: scipy.sparse.csr_matrix[float], arg1: int, /
+        self, X: scipy.sparse.csr_matrix[float], top_k: int
     ) -> scipy.sparse.csr_matrix[float]: ...
 
 class JaccardSimilarityComputer:
@@ -22,7 +22,7 @@ class JaccardSimilarityComputer:
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_similarity(
-        self, arg0: scipy.sparse.csr_matrix[float], arg1: int, /
+        self, X: scipy.sparse.csr_matrix[float], top_k: int
     ) -> scipy.sparse.csr_matrix[float]: ...
 
 class TverskyIndexComputer:
@@ -36,7 +36,7 @@ class TverskyIndexComputer:
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_similarity(
-        self, arg0: scipy.sparse.csr_matrix[float], arg1: int, /
+        self, X: scipy.sparse.csr_matrix[float], top_k: int
     ) -> scipy.sparse.csr_matrix[float]: ...
 
 class AsymmetricSimilarityComputer:
@@ -49,7 +49,7 @@ class AsymmetricSimilarityComputer:
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_similarity(
-        self, arg0: scipy.sparse.csr_matrix[float], arg1: int, /
+        self, X: scipy.sparse.csr_matrix[float], top_k: int
     ) -> scipy.sparse.csr_matrix[float]: ...
 
 class P3alphaComputer:
@@ -61,7 +61,7 @@ class P3alphaComputer:
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_W(
-        self, arg0: scipy.sparse.csr_matrix[float], arg1: int, /
+        self, X: scipy.sparse.csr_matrix[float], top_k: int
     ) -> scipy.sparse.csc_matrix[float]: ...
 
 class RP3betaComputer:
@@ -74,5 +74,5 @@ class RP3betaComputer:
         max_chunk_size: int = 128,
     ) -> None: ...
     def compute_W(
-        self, arg0: scipy.sparse.csr_matrix[float], arg1: int, /
+        self, X: scipy.sparse.csr_matrix[float], top_k: int
     ) -> scipy.sparse.csc_matrix[float]: ...

@@ -40,14 +40,6 @@ Recommenders
     DenseSLIMRecommender
     get_recommender_class
 
-A LightFM wrapper for BPR matrix factorization (requires a separate installation of `lightFM <https://github.com/lyst/lightfm>`_).
-
-.. autosummary::
-    :toctree: api_reference
-    :nosignatures:
-
-    BPRFMRecommender
-
 As a reference code based on neural networks, we have implemented a JAX version of `Mult-VAE <https://arxiv.org/abs/1802.05814>`_,
 which requires ``jax``, ``jaxlib``, ``dm-haiku``, and ``optax``:
 
@@ -96,4 +88,3 @@ Dataset
     MovieLens100KDataManager
     MovieLens20MDataManager
     NeuMFML1MDownloader
-    NeuMFPinterestDownloader

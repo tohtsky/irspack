@@ -11,12 +11,18 @@
 using namespace irspack;
 NB_MODULE(_util_cpp, m) {
 
-  m.def("remove_diagonal", &sparse_util::remove_diagonal<double>);
-  m.def("sparse_mm_threaded", &sparse_util::parallel_sparse_product<double>);
+  m.def("remove_diagonal", &sparse_util::remove_diagonal<double>,
+        nanobind::arg("X"));
+  m.def("sparse_mm_threaded", &sparse_util::parallel_sparse_product<double>,
+        nanobind::arg("left"), nanobind::arg("right"),
+        nanobind::arg("n_threads"));
   m.def("rowwise_train_test_split_by_ratio",
-        &sparse_util::SplitByRatioFunction<double>::split);
+        &sparse_util::SplitByRatioFunction<double>::split,
+        nanobind::arg("X"), nanobind::arg("random_seed"),
+        nanobind::arg("heldout_ratio"), nanobind::arg("n_test_ceil"));
   m.def("rowwise_train_test_split_by_fixed_n",
-        &sparse_util::SplitFixedN<double>::split);
+        &sparse_util::SplitFixedN<double>::split, nanobind::arg("X"),
+        nanobind::arg("random_seed"), nanobind::arg("n_held_out"));
   m.def("okapi_BM_25_weight", &sparse_util::okapi_BM_25_weight<double>,
         nanobind::arg("X"), nanobind::arg("k1") = 1.2, nanobind::arg("b") = 0.75);
   m.def("tf_idf_weight", &sparse_util::tf_idf_weight<double>, nanobind::arg("X"),

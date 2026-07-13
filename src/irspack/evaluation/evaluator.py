@@ -216,6 +216,74 @@ class Evaluator:
                 result[f"{metric_name}@{cutoff}"] = score[metric_name]
         return result
 
+    def get_score_from_score_matrix(self, scores: DenseScoreArray) -> Dict[str, float]:
+        r"""Compute metrics from a user-by-item score matrix.
+
+        The score matrix must have shape ``(n_users, n_items)``, in the same
+        order as the ground truth supplied to this evaluator. Scores are copied
+        before masking, so the input array is not modified.
+
+        When ``masked_interactions`` was supplied to the evaluator, its entries
+        are excluded from the ranking. Otherwise, no entries are masked.
+
+        Args:
+            scores: A float32 or float64 user-by-item score matrix.
+
+        Returns:
+            Metric values for this evaluator's default cutoff.
+        """
+        return self._get_scores_from_score_matrix_as_list(scores, [self.cutoff])[0]
+
+    def get_scores_from_score_matrix(
+        self, scores: DenseScoreArray, cutoffs: List[int]
+    ) -> Dict[str, float]:
+        r"""Compute metrics at multiple cutoffs from a user-by-item score matrix.
+
+        The score matrix must have shape ``(n_users, n_items)``, in the same
+        order as the ground truth supplied to this evaluator. Scores are copied
+        before masking, so the input array is not modified.
+
+        Args:
+            scores: A float32 or float64 user-by-item score matrix.
+            cutoffs: Cutoffs at which to compute metrics.
+
+        Returns:
+            Metric values keyed by metric name and cutoff.
+        """
+        result: Dict[str, float] = OrderedDict()
+        scores_as_list = self._get_scores_from_score_matrix_as_list(scores, cutoffs)
+        for cutoff, score in zip(cutoffs, scores_as_list):
+            for metric_name in METRIC_NAMES:
+                result[f"{metric_name}@{cutoff}"] = score[metric_name]
+        return result
+
+    def _get_score_matrix_mask(self) -> Optional[sps.csr_matrix]:
+        return self.masked_interactions
+
+    def _get_scores_from_score_matrix_as_list(
+        self, scores: DenseScoreArray, cutoffs: List[int]
+    ) -> List[Dict[str, float]]:
+        if scores.ndim != 2 or scores.shape != (self.n_users, self.n_items):
+            raise ValueError(
+                "score matrix must have shape "
+                f"({self.n_users}, {self.n_items}), but got {scores.shape}."
+            )
+        if scores.dtype not in (np.dtype("float32"), np.dtype("float64")):
+            raise ValueError("score matrix must have dtype float32 or float64.")
+
+        # Masking scores must not alter an array owned by the caller.
+        scores = scores.copy(order="C")
+        mask = self._get_score_matrix_mask()
+        metrics = [Metrics(self.n_items) for _ in cutoffs]
+        for chunk_start in range(0, self.n_users, self.mb_size):
+            chunk_end = min(chunk_start + self.mb_size, self.n_users)
+            score_chunk = scores[chunk_start:chunk_end]
+            if mask is not None:
+                score_chunk[mask[chunk_start:chunk_end].nonzero()] = -np.inf
+            for i, cutoff in enumerate(cutoffs):
+                metrics[i].merge(self._get_metrics(score_chunk, cutoff, chunk_start))
+        return [item.as_dict() for item in metrics]
+
     def _get_scores_as_list(
         self, model: "BaseRecommender", cutoffs: List[int]
     ) -> List[Dict[str, float]]:
@@ -340,6 +408,11 @@ class EvaluatorWithColdUser(Evaluator):
             mb_size=mb_size,
         )
         self.input_interaction = input_interaction
+
+    def _get_score_matrix_mask(self) -> Optional[sps.csr_matrix]:
+        if self.masked_interactions is None:
+            return self.input_interaction.tocsr()
+        return self.masked_interactions
 
     def _get_scores_as_list(
         self,

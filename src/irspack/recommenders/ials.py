@@ -15,6 +15,7 @@ from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
     InteractionMatrix,
+    ProfileMatrix,
     UserIndexArray,
 )
 from ..evaluation.evaluator import Evaluator
@@ -54,6 +55,16 @@ def str_to_loss_type(t: str) -> LossType:
     return result
 
 
+def _feature_matrix_as_float32(X: ProfileMatrix) -> ProfileMatrix:
+    if sps.issparse(X):
+        return sps.csr_matrix(X, dtype=np.float32)
+    return np.asarray(X, dtype=np.float32, order="C")
+
+
+def _empty_sparse_feature_matrix(n_rows: int) -> sps.csr_matrix:
+    return sps.csr_matrix((n_rows, 0), dtype=np.float32)
+
+
 class IALSTrainer(TrainerBase):
     def __init__(
         self,
@@ -71,6 +82,11 @@ class IALSTrainer(TrainerBase):
         n_threads: int,
         prediction_time_max_cg_steps: int,
         prediction_time_ialspp_iteration: int,
+        user_features: Optional[ProfileMatrix] = None,
+        item_features: Optional[ProfileMatrix] = None,
+        lambda_user_feature: float = 0.0,
+        lambda_item_feature: float = 0.0,
+        feature_warmup_epochs: int = 0,
     ):
         X_train_all_f32 = X.astype(np.float32)
         config = (
@@ -82,6 +98,9 @@ class IALSTrainer(TrainerBase):
             .set_nu(nu)
             .set_loss_type(loss_type)
             .set_random_seed(random_seed)
+            .set_lambda_user_feature(lambda_user_feature)
+            .set_lambda_item_feature(lambda_item_feature)
+            .set_feature_warmup_epochs(feature_warmup_epochs)
             .build()
         )
         solver_config = (
@@ -93,7 +112,20 @@ class IALSTrainer(TrainerBase):
             .set_ialspp_subspace_dimension(ialspp_subspace_dimension)
             .build()
         )
-        self.core_trainer = CoreTrainer(config, X_train_all_f32)
+        if user_features is None and item_features is None:
+            self.core_trainer = CoreTrainer(config, X_train_all_f32)
+        else:
+            uf = (
+                _empty_sparse_feature_matrix(X.shape[0])
+                if user_features is None
+                else _feature_matrix_as_float32(user_features)
+            )
+            itf = (
+                _empty_sparse_feature_matrix(X.shape[1])
+                if item_features is None
+                else _feature_matrix_as_float32(item_features)
+            )
+            self.core_trainer = CoreTrainer(config, X_train_all_f32, uf, itf)
         self.solver_config = solver_config
         self.prediction_time_solver_config = (
             IALSSolverConfigBuilder()
@@ -109,13 +141,21 @@ class IALSTrainer(TrainerBase):
         params = pickle.load(ifs)
         self.core_trainer.user = params["user"]
         self.core_trainer.item = params["item"]
+        if "user_feature_weight" in params:
+            self.core_trainer.user_feature_weight = params["user_feature_weight"]
+            self.core_trainer.item_feature_weight = params["item_feature_weight"]
 
     def compute_loss(self) -> float:
         return self.core_trainer.compute_loss(self.solver_config)
 
     def save_state(self, ofs: IO) -> None:
         pickle.dump(
-            dict(user=self.core_trainer.user, item=self.core_trainer.item),
+            dict(
+                user=self.core_trainer.user,
+                item=self.core_trainer.item,
+                user_feature_weight=self.core_trainer.user_feature_weight,
+                item_feature_weight=self.core_trainer.item_feature_weight,
+            ),
             ofs,
             protocol=pickle.HIGHEST_PROTOCOL,
         )
@@ -126,11 +166,41 @@ class IALSTrainer(TrainerBase):
     def user_scores(self, begin: int, end: int) -> DenseScoreArray:
         return self.core_trainer.user_scores(begin, end, self.solver_config)
 
-    def transform_user(self, X: InteractionMatrix) -> DenseMatrix:
-        return self.core_trainer.transform_user(X, self.prediction_time_solver_config)
+    def transform_user(
+        self, X: InteractionMatrix, user_features: Optional[ProfileMatrix] = None
+    ) -> DenseMatrix:
+        if user_features is None:
+            return self.core_trainer.transform_user(
+                X, self.prediction_time_solver_config
+            )
+        return self.core_trainer.transform_user_with_feature(
+            X,
+            _feature_matrix_as_float32(user_features),
+            self.prediction_time_solver_config,
+        )
 
-    def transform_item(self, X: InteractionMatrix) -> DenseMatrix:
-        return self.core_trainer.transform_item(X, self.prediction_time_solver_config)
+    def transform_item(
+        self, X: InteractionMatrix, item_features: Optional[ProfileMatrix] = None
+    ) -> DenseMatrix:
+        if item_features is None:
+            return self.core_trainer.transform_item(
+                X, self.prediction_time_solver_config
+            )
+        return self.core_trainer.transform_item_with_feature(
+            X,
+            _feature_matrix_as_float32(item_features),
+            self.prediction_time_solver_config,
+        )
+
+    def transform_user_feature(self, user_features: ProfileMatrix) -> DenseMatrix:
+        return self.core_trainer.transform_user_feature(
+            _feature_matrix_as_float32(user_features)
+        )
+
+    def transform_item_feature(self, item_features: ProfileMatrix) -> DenseMatrix:
+        return self.core_trainer.transform_item_feature(
+            _feature_matrix_as_float32(item_features)
+        )
 
 
 class IALSConfigScaling(enum.Enum):
@@ -154,6 +224,9 @@ class IALSConfig(BaseEarlyStoppingRecommenderConfig):
     n_threads: Optional[int] = None
     train_epochs: int = 16
     prediction_time_max_cg_steps: int = 5
+    lambda_user_feature: float = 0.0
+    lambda_item_feature: float = 0.0
+    feature_warmup_epochs: int = 0
 
 
 def compute_reg_scale(X: sps.csr_matrix, alpha0: float, nu: float) -> float:
@@ -307,6 +380,11 @@ class IALSRecommender(
         train_epochs: int = 16,
         prediction_time_max_cg_steps: int = 5,
         prediction_time_ialspp_iteration: int = 7,
+        user_features: Optional[ProfileMatrix] = None,
+        item_features: Optional[ProfileMatrix] = None,
+        lambda_user_feature: float = 0.0,
+        lambda_item_feature: float = 0.0,
+        feature_warmup_epochs: int = 0,
     ) -> None:
 
         super().__init__(
@@ -340,6 +418,19 @@ class IALSRecommender(
             )
         self.prediction_time_max_cg_steps = prediction_time_max_cg_steps
         self.prediction_time_ialspp_iteration = prediction_time_ialspp_iteration
+        self.user_features = (
+            None if user_features is None else _feature_matrix_as_float32(user_features)
+        )
+        self.item_features = (
+            None if item_features is None else _feature_matrix_as_float32(item_features)
+        )
+        self.lambda_user_feature = lambda_user_feature
+        self.lambda_item_feature = lambda_item_feature
+        self.feature_warmup_epochs = feature_warmup_epochs
+        if (
+            self.user_features is not None or self.item_features is not None
+        ) and solver_type == "IALSPP":
+            raise ValueError("Feature-aware iALS does not support IALSPP.")
 
         self.trainer: Optional[IALSTrainer] = None
 
@@ -370,6 +461,11 @@ class IALSRecommender(
             n_threads=self.n_threads,
             prediction_time_max_cg_steps=self.prediction_time_max_cg_steps,
             prediction_time_ialspp_iteration=self.prediction_time_ialspp_iteration,
+            user_features=self.user_features,
+            item_features=self.item_features,
+            lambda_user_feature=self.lambda_user_feature,
+            lambda_item_feature=self.lambda_item_feature,
+            feature_warmup_epochs=self.feature_warmup_epochs,
         )
 
     @property
@@ -387,8 +483,10 @@ class IALSRecommender(
     def get_score_block(self, begin: int, end: int) -> DenseScoreArray:
         return self.trainer_as_ials.user_scores(begin, end)
 
-    def get_score_cold_user(self, X: InteractionMatrix) -> DenseScoreArray:
-        user_vector = self.compute_user_embedding(X)
+    def get_score_cold_user(
+        self, X: InteractionMatrix, user_features: Optional[ProfileMatrix] = None
+    ) -> DenseScoreArray:
+        user_vector = self.compute_user_embedding(X, user_features=user_features)
         return self.get_score_from_user_embedding(user_vector)
 
     def get_user_embedding(self) -> DenseMatrix:
@@ -403,31 +501,67 @@ class IALSRecommender(
     def get_item_embedding(self) -> DenseMatrix:
         return self.trainer_as_ials.core_trainer.item
 
-    def compute_user_embedding(self, X: InteractionMatrix) -> DenseMatrix:
+    def compute_user_embedding(
+        self, X: InteractionMatrix, user_features: Optional[ProfileMatrix] = None
+    ) -> DenseMatrix:
         r"""Given an unknown users' interaction with known items,
-        computes the latent factors of the users by least square (fixing item embeddings).
+        computes the latent factors of the users by least square.
+
+        If ``user_features`` is given, the embedding is fitted from both
+        interaction history and the feature prior learned during training.
 
         parameters:
             X:
                 The interaction history of the new users.
                 ``X.shape[1]`` must be equal to ``self.n_items``.
+            user_features:
+                Optional user feature matrix.  If provided, ``X.shape[0]`` and
+                ``user_features.shape[0]`` must match.
         """
         return self.trainer_as_ials.transform_user(
             self._scale_X(
                 sps.csr_matrix(X).astype(np.float32),
                 self.confidence_scaling,
                 self.epsilon,
-            )
+            ),
+            user_features=user_features,
         )
 
-    def compute_item_embedding(self, X: InteractionMatrix) -> DenseMatrix:
+    def compute_user_embedding_from_features(
+        self, user_features: ProfileMatrix
+    ) -> DenseMatrix:
+        r"""Compute cold-user latent factors from user features only.
+
+        This solves the feature-aware iALS system with an empty interaction
+        history.  It therefore includes the loss on unobserved items and is
+        generally not equal to ``user_features @ user_feature_weight``.
+        """
+        n_users = user_features.shape[0]
+        X = sps.csr_matrix((n_users, self.n_items), dtype=np.float32)
+        return self.compute_user_embedding(X, user_features=user_features)
+
+    def get_score_cold_user_from_features(
+        self, user_features: ProfileMatrix
+    ) -> DenseScoreArray:
+        user_vector = self.compute_user_embedding_from_features(user_features)
+        return self.get_score_from_user_embedding(user_vector)
+
+    def compute_item_embedding(
+        self, X: InteractionMatrix, item_features: Optional[ProfileMatrix] = None
+    ) -> DenseMatrix:
         r"""Given an unknown items' interaction with known user,
-        computes the latent factors of the items by least square (fixing user embeddings).
+        computes the latent factors of the items by least square.
+
+        If ``item_features`` is given, the embedding is fitted from both
+        interaction history and the feature prior learned during training.
 
         parameters:
             X:
                 The interaction history of the new users.
                 ``X.shape[0]`` must be equal to ``self.n_users``.
+            item_features:
+                Optional item feature matrix.  If provided, ``X.shape[1]`` and
+                ``item_features.shape[0]`` must match.
         """
 
         return self.trainer_as_ials.transform_item(
@@ -435,8 +569,28 @@ class IALSRecommender(
                 sps.csr_matrix(X).astype(np.float32),
                 self.confidence_scaling,
                 self.epsilon,
-            )
+            ),
+            item_features=item_features,
         )
+
+    def compute_item_embedding_from_features(
+        self, item_features: ProfileMatrix
+    ) -> DenseMatrix:
+        r"""Compute cold-item latent factors from item features only.
+
+        This solves the feature-aware iALS system with an empty interaction
+        history.  It therefore includes the loss on unobserved users and is
+        generally not equal to ``item_features @ item_feature_weight``.
+        """
+        n_items = item_features.shape[0]
+        X = sps.csr_matrix((self.n_users, n_items), dtype=np.float32)
+        return self.compute_item_embedding(X, item_features=item_features)
+
+    def get_score_from_item_features(
+        self, user_indices: UserIndexArray, item_features: ProfileMatrix
+    ) -> DenseScoreArray:
+        item_embedding = self.compute_item_embedding_from_features(item_features)
+        return self.get_score_from_item_embedding(user_indices, item_embedding)
 
     def get_score_from_item_embedding(
         self, user_indices: UserIndexArray, item_embedding: DenseMatrix

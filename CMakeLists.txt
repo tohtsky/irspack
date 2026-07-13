@@ -44,3 +44,23 @@ install(TARGETS _ials_core LIBRARY DESTINATION irspack/recommenders)
 install(TARGETS _core_evaluator LIBRARY DESTINATION irspack/evaluation)
 install(TARGETS _util_cpp LIBRARY DESTINATION irspack/utils)
 install(TARGETS _knn LIBRARY DESTINATION irspack/recommenders)
+
+# Keep type stubs in lockstep with the extension modules.  INSTALL_TIME is
+# necessary because the modules become importable only after scikit-build has
+# assembled the Python package in the wheel staging directory.
+function(add_extension_stub target module output)
+  nanobind_add_stub(
+    ${target}_stub
+    INSTALL_TIME
+    MODULE ${module}
+    OUTPUT ${output}
+    PYTHON_PATH "."
+  )
+endfunction()
+
+add_extension_stub(_ials_core irspack.recommenders._ials_core
+                   irspack/recommenders/_ials_core.pyi)
+add_extension_stub(_core_evaluator irspack.evaluation._core_evaluator
+                   irspack/evaluation/_core_evaluator.pyi)
+add_extension_stub(_util_cpp irspack.utils._util_cpp irspack/utils/_util_cpp.pyi)
+add_extension_stub(_knn irspack.recommenders._knn irspack/recommenders/_knn.pyi)

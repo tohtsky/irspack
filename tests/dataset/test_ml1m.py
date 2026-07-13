@@ -34,9 +34,7 @@ def test_ml100k() -> None:
                 # movieId = 2 has fantasy & thriller tags
                 ofs.write(
                     """1|A fantastic movie|2020-01-01|2021-01-01|http://example.com|0|1|0
-    2|Pandemic|2020-01-01|2021-01-01|http://example.com|1|0|1""".encode(
-                        "latin-1"
-                    )
+    2|Pandemic|2020-01-01|2021-01-01|http://example.com|1|0|1""".encode("latin-1")
                 )
             with zf.open("ml-100k/u.user", "w") as ofs:
                 ofs.write(
@@ -93,9 +91,7 @@ def test_ml1m() -> None:
                 ofs.write(
                     """1::A fantastic movie (2020)::fantasy|thriller
     1917::Vinni-Pukh(1969)::children
-    """.encode(
-                        "latin-1"
-                    )
+    """.encode("latin-1")
                 )
             with zf.open("ml-1m/users.dat", "w") as ofs:
                 ofs.write(

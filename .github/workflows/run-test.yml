@@ -5,6 +5,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OS: ubuntu-latest
+      # scikit-build-core passes these settings through to CMake.  Keep the
+      # generated gcno/gcda files in the build directory used below by lcov.
+      CMAKE_BUILD_TYPE: Debug
+      # pytest can exercise the extension from multiple threads/processes.
+      # Atomic gcov counter updates prevent corrupted (.gcda) counters.
+      CMAKE_ARGS: >-
+        -DCMAKE_CXX_FLAGS=--coverage\ -fprofile-update=atomic
+        -DCMAKE_SHARED_LINKER_FLAGS=--coverage
     steps:
       - uses: actions/checkout@v4
         with:
@@ -14,28 +22,39 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.14'
-      - name: Build irspack (ubuntu)
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Build instrumented extension modules
         run: |
-          pip install --upgrade pip setuptools wheel
-          sudo apt-get install lcov
-          FLAGS="-fprofile-arcs -ftest-coverage"
-          export CFLAGS="$FLAGS"
-          export CXXFLAGS="$FLAGS"
-          pip install -e . --verbose
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends lcov
+          uv sync --group dev --verbose
       - name: Run pytest
         run: |
-          pip install setuptools wheel pytest pytest-mock pytest-cov
-          pip install numpy scipy
-          pip install jaxlib jax dm-haiku optax || echo "JAX installation failed, skipping MultVAE tests"
-          pip install lightfm || echo "LightFM installation failed, skipping BPR tests"
-          pytest --cov=./src/irspack tests/
-      - name: Generate coverage (ubuntu)
+          uv pip install jaxlib jax dm-haiku optax || echo "JAX installation failed, skipping MultVAE tests"
+          uv pip install lightfm || echo "LightFM installation failed, skipping BPR tests"
+          uv run pytest tests \
+            --cov=./src/irspack \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage-python.xml
+      - name: Generate C++ coverage report
         run: |
-          coverage xml
-          lcov -d `pwd` -c -o coverage.info --ignore-errors empty || echo "No C++ coverage data found"
+          # nanobind is built from uv's temporary cache, which may be removed
+          # before capture. Its data is excluded below, so do not require its
+          # source headers to remain available. GCC 13 also emits harmless
+          # unexecuted-block metadata warnings for template-heavy dependencies.
+          lcov --capture \
+            --directory build \
+            --output-file coverage-cpp.info \
+            --ignore-errors mismatch,source,gcov
+          lcov --extract coverage-cpp.info "$GITHUB_WORKSPACE/cpp_source/*" \
+            --output-file coverage-cpp.info
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
-          files: ./coverage.xml
+          files: ./coverage-python.xml,./coverage-cpp.info
+          disable_search: true
           fail_ci_if_error: false
           verbose: true

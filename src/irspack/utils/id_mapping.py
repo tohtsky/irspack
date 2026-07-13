@@ -137,6 +137,7 @@ class ItemIDMapper(Generic[ItemIdType]):
         forbidden_item_ids: Optional[List[ItemIdType]] = None,
     ) -> List[Tuple[ItemIdType, float]]:
         r"""Retrieves recommendations for an unknown user by using the user's contact history with the known items.
+
         Args:
             recommender:
                 The recommender for scoring.
@@ -304,9 +305,9 @@ class ItemIDMapper(Generic[ItemIdType]):
             allowed_item_indices = [self._item_id_list_to_index_list(allowed_item_ids)]
         if forbidden_item_ids is not None:
             for u, forbidden_ids_per_user in enumerate(forbidden_item_ids):
-                score[u, self._item_id_list_to_index_list(forbidden_ids_per_user)] = (
-                    -np.inf
-                )
+                score[
+                    u, self._item_id_list_to_index_list(forbidden_ids_per_user)
+                ] = -np.inf
 
         raw_result = retrieve_recommend_from_score(
             score,
@@ -359,6 +360,7 @@ class IDMapper(Generic[UserIdType, ItemIdType], ItemIDMapper[ItemIdType]):
         forbidden_item_ids: Optional[List[ItemIdType]] = None,
     ) -> List[Tuple[ItemIdType, float]]:
         r"""Retrieve recommendation result for a known user.
+
         Args:
             recommender:
                 The recommender for scoring.
