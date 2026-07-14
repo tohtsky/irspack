@@ -24,6 +24,15 @@ using namespace std;
 using SymmetricMatrix =
     decltype(DenseMatrix{0, 0}.selfadjointView<Eigen::Upper>());
 using FeatureMatrix = std::variant<SparseMatrix, DenseMatrix>;
+using ColMajorDenseMatrix =
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+
+struct FeatureWeightCache {
+  DenseVector row_weights;
+  Eigen::LLT<ColMajorDenseMatrix, Eigen::Lower> llt;
+  bool initialized = false;
+};
+
 template <size_t n_batch_max = 64> struct BatchedRankUpdater {
   inline BatchedRankUpdater(size_t dim)
       : n_batch(0u), buffer(n_batch_max, dim) {}
@@ -978,6 +987,7 @@ public:
 private:
   SparseMatrix X, X_t;
   FeatureMatrix user_features, item_features;
+  FeatureWeightCache user_feature_weight_cache, item_feature_weight_cache;
   bool feature_aware_ = false;
   size_t epoch_ = 0;
 
@@ -1034,12 +1044,14 @@ private:
 
   inline void update_stored_user_feature_weight() {
     update_feature_weight(user_features, user, user_feature_weight,
-                          config_.lambda_user_feature, X, item.rows());
+                          config_.lambda_user_feature, X, item.rows(),
+                          user_feature_weight_cache);
   }
 
   inline void update_stored_item_feature_weight() {
     update_feature_weight(item_features, item, item_feature_weight,
-                          config_.lambda_item_feature, X_t, user.rows());
+                          config_.lambda_item_feature, X_t, user.rows(),
+                          item_feature_weight_cache);
   }
 
   inline void update_feature_weight(const FeatureMatrix &features,
@@ -1047,13 +1059,64 @@ private:
                                     DenseMatrix &weight,
                                     Real lambda_feature,
                                     const SparseMatrix &interactions,
-                                    int64_t other_size) {
+                                    int64_t other_size,
+                                    FeatureWeightCache &cache) {
     std::visit(
         [&](const auto &feature) {
           update_feature_weight(feature, factor, weight, lambda_feature,
-                                interactions, other_size);
+                                interactions, other_size, cache);
         },
         features);
+  }
+
+  inline void initialize_feature_weight_cache(
+      const SparseMatrix &features, Real lambda_feature,
+      const SparseMatrix &interactions, int64_t other_size,
+      FeatureWeightCache &cache) {
+    SparseMatrix weighted_features = features;
+    cache.row_weights.resize(features.rows());
+    for (int64_t row = 0; row < features.rows(); ++row) {
+      const int64_t nnz = interactions.outerIndexPtr()[row + 1] -
+                          interactions.outerIndexPtr()[row];
+      const Real row_weight =
+          user_solver.compute_reg(nnz, other_size, config_);
+      cache.row_weights(row) = row_weight;
+      for (SparseMatrix::InnerIterator it(weighted_features, row); it; ++it)
+        it.valueRef() *= std::sqrt(row_weight);
+    }
+    // A column-major destination avoids strided writes when Eigen evaluates
+    // the sparse product directly into the dense Gram matrix.  In particular,
+    // a row-major 1024-column float matrix has a pathological 4096-byte stride.
+    ColMajorDenseMatrix gram =
+        weighted_features.transpose() * weighted_features;
+    gram.diagonal().array() += lambda_feature;
+    cache.llt.compute(gram);
+    if (cache.llt.info() != Eigen::Success)
+      throw std::runtime_error("Feature ridge Cholesky decomposition failed.");
+    cache.initialized = true;
+  }
+
+  inline void initialize_feature_weight_cache(
+      const DenseMatrix &features, Real lambda_feature,
+      const SparseMatrix &interactions, int64_t other_size,
+      FeatureWeightCache &cache) {
+    DenseMatrix weighted_features = features;
+    cache.row_weights.resize(features.rows());
+    for (int64_t row = 0; row < features.rows(); ++row) {
+      const int64_t nnz = interactions.outerIndexPtr()[row + 1] -
+                          interactions.outerIndexPtr()[row];
+      const Real row_weight =
+          user_solver.compute_reg(nnz, other_size, config_);
+      cache.row_weights(row) = row_weight;
+      weighted_features.row(row) *= std::sqrt(row_weight);
+    }
+    ColMajorDenseMatrix gram =
+        weighted_features.transpose() * weighted_features;
+    gram.diagonal().array() += lambda_feature;
+    cache.llt.compute(gram);
+    if (cache.llt.info() != Eigen::Success)
+      throw std::runtime_error("Feature ridge Cholesky decomposition failed.");
+    cache.initialized = true;
   }
 
   inline void update_feature_weight(const SparseMatrix &features,
@@ -1061,28 +1124,19 @@ private:
                                     DenseMatrix &weight,
                                     Real lambda_feature,
                                     const SparseMatrix &interactions,
-                                    int64_t other_size) {
+                                    int64_t other_size,
+                                    FeatureWeightCache &cache) {
     if (features.cols() == 0)
       return;
-    SparseMatrix weighted_features = features;
+    if (!cache.initialized)
+      initialize_feature_weight_cache(features, lambda_feature, interactions,
+                                      other_size, cache);
     DenseMatrix weighted_factor = factor;
     for (int64_t row = 0; row < features.rows(); ++row) {
-      const int64_t nnz = interactions.outerIndexPtr()[row + 1] -
-                          interactions.outerIndexPtr()[row];
-      const Real row_weight =
-          user_solver.compute_reg(nnz, other_size, config_);
-      for (SparseMatrix::InnerIterator it(weighted_features, row); it; ++it)
-        it.valueRef() *= std::sqrt(row_weight);
-      weighted_factor.row(row) *= row_weight;
+      weighted_factor.row(row) *= cache.row_weights(row);
     }
-    DenseMatrix gram =
-        DenseMatrix(weighted_features.transpose() * weighted_features);
-    gram.diagonal().array() += lambda_feature;
     DenseMatrix rhs = features.transpose() * weighted_factor;
-    Eigen::LLT<DenseMatrix> llt(gram);
-    if (llt.info() != Eigen::Success)
-      throw std::runtime_error("Feature ridge Cholesky decomposition failed.");
-    weight = llt.solve(rhs);
+    weight = cache.llt.solve(rhs);
   }
 
   inline void update_feature_weight(const DenseMatrix &features,
@@ -1090,26 +1144,19 @@ private:
                                     DenseMatrix &weight,
                                     Real lambda_feature,
                                     const SparseMatrix &interactions,
-                                    int64_t other_size) {
+                                    int64_t other_size,
+                                    FeatureWeightCache &cache) {
     if (features.cols() == 0)
       return;
-    DenseMatrix weighted_features = features;
+    if (!cache.initialized)
+      initialize_feature_weight_cache(features, lambda_feature, interactions,
+                                      other_size, cache);
     DenseMatrix weighted_factor = factor;
     for (int64_t row = 0; row < features.rows(); ++row) {
-      const int64_t nnz = interactions.outerIndexPtr()[row + 1] -
-                          interactions.outerIndexPtr()[row];
-      const Real row_weight =
-          user_solver.compute_reg(nnz, other_size, config_);
-      weighted_features.row(row) *= std::sqrt(row_weight);
-      weighted_factor.row(row) *= row_weight;
+      weighted_factor.row(row) *= cache.row_weights(row);
     }
-    DenseMatrix gram = weighted_features.transpose() * weighted_features;
-    gram.diagonal().array() += lambda_feature;
     DenseMatrix rhs = features.transpose() * weighted_factor;
-    Eigen::LLT<DenseMatrix> llt(gram);
-    if (llt.info() != Eigen::Success)
-      throw std::runtime_error("Feature ridge Cholesky decomposition failed.");
-    weight = llt.solve(rhs);
+    weight = cache.llt.solve(rhs);
   }
 };
 } // namespace ials
