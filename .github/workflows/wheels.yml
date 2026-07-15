@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
   release:
     types:
       - created
@@ -63,6 +64,7 @@ jobs:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
   upload_pypi:
+    if: github.event_name != 'pull_request'
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     permissions:

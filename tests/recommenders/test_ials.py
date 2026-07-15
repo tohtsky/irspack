@@ -7,6 +7,11 @@ import pytest
 import scipy.sparse as sps
 
 from irspack.evaluation import Evaluator
+from irspack.recommenders._ials_core import (
+    IALSModelConfigBuilder,
+    IALSSolverConfigBuilder,
+    IALSTrainer,
+)
 from irspack.recommenders.ials import IALSRecommender
 from irspack.utils import rowwise_train_test_split
 
@@ -517,6 +522,28 @@ def test_ials_overfit_cg(test_interaction_data: Dict[str, sps.csr_matrix]) -> No
         np.arange(X.shape[0]), reproduced_item_vector
     )
     np.testing.assert_allclose(X_reproduced_item, X_dense, rtol=1e-2, atol=1e-2)
+
+
+@pytest.mark.parametrize("n_threads", [1, 4, 64])
+def test_user_scores_batching(n_threads: int) -> None:
+    rng = np.random.default_rng(0)
+    n_users, n_items, n_components = 513, 257, 31
+    interaction = sps.csr_matrix((n_users, n_items), dtype=np.float32)
+    model_config = IALSModelConfigBuilder().set_K(n_components).build()
+    solver_config = IALSSolverConfigBuilder().set_n_threads(n_threads).build()
+    trainer = IALSTrainer(model_config, interaction)
+    user = rng.standard_normal((n_users, n_components)).astype(np.float32)
+    item = rng.standard_normal((n_items, n_components)).astype(np.float32)
+    trainer.user = user
+    trainer.item = item
+
+    for begin, end in [(0, n_users), (17, 193), (n_users, n_users)]:
+        np.testing.assert_allclose(
+            trainer.user_scores(begin, end, solver_config),
+            user[begin:end] @ item.T,
+            rtol=2e-5,
+            atol=2e-5,
+        )
 
 
 @pytest.mark.parametrize(["subspace_dimension"], [(1,), (2,), (3,), (4,)])

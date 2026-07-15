@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import scipy.sparse as sps
 
+from irspack.recommenders._knn import CosineSimilarityComputer
 from irspack.recommenders.knn import (
     AsymmetricCosineKNNRecommender,
     CosineKNNRecommender,
@@ -140,6 +141,30 @@ def test_topk(X: sps.csr_matrix) -> None:
     W: sps.csr_matrix = rec.W
     sim = W.toarray()
     assert np.all((sim > 0).sum(axis=1) <= 30)
+
+
+def test_topk_selects_largest_values_with_deterministic_ties() -> None:
+    X = sps.csr_matrix(
+        np.asarray(
+            [
+                [1, 1, 1, 0, 0],
+                [1, 1, 0, 1, 0],
+                [1, 0, 1, 1, 0],
+                [0, 1, 1, 1, 1],
+            ],
+            dtype=float,
+        )
+    )
+    computer = CosineSimilarityComputer(X.T, 0.0, False, 1, 128)
+    full = computer.compute_similarity(X.T, X.shape[1]).toarray()
+    actual = computer.compute_similarity(X.T, 2).toarray()
+    expected = np.zeros_like(full)
+    for row, scores in enumerate(full):
+        candidates = np.flatnonzero(scores)
+        order = np.lexsort((candidates, -scores[candidates]))
+        selected = candidates[order[:2]]
+        expected[row, selected] = scores[selected]
+    np.testing.assert_array_equal(actual, expected)
 
 
 @pytest.mark.parametrize("X, alpha", [(X_small, 0.001), (X_many_dense, 2), (X_many, 1)])
