@@ -2,6 +2,8 @@
 #include "../argcheck.hpp"
 #include <Eigen/Core>
 #include <Eigen/Sparse>
+#include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <future>
 #include <random>
@@ -114,10 +116,17 @@ template <typename Real, class SimilarityType> struct KNNComputer {
         for (size_t i = 0; i < nz_size; i++) {
           buffer[i] = i;
         }
-        std::sort(buffer.begin(), buffer.begin() + nz_size,
-                  [&data_start](IndexType col1, IndexType col2) {
-                    return data_start[col1] > data_start[col2];
-                  });
+        const auto score_descending =
+            [&data_start, &index_start](IndexType col1, IndexType col2) {
+              if (data_start[col1] != data_start[col2]) {
+                return data_start[col1] > data_start[col2];
+              }
+              return index_start[col1] < index_start[col2];
+            };
+        if (col_size < nz_size) {
+          std::nth_element(buffer.begin(), buffer.begin() + col_size,
+                           buffer.begin() + nz_size, score_descending);
+        }
         std::sort(buffer.begin(), buffer.begin() + col_size);
         for (size_t j = 0; j < col_size; j++) {
           triples.emplace_back(row + cursor,

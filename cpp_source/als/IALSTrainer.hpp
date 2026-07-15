@@ -3,6 +3,7 @@
 #include "IALSLearningConfig.hpp"
 #include "definitions.hpp"
 #include <Eigen/Cholesky>
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstddef>
@@ -953,10 +954,16 @@ struct IALSTrainer {
     DenseMatrix result(result_size, n_items);
     std::vector<std::thread> workers;
     std::atomic<int64_t> cursor(0);
+    const int64_t chunks_per_thread = 4;
+    const int64_t target_chunk_count =
+        static_cast<int64_t>(solver_config.n_threads) * chunks_per_thread;
+    const int64_t ideal_chunk_size =
+        (result_size + target_chunk_count - 1) / target_chunk_count;
+    const int64_t chunk_size =
+        std::clamp<int64_t>(ideal_chunk_size, 16, 128);
     for (size_t ind = 0; ind < solver_config.n_threads; ind++) {
       workers.emplace_back([this, userblock_begin, &cursor, result_size,
-                            &result]() {
-        const int64_t chunk_size = 16;
+                            chunk_size, &result]() {
         while (true) {
           auto block_begin = cursor.fetch_add(chunk_size);
           if (block_begin >= result_size) {
