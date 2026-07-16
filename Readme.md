@@ -4,10 +4,10 @@
 [![pypi](https://img.shields.io/pypi/v/irspack.svg)](https://pypi.python.org/pypi/irspack)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tohtsky/irspack)
 [![Build](https://github.com/tohtsky/irspack/workflows/Build/badge.svg?branch=main)](https://github.com/tohtsky/irspack)
-[![Read the Docs](https://readthedocs.org/projects/irspack/badge/?version=stable)](https://irspack.readthedocs.io/en/stable/)
+[![Documentation](https://github.com/tohtsky/irspack/actions/workflows/docs.yml/badge.svg)](https://github.com/tohtsky/irspack/actions/workflows/docs.yml)
 [![codecov](https://codecov.io/gh/tohtsky/irspack/branch/main/graph/badge.svg?token=kLgOKTQqcV)](https://codecov.io/gh/tohtsky/irspack)
 
-[**Docs**](https://irspack.readthedocs.io/en/latest/)
+[**Docs**](https://tohtsky.github.io/irspack/)
 
 **irspack** is a Python package for recommender systems based on implicit feedback, designed to be used by practitioners.
 
@@ -15,6 +15,7 @@ Some of its features include:
 
 - Efficient parameter tuning enabled by C++/Eigen implementations of core recommender algorithms and [optuna](https://github.com/optuna/optuna).
   - In particular, if an early stopping scheme is available, optuna can prune out unpromising trial based on the intermediate validation scores.
+- **Experimental feature-aware iALS** incorporates user and item side features into implicit ALS to support cold-start users and items, while retaining efficient C++ solvers. [Learn more](https://tohtsky.github.io/irspack/feature_aware_ials.html).
 - Various utility functions, including
   - ID/index mapping utilities
   - Fast, multithreaded argsort for batch recommendation retrieval
