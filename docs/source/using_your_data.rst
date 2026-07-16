@@ -109,6 +109,24 @@ Map recommendations back to item IDs
 the training row. Apply any product constraints—availability, region, safety,
 or inventory—before selecting the final ranked list.
 
+For application code, :class:`irspack.utils.IDMapper` wraps the ID lookup,
+scoring, filtering of seen items, ranking, and conversion back to item IDs:
+
+.. code-block:: python
+
+   from irspack.utils import IDMapper
+
+   id_mapper = IDMapper(user_ids.tolist(), item_ids.tolist())
+   recommendations = id_mapper.recommend_for_known_user_id(
+       model,
+       user_id="u1",
+       cutoff=10,
+   )
+
+Each result is an ``(item_id, score)`` tuple. Pass ``allowed_item_ids`` or
+``forbidden_item_ids`` to apply catalog constraints, and use
+``recommend_for_known_user_batch`` when scoring multiple known users.
+
 Operational checks
 ------------------
 

@@ -1,6 +1,20 @@
 # Changelog
 
-## 0.5.0 (Unreleased)
+## 0.5.0 (2026-07-16)
+
+### Added
+
+- Added feature-aware iALS, including methods for learning and scoring user and
+  item embeddings from side features.
+- Added practical documentation for preparing interaction data, selecting a
+  recommender, and mapping recommendation results back to business IDs.
+
+### Changed
+
+- Improved iALS and KNN training performance, including cache optimizations and
+  Eigen 5 support.
+- Moved the documentation site to GitHub Pages and refreshed its structure and
+  styling.
 
 ### Breaking changes
 
