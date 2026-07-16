@@ -16,4 +16,3 @@
   contains only suggested and learned parameters. Fixed recommender keyword
   arguments are no longer included and must be supplied separately when
   constructing the final recommender.
-
