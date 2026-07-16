@@ -38,6 +38,8 @@ Recommenders
     AsymmetricCosineUserKNNRecommender
     SLIMRecommender
     DenseSLIMRecommender
+    EDLAERecommender
+    NMFRecommender
     get_recommender_class
 
 As a reference code based on neural networks, we have implemented a JAX version of `Mult-VAE <https://arxiv.org/abs/1802.05814>`_,
@@ -74,6 +76,7 @@ Utilities
 
     ItemIDMapper
     IDMapper
+    df_to_sparse
 
 .. currentmodule:: irspack.dataset
 

@@ -38,7 +38,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
-    "sphinx_rtd_theme",
+    "sphinx_design",
 ]
 
 suppress_warnings = [
@@ -87,11 +87,42 @@ exclude_patterns: List[str] = ["_build", "**.ipynb_checkpoints"]
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
+html_title = "irspack"
+html_theme_options = {
+    "navbar_align": "left",
+    "navbar_start": ["navbar-logo"],
+    "navbar_center": ["navbar-nav"],
+    "navbar_end": ["theme-switcher", "navbar-icon-links"],
+    "navbar_persistent": ["search-button"],
+    "show_nav_level": 2,
+    "show_toc_level": 2,
+    "navigation_with_keys": True,
+    "back_to_top_button": True,
+    "secondary_sidebar_items": {
+        "**": ["page-toc", "sourcelink"],
+        "index": [],
+    },
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/tohtsky/irspack",
+            "icon": "fa-brands fa-github",
+            "type": "fontawesome",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/irspack/",
+            "icon": "fa-solid fa-box",
+            "type": "fontawesome",
+        },
+    ],
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path: List[str] = []
+html_static_path: List[str] = ["_static"]
+html_css_files = ["custom.css"]
 
 master_doc = "index"
