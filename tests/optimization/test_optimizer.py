@@ -1,6 +1,7 @@
 from typing import List
 
 import numpy as np
+import optuna
 import pytest
 import scipy.sparse as sps
 
@@ -73,13 +74,30 @@ def test_optimizer_by_mock(X: sps.csr_matrix) -> None:
     evaluator = Evaluator(X_val, 0)
 
     config, _ = MockRecommender.tune(
-        X_train, evaluator, n_trials=40, random_seed=42, fixed_params=dict(X_test=X_val)
+        X_train, evaluator, n_trials=40, tuning_random_seed=42, X_test=X_val
     )
     assert config["p1"] >= 0.9
     assert (config["reg"] >= 0.99) and (config["reg"] <= 1.01)
     assert (config["I1"] >= 100) and (config["I1"] <= 102)
     assert (config["I2"] >= 500) and (config["I2"] <= 502)
     assert config["flag"] in ["foo", "bar"]
+    assert "X_test" not in config
+
+
+def test_tune_uses_given_study() -> None:
+    X_train, X_val = rowwise_train_test_split(X_small, test_ratio=0.5, random_state=0)
+    evaluator = Evaluator(X_val, 0)
+    study = optuna.create_study()
+
+    MockRecommender.tune(
+        X_train,
+        evaluator,
+        study=study,
+        n_trials=2,
+        X_test=X_val,
+    )
+
+    assert len(study.trials) == 2
 
 
 def test_data_suggest_function() -> None:
@@ -106,7 +124,7 @@ def test_data_suggest_function() -> None:
             None,
             evaluator,
             n_trials=10,
-            random_seed=42,
+            tuning_random_seed=42,
             data_suggest_function=None,
             parameter_suggest_function=parameter_suggest_function,
         )
@@ -114,7 +132,7 @@ def test_data_suggest_function() -> None:
         None,
         evaluator,
         n_trials=10,
-        random_seed=42,
+        tuning_random_seed=42,
         data_suggest_function=data_suggest_function,
         parameter_suggest_function=parameter_suggest_function,
     )

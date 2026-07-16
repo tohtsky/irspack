@@ -682,7 +682,7 @@ def test_ials_tuning_with_n_startup_trials(
     bp, history = IALSRecommender.tune(
         X_tr,
         Evaluator(X_te, cutoff=cutoff),
-        random_seed=0,
+        tuning_random_seed=0,
         prunning_n_startup_trials=20,
         n_trials=20,
     )
@@ -700,7 +700,7 @@ def test_ials_tuning_with_too_early_n_startup(
     bp, history = IALSRecommender.tune(
         X_tr,
         Evaluator(X_te, cutoff=cutoff),
-        random_seed=0,
+        tuning_random_seed=0,
         prunning_n_startup_trials=1,
         n_trials=20,
         max_epoch=3,

@@ -90,14 +90,16 @@ if __name__ == "__main__":
         (best_param, validation_result_df) = recommender_class.tune(
             data_train.X_all,
             valid_evaluator,
-            fixed_params=config,
             n_trials=n_trials,
-            random_seed=0,
+            tuning_random_seed=0,
+            **config,
         )
         validation_result_df["recommender_name"] = recommender_name
         validation_results.append(validation_result_df)
         pd.concat(validation_results).to_csv(f"validation_scores.csv")
-        test_recommender = recommender_class(X_train_val_all, **best_param).learn()
+        test_recommender = recommender_class(
+            X_train_val_all, **best_param, **config
+        ).learn()
         test_scores = test_evaluator.get_scores(test_recommender, [20, 50, 100])
 
         test_results.append(
