@@ -88,3 +88,13 @@ jobs:
           packages-dir: dist/
           verbose: true
           skip-existing: true
+  publish_docs:
+    needs: upload_pypi
+    if: github.event_name == 'release' && needs.upload_pypi.result == 'success'
+    uses: ./.github/workflows/docs.yml
+    with:
+      ref: ${{ github.event.release.tag_name }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
