@@ -163,12 +163,12 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
 
     @classmethod
     def default_suggest_parameter(
-        cls, trial: "Trial", fixed_params: Dict[str, Any]
+        cls, trial: "Trial", recommender_params: Dict[str, Any]
     ) -> Dict[str, Any]:
         return {
             s.name: s.suggest(trial)
             for s in cls.default_tune_range
-            if s.name not in fixed_params.keys()
+            if s.name not in recommender_params
         }
 
     @classmethod
@@ -176,20 +176,21 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         cls,
         data: Union[InteractionMatrix, None],
         evaluator: "evaluation.Evaluator",
+        study: Optional["Study"] = None,
         n_trials: int = 20,
         timeout: Optional[int] = None,
         data_suggest_function: Optional[Callable[["Trial"], InteractionMatrix]] = None,
         parameter_suggest_function: Optional[ParameterSuggestFunctionType] = None,
-        fixed_params: Dict[str, Any] = dict(),
-        random_seed: Optional[int] = None,
+        tuning_random_seed: Optional[int] = None,
         prunning_n_startup_trials: int = 10,
         max_epoch: int = 128,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
         logger: Optional[logging.Logger] = None,
+        **recommender_params: Any,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         r"""Perform the optimization step.
-        `optuna.Study` object is created inside this function.
+        An `optuna.Study` object can be supplied or created inside this function.
 
         Args:
             data:
@@ -198,6 +199,8 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
                 In that case, data must be `None`.
             evaluator:
                 The validation evaluator that measures the performance of the recommenders.
+            study:
+                An existing Optuna study. If ``None``, a new study is created.
             n_trials:
                 The number of expected trials (including pruned ones). Defaults to 20.
             timeout:
@@ -209,12 +212,9 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
                 If not `None`, this must be a function which takes `optuna.Trial` as its argument and returns `Dict[str, Any]` (i.e., some keyword arguments of the recommender class).
                 If `None`, `cls.default_suggest_parameter` will be used for the parameter suggestion.
                 Defaults to `None`.
-            fixed_params:
-                Fixed parameters passed to recommenders during the optimization procedure.
-                This will replace the suggested parameter (either by `cls.default_suggest_parameter` or `parameter_suggest_function`).
-                Defaults to `dict()`.
-            random_seed:
+            tuning_random_seed:
                 The random seed to control `optuna.samplers.TPESampler`. Defaults to `None`.
+                Ignored when ``study`` is provided.
             prunning_n_startup_trials:
                 `n_startup_trials` argument passed to the constructor of `optuna.pruners.MedianPruner`.
             max_epoch:
@@ -228,51 +228,28 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
                 Maximal number of allowed score degradation.
                 If iterative learning procedure is not available, this parameter will be ignored.
                 Defaults to 5. Defaults to 5.
+            **recommender_params:
+                Fixed keyword arguments passed to the recommender constructor for every
+                trial. These override suggested parameters with the same name, and are
+                not included in the returned best parameters.
         Returns:
             A tuple that consists of
 
-                1. A dict containing the best paramaters.
-                   This dict can be passed to the recommender as ``**kwargs``.
+                1. A dict containing the best suggested and learnt parameters.
+                   Fixed ``recommender_params`` are not included.
                 2. A ``pandas.DataFrame`` that contains the history of optimization.
         """
 
-        from optuna import create_study, pruners, samplers
+        if study is None:
+            from optuna import create_study, pruners, samplers
 
-        study = create_study(
-            sampler=samplers.TPESampler(seed=random_seed),
-            pruner=pruners.MedianPruner(n_startup_trials=prunning_n_startup_trials),
-        )
-        return cls.tune_with_study(
-            study,
-            data=data,
-            evaluator=evaluator,
-            n_trials=n_trials,
-            timeout=timeout,
-            data_suggest_function=data_suggest_function,
-            parameter_suggest_function=parameter_suggest_function,
-            fixed_params=fixed_params,
-            max_epoch=max_epoch,
-            validate_epoch=validate_epoch,
-            score_degradation_max=score_degradation_max,
-            logger=logger,
-        )
+            study = create_study(
+                sampler=samplers.TPESampler(seed=tuning_random_seed),
+                pruner=pruners.MedianPruner(
+                    n_startup_trials=prunning_n_startup_trials
+                ),
+            )
 
-    @classmethod
-    def tune_with_study(
-        cls,
-        study: "Study",
-        data: Union[InteractionMatrix, None],
-        evaluator: "evaluation.Evaluator",
-        n_trials: int = 20,
-        timeout: Optional[int] = None,
-        data_suggest_function: Optional[Callable[["Trial"], InteractionMatrix]] = None,
-        parameter_suggest_function: Optional[ParameterSuggestFunctionType] = None,
-        fixed_params: Dict[str, Any] = dict(),
-        max_epoch: int = 128,
-        validate_epoch: int = 5,
-        score_degradation_max: int = 5,
-        logger: Optional[logging.Logger] = None,
-    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         from ..optimization.optimizer import Optimizer
 
         if data is None:
@@ -291,12 +268,12 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         else:
 
             def _parameter_suggest_function(trial: "Trial") -> Dict[str, Any]:
-                return cls.default_suggest_parameter(trial, fixed_params)
+                return cls.default_suggest_parameter(trial, recommender_params)
 
         optim = Optimizer(
             _data_suggest_function,
             _parameter_suggest_function,
-            fixed_params,
+            recommender_params,
             evaluator,
             max_epoch=max_epoch,
             validate_epoch=validate_epoch,

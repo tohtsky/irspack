@@ -700,18 +700,19 @@ class IALSRecommender(
                 pruner=optuna.pruners.MedianPruner(n_startup_trials=n_startup_trials),
                 study_name=f"{study_name_prefix}_{dimension}",
             )
-            bp, df_ = cls.tune_with_study(
-                study,
+            bp, df_ = cls.tune(
                 data,
                 evaluator,
-                n_trials,
+                study=study,
+                n_trials=n_trials,
                 max_epoch=max_epoch,
                 validate_epoch=validate_epoch,
                 score_degradation_max=score_degradation_max,
                 parameter_suggest_function=_suggest,
-                fixed_params=dict(n_components=dimension),
+                n_components=dimension,
             )
             df_["n_components"] = dimension
+            bp["n_components"] = dimension
             results.append((float(df_["value"].min()), bp, df_))
             prev_params = study.best_params.copy()
             dimension *= 2
@@ -721,65 +722,36 @@ class IALSRecommender(
         return final_bp, final_result_df
 
     @classmethod
-    def tune_with_study(
-        cls,
-        study: "Study",
-        data: Union[InteractionMatrix, None],
-        evaluator: "evaluation.Evaluator",
-        n_trials: int = 20,
-        timeout: Optional[int] = None,
-        data_suggest_function: Optional[Callable[["Trial"], InteractionMatrix]] = None,
-        parameter_suggest_function: Optional[ParameterSuggestFunctionType] = None,
-        fixed_params: Dict[str, Any] = dict(),
-        max_epoch: int = 16,
-        validate_epoch: int = 1,
-        score_degradation_max: int = 3,
-        logger: Optional[logging.Logger] = None,
-    ) -> Tuple[Dict[str, Any], pd.DataFrame]:
-        return super().tune_with_study(
-            study,
-            data,
-            evaluator,
-            n_trials,
-            timeout,
-            data_suggest_function,
-            parameter_suggest_function,
-            fixed_params,
-            max_epoch,
-            validate_epoch,
-            score_degradation_max,
-            logger,
-        )
-
-    @classmethod
     def tune(
         cls,
         data: Union[InteractionMatrix, None],
         evaluator: "evaluation.Evaluator",
+        study: Optional["Study"] = None,
         n_trials: int = 20,
         timeout: Optional[int] = None,
         data_suggest_function: Optional[Callable[["Trial"], InteractionMatrix]] = None,
         parameter_suggest_function: Optional[ParameterSuggestFunctionType] = None,
-        fixed_params: Dict[str, Any] = dict(),
-        random_seed: Optional[int] = None,
+        tuning_random_seed: Optional[int] = None,
         prunning_n_startup_trials: int = 10,
         max_epoch: int = 16,
         validate_epoch: int = 1,
         score_degradation_max: int = 3,
         logger: Optional[logging.Logger] = None,
+        **recommender_params: Any,
     ) -> Tuple[Dict[str, Any], pd.DataFrame]:
         return super().tune(
-            data,
-            evaluator,
-            n_trials,
-            timeout,
-            data_suggest_function,
-            parameter_suggest_function,
-            fixed_params,
-            random_seed,
-            prunning_n_startup_trials,
-            max_epoch,
-            validate_epoch,
-            score_degradation_max,
-            logger,
+            data=data,
+            evaluator=evaluator,
+            study=study,
+            n_trials=n_trials,
+            timeout=timeout,
+            data_suggest_function=data_suggest_function,
+            parameter_suggest_function=parameter_suggest_function,
+            tuning_random_seed=tuning_random_seed,
+            prunning_n_startup_trials=prunning_n_startup_trials,
+            max_epoch=max_epoch,
+            validate_epoch=validate_epoch,
+            score_degradation_max=score_degradation_max,
+            logger=logger,
+            **recommender_params,
         )

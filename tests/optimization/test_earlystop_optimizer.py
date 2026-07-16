@@ -101,7 +101,7 @@ def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
             config, history = MockRecommender.tune(
                 X,
                 evaluator,
-                fixed_params=dict(target_epoch=target_epoch),
+                target_epoch=target_epoch,
                 logger=getLogger("IGNORE"),
                 parameter_suggest_function=(
                     lambda trial: {
@@ -109,7 +109,7 @@ def test_optimizer_by_mock(X: InteractionMatrix, target_epoch: int) -> None:
                     }
                 ),
             )
-    assert len(config) == 3
+    assert len(config) == 2
     assert config["train_epochs"] == target_epoch
     best_index = np.nanargmax(-history.value.values)
     best_target_score_inferred = history.target_score.iloc[best_index]

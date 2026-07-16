@@ -68,7 +68,7 @@ class Optimizer:
             Customizes (e.g. enlarging the parameter region or adding new parameters to be tuned)
             the default parameter search space defined by ``default_tune_range``
             Defaults to list().
-        fixed_params (Dict[str, Any], optional):
+        recommender_params (Dict[str, Any]):
             Fixed parameters passed to recommenders during the optimization procedure.
             If such a parameter exists in ``default_tune_range``, it will not be tuned.
             Defaults to dict().
@@ -84,7 +84,7 @@ class Optimizer:
         self,
         data_suggest_function: SparseMatrixSuggestFunction,
         parameter_suggest_function: ParameterSuggestFunction,
-        fixed_params: Dict[str, Any],
+        recommender_params: Dict[str, Any],
         val_evaluator: "Evaluator",
         logger: Optional[logging.Logger] = None,
         max_epoch: int = 128,
@@ -102,7 +102,7 @@ class Optimizer:
 
         self.current_trial: int = 0
         self.best_val = float("inf")
-        self.fixed_params = fixed_params
+        self.recommender_params = recommender_params
 
         self.max_epoch = max_epoch
         self.validate_epoch = validate_epoch
@@ -121,7 +121,7 @@ class Optimizer:
             start = time.time()
             data = self._data_suggest_function(trial)
             params = self._parameter_suggest_function(trial)
-            params.update(self.fixed_params)
+            params.update(self.recommender_params)
             self.logger.info("Trial %s:", trial.number)
             self.logger.info("parameter = %s", params)
 
@@ -199,6 +199,5 @@ class Optimizer:
                 if is_valid_param_name(key)
             },
         )
-        best_params.update(self.fixed_params)
         trials_df = study_to_dataframe(study)
         return (best_params, trials_df)
