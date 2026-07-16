@@ -1,6 +1,14 @@
 name: Publish documentation
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/docs.yml"
+      - "docs/**"
+      - "src/**"
+      - "CMakeLists.txt"
+      - "pyproject.toml"
+      - "uv.lock"
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -36,18 +44,21 @@ jobs:
         with:
           enable-cache: true
       - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
       - name: Install documentation dependencies
         run: uv sync --no-dev --group docs
       - name: Build documentation
         run: uv run --no-sync sphinx-build -b html docs/source docs/_build/html
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/_build/html
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
