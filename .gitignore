@@ -26,6 +26,7 @@ Pipfile.lock
 .venv/
 pybind11
 docs/build/
+docs/_build/
 docs/source/api_reference/
 .cache/
 .coverage

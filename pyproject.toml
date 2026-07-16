@@ -51,9 +51,10 @@ docs = [
   "jinja2==3.0.3",
   "nbsphinx",
   "optax",
+  "pydata-sphinx-theme>=0.16.1",
   "sphinx",
   "sphinx-autobuild",
-  "sphinx-rtd-theme",
+  "sphinx-design>=0.6.1",
 ]
 
 [project.urls]

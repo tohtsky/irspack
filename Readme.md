@@ -1,158 +1,171 @@
-# irspack - Implicit recommender systems for practitioners
+# irspack — implicit recommenders for practitioners
 
-[![Python](https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org)
-[![pypi](https://img.shields.io/pypi/v/irspack.svg)](https://pypi.python.org/pypi/irspack)
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tohtsky/irspack)
-[![Build](https://github.com/tohtsky/irspack/workflows/Build/badge.svg?branch=main)](https://github.com/tohtsky/irspack)
-[![Documentation](https://github.com/tohtsky/irspack/actions/workflows/docs.yml/badge.svg)](https://github.com/tohtsky/irspack/actions/workflows/docs.yml)
+[![Python](https://img.shields.io/pypi/pyversions/irspack.svg)](https://pypi.org/project/irspack/)
+[![PyPI](https://img.shields.io/pypi/v/irspack.svg)](https://pypi.org/project/irspack/)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tohtsky/irspack/blob/main/LICENSE)
+[![Build](https://github.com/tohtsky/irspack/workflows/Build/badge.svg?branch=main)](https://github.com/tohtsky/irspack/actions/workflows/wheels.yml)
+[![Documentation](https://github.com/tohtsky/irspack/actions/workflows/docs.yml/badge.svg)](https://tohtsky.github.io/irspack/)
 [![codecov](https://codecov.io/gh/tohtsky/irspack/branch/main/graph/badge.svg?token=kLgOKTQqcV)](https://codecov.io/gh/tohtsky/irspack)
 
-[**Docs**](https://tohtsky.github.io/irspack/)
+**irspack** helps practitioners build, evaluate, and tune recommenders from
+implicit feedback such as clicks, views, saves, and purchases.
 
-**irspack** is a Python package for recommender systems based on implicit feedback, designed to be used by practitioners.
+It is designed for the work that happens before a recommender reaches
+production: establishing strong baselines, comparing algorithms under the same
+evaluation protocol, and tuning promising candidates without rewriting the
+pipeline for every model.
 
-Some of its features include:
+- Practical recommenders including iALS, SLIM, item/user KNN, P3alpha,
+  RP3beta, TopPop, and experimental feature-aware iALS
+- Fast C++/Eigen implementations for core training and evaluation operations
+- Consistent evaluation and Optuna-backed hyperparameter tuning
+- Utilities for converting business IDs to sparse matrices and back
+- Support for cold-start experiments with user and item side features
 
-- Efficient parameter tuning enabled by C++/Eigen implementations of core recommender algorithms and [optuna](https://github.com/optuna/optuna).
-  - In particular, if an early stopping scheme is available, optuna can prune out unpromising trial based on the intermediate validation scores.
-- **Experimental feature-aware iALS** incorporates user and item side features into implicit ALS to support cold-start users and items, while retaining efficient C++ solvers. [Learn more](https://tohtsky.github.io/irspack/feature_aware_ials.html).
-- Various utility functions, including
-  - ID/index mapping utilities
-  - Fast, multithreaded argsort for batch recommendation retrieval
-  - Efficient and configurable evaluation of recommender system performance
+Read the [documentation](https://tohtsky.github.io/irspack/), see
+[which recommender to try first](https://tohtsky.github.io/irspack/choosing_a_recommender.html),
+or [start with your own interaction data](https://tohtsky.github.io/irspack/using_your_data.html).
 
-# Installation & Optional Dependencies
+## Installation
 
-## Development with uv
+irspack requires Python 3.9 or later. Install the published package with:
 
-This repository uses [uv](https://docs.astral.sh/uv/) for dependency
-resolution and virtual-environment management. To set up a development
-environment and install the locked dependencies, run:
+```sh
+pip install irspack
+```
+
+Pre-built wheels are published for supported Linux, macOS, and Windows
+platforms. See [Installing from source](#installing-from-source) if a wheel is
+not available for your environment or if you want CPU-specific compiler
+optimizations.
+
+## Quickstart
+
+irspack consumes a SciPy sparse matrix whose rows are users and whose columns
+are items. The values represent interaction strength; binary values are a good
+default for events such as clicks or purchases.
+
+```python
+import numpy as np
+import pandas as pd
+
+from irspack import IALSRecommender, df_to_sparse
+
+events = pd.DataFrame(
+    {
+        "user_id": ["alice", "alice", "bob", "bob", "carol", "carol"],
+        "item_id": ["A", "B", "B", "C", "A", "D"],
+    }
+)
+
+# Rows and columns in X correspond to user_ids and item_ids, respectively.
+X, user_ids, item_ids = df_to_sparse(events, "user_id", "item_id")
+
+model = IALSRecommender(X, n_components=8).learn()
+
+# Recommend unseen items for Alice. Scores for already-seen items are -inf.
+alice_index = np.flatnonzero(user_ids == "alice")[0]
+scores = model.get_score_remove_seen(np.array([alice_index]))[0]
+top_items = item_ids[np.argsort(scores)[::-1][:2]]
+print(top_items)
+```
+
+For an offline comparison, split interactions into training and validation
+matrices and evaluate every candidate with the same evaluator:
+
+```python
+from irspack import Evaluator, IALSRecommender, TopPopRecommender
+from irspack.split import rowwise_train_test_split
+
+X_train, X_validation = rowwise_train_test_split(
+    X, test_ratio=0.2, ceil_n_heldout=True, random_state=0
+)
+evaluator = Evaluator(X_validation, cutoff=3)
+
+for recommender_class in (TopPopRecommender, IALSRecommender):
+    recommender = recommender_class(X_train).learn()
+    print(recommender_class.__name__, evaluator.get_score(recommender)["ndcg"])
+```
+
+For timestamped events, prefer a temporal holdout over a random split. The
+[using your own data guide](https://tohtsky.github.io/irspack/using_your_data.html)
+shows the full workflow, including stable ID mappings and leakage-aware
+evaluation.
+
+## Which model should I try first?
+
+| Situation | Good starting point |
+| --- | --- |
+| Sanity check and popularity baseline | `TopPopRecommender` |
+| Strong general-purpose collaborative filtering | `IALSRecommender` |
+| Explainable item-to-item recommendations | `CosineKNNRecommender` |
+| Sparse implicit-feedback data | `RP3betaRecommender` or `SLIMRecommender` |
+| Cold-start users/items with side information | Feature-aware iALS |
+
+There is no universally best recommender. Start with a cheap baseline, compare
+a small set of candidates using a split that reflects the product scenario,
+then tune the winner. See the
+[model selection guide](https://tohtsky.github.io/irspack/choosing_a_recommender.html)
+for trade-offs and optional dependencies.
+
+## Hyperparameter tuning
+
+Every tunable recommender exposes the same Optuna-backed interface:
+
+```python
+best_params, trials = IALSRecommender.tune(
+    X_train,
+    evaluator,
+    n_trials=20,
+    random_seed=0,
+)
+best_model = IALSRecommender(X_train, **best_params).learn()
+```
+
+Iterative recommenders can use intermediate validation scores to stop
+unpromising trials early.
+
+## Optional recommenders
+
+`BPRFMRecommender` wraps LightFM and requires a separate LightFM installation:
+
+```sh
+pip install lightfm
+```
+
+`MultVAERecommender` requires `jax`, `jaxlib`, `dm-haiku`, and `optax`. Follow
+the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html)
+if you need GPU support.
+
+## Installing from source
+
+A source build requires a C++17 compiler. To compile using the instruction set
+available on the current machine:
+
+```sh
+CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
+```
+
+If installation fails, please
+[open an issue](https://github.com/tohtsky/irspack/issues) and include your OS,
+Python version, CPU architecture, and the complete build error.
+
+## Development
+
+This repository uses [uv](https://docs.astral.sh/uv/) for reproducible local
+development:
 
 ```sh
 uv sync
 uv run pytest
 ```
 
-Documentation and notebook dependencies can be installed with
-`uv sync --group docs`.
-
-Use `uv lock --upgrade` when intentionally updating dependencies. The lock
-file is committed so that local development and CI use the same versions.
-
-In most cases, you can install the pre-build binaries via
+Install documentation dependencies and build the site with:
 
 ```sh
-pip install irspack
+uv sync --group docs
+uv run sphinx-build -b html docs/source docs/_build/html
 ```
 
-The binaries have been compiled to use AVX instruction. If you want to use AVX2/AVX512 or your environment does not support AVX (like Rosetta 2 on Apple M1), install it from source like
-
-```sh
-CFLAGS="-march=native" pip install git+https://github.com/tohtsky/irspack.git
-```
-
-In that case, you must have a decent version of C++ compiler (with C++17 support). If it doesn't work, feel free to make an issue!
-
-## Optional Dependencies
-
-I have also prepared a wrapper class (`BPRFMRecommender`) to train/optimize BPR/warp loss Matrix factorization implemented in [lightfm](https://github.com/lyst/lightfm). To use it you have to install `lightfm` separately, e.g. by
-
-```sh
-pip install lightfm
-```
-
-If you want to use Mult-VAE, you'll need the following additional (pip-installable) packages:
-
-- [jax](https://github.com/google/jax)
-- [jaxlib](https://github.com/google/jax)
-  - If you want to use GPU, follow the installation guide [https://github.com/google/jax#installation](https://github.com/google/jax#installation)
-- [dm-haiku](https://github.com/deepmind/dm-haiku)
-- [optax](https://github.com/deepmind/optax)
-
-# Basic Usage
-
-## Step 1. Train a recommender
-
-To begin with, we represent the user/item interaction as a [scipy.sparse](https://docs.scipy.org/doc/scipy/reference/sparse.html) matrix. Then we can feed it into recommender classes:
-
-```Python
-import numpy as np
-import scipy.sparse as sps
-from irspack import IALSRecommender, df_to_sparse
-from irspack.dataset import MovieLens100KDataManager
-
-df = MovieLens100KDataManager().read_interaction()
-
-# Convert pandas.Dataframe into scipy's sparse matrix.
-# The i'th row of `X_interaction` corresponds to `unique_user_id[i]`
-# and j'th column of `X_interaction` corresponds to `unique_movie_id[j]`.
-X_interaction, unique_user_id, unique_movie_id = df_to_sparse(
-  df, 'userId', 'movieId'
-)
-
-recommender = IALSRecommender(X_interaction)
-recommender.learn()
-
-# for user 0 (whose userId is unique_user_id[0]),
-# compute the masked score (i.e., already seen items have the score of negative infinity)
-# of items.
-recommender.get_score_remove_seen([0])
-```
-
-## Step 2. Evaluation on a validation set
-
-To evaluate the performance of a recommenderm we have to split the dataset to train and validation sets:
-
-```Python
-from irspack.split import rowwise_train_test_split
-from irspack.evaluation import Evaluator
-
-# Random split
-X_train, X_val = rowwise_train_test_split(
-    X_interaction, test_ratio=0.2, random_state=0
-)
-
-evaluator = Evaluator(ground_truth=X_val)
-
-recommender = IALSRecommender(X_train)
-recommender.learn()
-evaluator.get_score(recommender)
-```
-
-This will print something like
-
-```Python
-{
-    'appeared_item': 435.0,
-    'entropy': 5.160409123151053,
-    'gini_index': 0.9198367595008214,
-    'hit': 0.40084835630965004,
-    'map': 0.013890322881619916,
-    'n_items': 1682.0,
-    'ndcg': 0.07867240014767263,
-    'precision': 0.06797454931071051,
-    'recall': 0.03327028758587522,
-    'total_user': 943.0,
-    'valid_user': 943.0
-}
-```
-
-## Step 3. Hyperparameter optimization
-
-Now that we can evaluate the recommenders' performance against the validation set, we can use [optuna](https://github.com/optuna/optuna)-backed hyperparameter optimization.
-
-```Python
-best_params, trial_dfs  = IALSRecommender.tune(X_train, evaluator, n_trials=20)
-
-# maximal ndcg around 0.43 ~ 0.45
-trial_dfs["ndcg@10"].max()
-```
-
-Of course, we have to hold-out another interaction set for test, and measure the performance of tuned recommender against the test set.
-
-See `examples/` for more complete examples.
-
-# TODOs
-
-- more benchmark dataset
+Use `uv lock --upgrade` only when intentionally updating dependencies. The lock
+file is committed so local development and CI use the same versions.

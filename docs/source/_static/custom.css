@@ -1,0 +1,39 @@
+:root {
+  --pst-color-primary: #276f72;
+  --pst-color-link: #276f72;
+}
+
+html[data-theme="dark"] {
+  --pst-color-primary: #68c5c2;
+  --pst-color-link: #68c5c2;
+}
+
+.bd-main .bd-content .bd-article-container {
+  max-width: 52rem;
+}
+
+.bd-article h1 {
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  line-height: 1.15;
+}
+
+.bd-header {
+  min-height: 4rem;
+}
+
+.irspack-quicklinks .sd-card {
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.75rem;
+  box-shadow: none;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.irspack-quicklinks .sd-card:hover {
+  border-color: var(--pst-color-primary);
+  transform: translateY(-2px);
+}
+
+.irspack-quicklinks .sd-card-title {
+  color: var(--pst-color-primary);
+  font-size: 1rem;
+}
