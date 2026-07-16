@@ -245,9 +245,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
 
             study = create_study(
                 sampler=samplers.TPESampler(seed=tuning_random_seed),
-                pruner=pruners.MedianPruner(
-                    n_startup_trials=prunning_n_startup_trials
-                ),
+                pruner=pruners.MedianPruner(n_startup_trials=prunning_n_startup_trials),
             )
 
         from ..optimization.optimizer import Optimizer

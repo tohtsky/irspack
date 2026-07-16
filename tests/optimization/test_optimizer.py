@@ -85,9 +85,7 @@ def test_optimizer_by_mock(X: sps.csr_matrix) -> None:
 
 
 def test_tune_uses_given_study() -> None:
-    X_train, X_val = rowwise_train_test_split(
-        X_small, test_ratio=0.5, random_state=0
-    )
+    X_train, X_val = rowwise_train_test_split(X_small, test_ratio=0.5, random_state=0)
     evaluator = Evaluator(X_val, 0)
     study = optuna.create_study()
 
