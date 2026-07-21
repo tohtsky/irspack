@@ -765,7 +765,7 @@ struct IALSTrainer {
         DenseMatrix user_prior = stored_user_feature_prior();
         user_solver.step_with_prior(user, X, item, user_prior, config_,
                                     solver_config);
-        update_stored_user_feature_weight();
+        update_stored_user_feature_weight(solver_config);
       } else {
         user_solver.step(user, X, item, config_, solver_config);
       }
@@ -774,7 +774,7 @@ struct IALSTrainer {
         DenseMatrix item_prior = stored_item_feature_prior();
         item_solver.step_with_prior(item, X_t, user, item_prior, config_,
                                     solver_config);
-        update_stored_item_feature_weight();
+        update_stored_item_feature_weight(solver_config);
       } else {
         item_solver.step(item, X_t, user, config_, solver_config);
       }
@@ -1049,16 +1049,18 @@ private:
     return feature_times_weight(item_features, item_feature_weight);
   }
 
-  inline void update_stored_user_feature_weight() {
+  inline void
+  update_stored_user_feature_weight(const SolverConfig &solver_config) {
     update_feature_weight(user_features, user, user_feature_weight,
                           config_.lambda_user_feature, X, item.rows(),
-                          user_feature_weight_cache);
+                          user_feature_weight_cache, solver_config.n_threads);
   }
 
-  inline void update_stored_item_feature_weight() {
+  inline void
+  update_stored_item_feature_weight(const SolverConfig &solver_config) {
     update_feature_weight(item_features, item, item_feature_weight,
                           config_.lambda_item_feature, X_t, user.rows(),
-                          item_feature_weight_cache);
+                          item_feature_weight_cache, solver_config.n_threads);
   }
 
   inline void update_feature_weight(const FeatureMatrix &features,
@@ -1067,11 +1069,12 @@ private:
                                     Real lambda_feature,
                                     const SparseMatrix &interactions,
                                     int64_t other_size,
-                                    FeatureWeightCache &cache) {
+                                    FeatureWeightCache &cache,
+                                    size_t n_threads) {
     std::visit(
         [&](const auto &feature) {
           update_feature_weight(feature, factor, weight, lambda_feature,
-                                interactions, other_size, cache);
+                                interactions, other_size, cache, n_threads);
         },
         features);
   }
@@ -1126,24 +1129,67 @@ private:
     cache.initialized = true;
   }
 
+  template <typename Feature>
+  inline void solve_feature_weight(const Feature &features,
+                                   const DenseMatrix &factor,
+                                   DenseMatrix &weight,
+                                   const FeatureWeightCache &cache,
+                                   size_t n_threads) {
+    if (n_threads == 0u)
+      throw std::invalid_argument("n_threads must be strictly positive.");
+
+    DenseMatrix weighted_factor = factor;
+    for (int64_t row = 0; row < features.rows(); ++row)
+      weighted_factor.row(row) *= cache.row_weights(row);
+
+    const int64_t dimensions = factor.cols();
+    if (dimensions == 0)
+      return;
+    // Ridge targets are independent across latent dimensions.  Split them
+    // into column batches so each worker can reuse the same read-only LLT.
+    const int64_t worker_count = std::min<int64_t>(n_threads, dimensions);
+    const int64_t batch_size =
+        (dimensions + worker_count - 1) / worker_count;
+    std::atomic<int64_t> cursor{0};
+    std::vector<std::future<void>> workers;
+    workers.reserve(worker_count);
+    for (int64_t worker = 0; worker < worker_count; ++worker) {
+      workers.emplace_back(std::async(
+          std::launch::async,
+          [&features, &weighted_factor, &weight, &cache, &cursor, dimensions,
+           batch_size]() {
+            while (true) {
+              const int64_t begin = cursor.fetch_add(batch_size);
+              if (begin >= dimensions)
+                break;
+              const int64_t size = std::min(batch_size, dimensions - begin);
+              DenseMatrix rhs =
+                  features.transpose() * weighted_factor.middleCols(begin, size);
+              DenseMatrix solution = cache.llt.solve(rhs);
+              if (!solution.allFinite())
+                throw std::runtime_error("Feature ridge solve failed.");
+              weight.middleCols(begin, size) = solution;
+            }
+          }));
+    }
+    for (auto &worker : workers)
+      worker.get();
+  }
+
   inline void update_feature_weight(const SparseMatrix &features,
                                     const DenseMatrix &factor,
                                     DenseMatrix &weight,
                                     Real lambda_feature,
                                     const SparseMatrix &interactions,
                                     int64_t other_size,
-                                    FeatureWeightCache &cache) {
+                                    FeatureWeightCache &cache,
+                                    size_t n_threads) {
     if (features.cols() == 0)
       return;
     if (!cache.initialized)
       initialize_feature_weight_cache(features, lambda_feature, interactions,
                                       other_size, cache);
-    DenseMatrix weighted_factor = factor;
-    for (int64_t row = 0; row < features.rows(); ++row) {
-      weighted_factor.row(row) *= cache.row_weights(row);
-    }
-    DenseMatrix rhs = features.transpose() * weighted_factor;
-    weight = cache.llt.solve(rhs);
+    solve_feature_weight(features, factor, weight, cache, n_threads);
   }
 
   inline void update_feature_weight(const DenseMatrix &features,
@@ -1152,18 +1198,14 @@ private:
                                     Real lambda_feature,
                                     const SparseMatrix &interactions,
                                     int64_t other_size,
-                                    FeatureWeightCache &cache) {
+                                    FeatureWeightCache &cache,
+                                    size_t n_threads) {
     if (features.cols() == 0)
       return;
     if (!cache.initialized)
       initialize_feature_weight_cache(features, lambda_feature, interactions,
                                       other_size, cache);
-    DenseMatrix weighted_factor = factor;
-    for (int64_t row = 0; row < features.rows(); ++row) {
-      weighted_factor.row(row) *= cache.row_weights(row);
-    }
-    DenseMatrix rhs = features.transpose() * weighted_factor;
-    weight = cache.llt.solve(rhs);
+    solve_feature_weight(features, factor, weight, cache, n_threads);
   }
 };
 } // namespace ials
