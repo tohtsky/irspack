@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Generator
 from zipfile import ZipFile
 
 import numpy as np
@@ -28,7 +29,7 @@ def _write_archive(path: Path, split: str, prefix: str = "") -> None:
 
 
 @pytest.fixture
-def manager(tmp_path: Path) -> MINDDataManager:
+def manager(tmp_path: Path) -> Generator[MINDDataManager, None, None]:
     train_path = tmp_path / "train.zip"
     dev_path = tmp_path / "dev.zip"
     _write_archive(train_path, "train")

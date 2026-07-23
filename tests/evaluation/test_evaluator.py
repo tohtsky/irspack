@@ -1,10 +1,12 @@
 import pickle
 from collections import defaultdict
 from io import BytesIO
+from typing import Callable
 
 import numpy as np
 import pytest
 import scipy.sparse as sps
+from numpy.typing import NDArray, fl
 
 from irspack.evaluation import Evaluator, EvaluatorWithColdUser
 from irspack.recommenders import P3alphaRecommender, TopPopRecommender
@@ -296,13 +298,15 @@ def test_cold_user_evaluator_with_cold_item_features() -> None:
                 axis=0,
             )
 
-        def _create_cold_user_with_item_features_scorer(self, item_features):
+        def _create_cold_user_with_item_features_scorer(
+            self, item_features: NDArray
+        ) -> Callable[[sps.csr_matrix], NDArray]:
             self.prepare_count += 1
             np.testing.assert_array_equal(
                 item_features, np.array([[1.0], [2.0]], dtype=np.float32)
             )
 
-            def scorer(X):
+            def scorer(X: sps.csr_matrix) -> NDArray:
                 return np.repeat(
                     np.array([[0.2, 0.1, 0.9, 0.8]], dtype=np.float32),
                     X.shape[0],
