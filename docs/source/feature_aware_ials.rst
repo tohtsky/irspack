@@ -215,6 +215,11 @@ The complete experiment is in
        --n-trials 100 \
        --output examples/mind/mind_feature_aware_ials_test.json
 
+This experiment asks whether feature-aware iALS improves recommendation over a
+production-like temporal catalog.  It evaluates the combined capability of
+regularizing embeddings for known items and scoring items unseen during
+training; it does not attempt to isolate the contribution of each mechanism.
+
 The experiment uses the following evaluation design:
 
 - The final calendar day of the official train archive is validation.  The
@@ -251,6 +256,9 @@ The following result was obtained with 100 tuning trials per model.  These are
 test-period metrics at cutoff 20; they are an example from one dataset and
 temporal split, not a general performance guarantee.
 
+Feature-aware iALS achieved 1.90 times the NDCG and approximately 5 times the
+catalog coverage of ordinary iALS in this run.
+
 .. list-table:: Accuracy on all test targets
    :header-rows: 1
    :widths: 28 24 24 24
@@ -272,9 +280,8 @@ temporal split, not a general performance guarantee.
      - 0.02288
      - 0.04510
 
-Feature-aware iALS achieves 1.90 times the NDCG of ordinary iALS and 5.26
-times that of TopPop on all targets.  Recall and hit rate are also approximately
-doubled relative to ordinary iALS.
+Feature-aware iALS also achieves 5.26 times the NDCG of TopPop.  Recall and hit
+rate are approximately doubled relative to ordinary iALS.
 
 .. list-table:: Recommendation diversity on all test targets
    :header-rows: 1
