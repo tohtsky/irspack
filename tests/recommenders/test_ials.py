@@ -298,6 +298,17 @@ def test_feature_aware_ials_feature_only_api_and_core_pickle() -> None:
         ),
         rec.get_user_embedding() @ expected_item_embedding.T,
     )
+    transformed_user = rec.compute_user_embedding(interaction)
+    np.testing.assert_allclose(
+        rec.get_score_cold_user_with_item_features(interaction, item_features),
+        np.concatenate(
+            [
+                transformed_user @ rec.get_item_embedding().T,
+                transformed_user @ expected_item_embedding.T,
+            ],
+            axis=1,
+        ),
+    )
 
     core_dumped = pickle.loads(pickle.dumps(core))
     np.testing.assert_allclose(
@@ -316,6 +327,15 @@ def test_feature_aware_ials_feature_only_api_and_core_pickle() -> None:
         core_dumped.transform_item_feature(item_features),
         item_prior,
     )
+
+    ordinary_rec = IALSRecommender(
+        interaction,
+        n_components=2,
+        train_epochs=1,
+        n_threads=1,
+    ).learn()
+    with pytest.raises(NotImplementedError, match="trained with item_features"):
+        ordinary_rec.get_score_cold_user_with_item_features(interaction, item_features)
 
 
 @pytest.mark.parametrize("solver_type", ["CHOLESKY", "CG"])

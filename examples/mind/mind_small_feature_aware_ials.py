@@ -10,7 +10,7 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, Tuple
+from typing import Any, Dict, Tuple
 
 import numpy as np
 import optuna
@@ -20,9 +20,13 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import Normalizer, OneHotEncoder
 
-from irspack import EvaluatorWithColdUser, IALSRecommender, df_to_sparse
+from irspack import (
+    EvaluatorWithColdUser,
+    IALSRecommender,
+    TopPopRecommender,
+    df_to_sparse,
+)
 from irspack.dataset import MINDDataManager
-from irspack.utils import ItemIDMapper
 
 TRAIN_EPOCHS = 16
 # Keep the ranking cutoff in one place because it is used both when constructing
@@ -32,7 +36,6 @@ METRICS_TO_REPORT = (
     "ndcg@20",
     "recall@20",
     "hit@20",
-    "new_item_ratio@20",
     "gini_index@20",
     "entropy@20",
     "catalog_coverage@20",
@@ -41,21 +44,10 @@ METRICS_TO_REPORT = (
 
 @dataclass
 class TemporalEvaluationContext:
-    """Data and evaluator for one temporal evaluation split.
-
-    ``X_train`` and the trained model use only warm items.  Evaluation matrices
-    use ``eval_item_ids``, ordered as all warm items followed by cold candidate
-    items.  Evaluation scores can therefore concatenate their warm and cold
-    parts without adding zero-interaction columns to ``X_train``.
-    """
+    """Training data, warm-item features, and temporal evaluator."""
 
     X_train: sps.csr_matrix
-    train_item_popularity: np.ndarray
-    eval_item_ids: np.ndarray
     item_features_train: sps.csr_matrix
-    item_features_cold: sps.csr_matrix
-    n_warm_items: int
-    recommendable_item_indices: np.ndarray
     evaluator: EvaluatorWithColdUser
 
 
@@ -132,12 +124,6 @@ def build_evaluation_context(
     # and each evaluated user's history.  Cold candidates must enter through
     # features, not as artificial all-zero columns in ``X_train``.
     train_item_ids = np.sort(pre_cutoff_events["item_id"].unique())
-    train_item_popularity = (
-        pre_cutoff_events["item_id"]
-        .value_counts()
-        .reindex(train_item_ids, fill_value=0)
-        .to_numpy(dtype=np.float32)
-    )
     # Recommend only articles exposed during this evaluation period.
     candidate_item_ids = evaluation_impressions["item_id"].unique()
 
@@ -201,13 +187,13 @@ def build_evaluation_context(
     item_features = make_item_features(item_info, train_item_ids, eval_item_ids)
     return TemporalEvaluationContext(
         X_train=X_train,
-        train_item_popularity=train_item_popularity,
-        eval_item_ids=eval_item_ids,
         item_features_train=item_features[:n_warm_items],
-        item_features_cold=item_features[n_warm_items:],
-        n_warm_items=n_warm_items,
-        recommendable_item_indices=recommendable_item_indices,
-        evaluator=EvaluatorWithColdUser(X_history, X_target, **evaluator_args),
+        evaluator=EvaluatorWithColdUser(
+            X_history[:, :n_warm_items],
+            X_target,
+            cold_item_features=item_features[n_warm_items:],
+            **evaluator_args,
+        ),
     )
 
 
@@ -232,150 +218,6 @@ def train_model(
         random_seed=0,
         **feature_args,
     ).learn()
-
-
-def _metrics_from_scores(
-    evaluator: EvaluatorWithColdUser,
-    score_chunks: Iterable[np.ndarray],
-    context: TemporalEvaluationContext,
-) -> Dict[str, float]:
-    """Convert streamed score matrices into the metrics used by this example."""
-    item_mapper = ItemIDMapper(context.eval_item_ids.tolist())
-    recommendable_item_ids = context.eval_item_ids[
-        context.recommendable_item_indices
-    ].tolist()
-    new_item_ids = set(context.eval_item_ids[context.n_warm_items :])
-    n_new_item_recommendations = 0
-    n_recommendations = 0
-    chunk_start = 0
-
-    def chunks_with_new_item_count() -> Iterator[np.ndarray]:
-        nonlocal chunk_start, n_new_item_recommendations, n_recommendations
-        for score_chunk in score_chunks:
-            chunk_end = chunk_start + score_chunk.shape[0]
-            ranking_scores = score_chunk.copy()
-            ranking_scores[
-                evaluator.input_interaction[chunk_start:chunk_end].nonzero()
-            ] = -np.inf
-            recommendations = item_mapper.score_to_recommended_items_batch(
-                ranking_scores,
-                cutoff=EVALUATION_CUTOFF,
-                allowed_item_ids=recommendable_item_ids,
-                n_threads=evaluator.n_threads,
-            )
-            n_new_item_recommendations += sum(
-                item_id in new_item_ids
-                for user_recommendations in recommendations
-                for item_id, _ in user_recommendations
-            )
-            n_recommendations += sum(map(len, recommendations))
-            chunk_start = chunk_end
-            yield score_chunk
-
-    scores = evaluator.get_scores_from_score_chunks(
-        chunks_with_new_item_count(), [EVALUATION_CUTOFF]
-    )
-    # ``appeared_item`` is a count; dividing by the eligible catalog size makes
-    # coverage comparable across validation and test periods.
-    scores["catalog_coverage@20"] = scores["appeared_item@20"] / len(
-        context.recommendable_item_indices
-    )
-    scores["new_item_ratio@20"] = (
-        n_new_item_recommendations / n_recommendations
-        if n_recommendations
-        else float("nan")
-    )
-    return {name: scores[name] for name in METRICS_TO_REPORT}
-
-
-def score_model(
-    model: IALSRecommender,
-    context: TemporalEvaluationContext,
-    feature_aware: bool,
-) -> Dict[str, float]:
-    """Evaluate in batches without materializing the full MIND score matrix.
-
-    Evaluation items are ordered warm-first, so each score chunk is simply the
-    model's native warm-item scores followed by its cold-item scores.
-    """
-    evaluator = context.evaluator
-    n_cold_items = context.item_features_cold.shape[0]
-
-    def chunks() -> Iterator[np.ndarray]:
-        # A cold item has no collaborative factor.  Feature-aware iALS can infer
-        # one from its metadata; ordinary iALS intentionally leaves it unscored.
-        cold_embedding = None
-        if feature_aware and n_cold_items:
-            cold_embedding = model.compute_item_embedding_from_features(
-                context.item_features_cold
-            )
-        for begin in range(0, evaluator.n_users, evaluator.mb_size):
-            end = min(begin + evaluator.mb_size, evaluator.n_users)
-            history = evaluator.input_interaction[begin:end]
-            user_embedding = model.compute_user_embedding(
-                history[:, : context.n_warm_items]
-            )
-            warm_scores = model.get_score_from_user_embedding(user_embedding)
-            cold_scores = np.full(
-                (end - begin, n_cold_items),
-                -np.inf,
-                dtype=user_embedding.dtype,
-            )
-            if cold_embedding is not None:
-                cold_scores = user_embedding.dot(cold_embedding.T)
-            yield np.concatenate([warm_scores, cold_scores], axis=1)
-
-    return _metrics_from_scores(evaluator, chunks(), context)
-
-
-def score_top_pop(context: TemporalEvaluationContext) -> Dict[str, float]:
-    """Score every user with the same pre-cutoff item-popularity vector."""
-    evaluator = context.evaluator
-    # Cold items have no training clicks, so TopPop cannot rank them.
-    cold_popularity = np.full(
-        len(context.eval_item_ids) - context.n_warm_items,
-        -np.inf,
-        dtype=np.float32,
-    )
-    popularity = np.concatenate([context.train_item_popularity, cold_popularity])
-
-    def chunks() -> Iterator[np.ndarray]:
-        for begin in range(0, evaluator.n_users, evaluator.mb_size):
-            end = min(begin + evaluator.mb_size, evaluator.n_users)
-            # Repeating only one minibatch at a time preserves the same bounded
-            # memory behavior as model-based scoring.
-            yield np.repeat(popularity[None, :], end - begin, axis=0)
-
-    return _metrics_from_scores(evaluator, chunks(), context)
-
-
-class TemporalTuningEvaluatorAdapter(EvaluatorWithColdUser):
-    """Adapt temporal catalog scoring to the recommender tuning interface.
-
-    A normal ``EvaluatorWithColdUser`` cannot be passed directly to tuning
-    here: the fitted model has only warm-item columns, while evaluation uses an
-    expanded warm-plus-cold item space.  This adapter delegates scoring to
-    ``score_model``, which concatenates scores in that expanded space and
-    creates cold-item embeddings from features when supported.
-    """
-
-    def __init__(self, context: TemporalEvaluationContext, feature_aware: bool):
-        self.context = context
-        self.feature_aware = feature_aware
-        # ``IALSRecommender.tune`` reads these evaluator attributes directly.
-        # Reuse their canonical definitions from the temporal evaluator.
-        evaluator = context.evaluator
-        self.target_metric = evaluator.target_metric
-        self.cutoff = evaluator.cutoff
-        self.target_metric_name = evaluator.target_metric_name
-
-    def get_score(self, model: IALSRecommender) -> Dict[str, float]:
-        # Tuning follows the production-like catalog scoring path, including
-        # feature-derived cold-item factors for the feature-aware variant.
-        scores = score_model(model, self.context, self.feature_aware)
-        # The tuning interface expects unqualified metric names because it
-        # already knows the evaluator cutoff.
-        return {name.split("@", 1)[0]: value for name, value in scores.items()}
 
 
 def tune(
@@ -413,7 +255,7 @@ def tune(
         fixed_parameters["item_features"] = context.item_features_train
     return IALSRecommender.tune(
         context.X_train,
-        TemporalTuningEvaluatorAdapter(context, feature_aware),
+        context.evaluator,
         n_trials=n_trials,
         tuning_random_seed=seed,
         parameter_suggest_function=suggest_parameters,
@@ -431,25 +273,20 @@ def evaluate_period(
 ) -> Dict[str, Any]:
     """Train both iALS variants and evaluate all targets in the period."""
     models = {
-        "iALS": (
-            train_model(context, baseline_config, False),
-            False,
-        ),
-        "feature-aware iALS": (
-            train_model(context, feature_config, True),
-            True,
-        ),
+        "iALS": train_model(context, baseline_config, False),
+        "feature-aware iALS": train_model(context, feature_config, True),
     }
-    # Preserve whether a model supports feature-derived cold embeddings; this
-    # flag controls only scoring, not targets or candidates.
     scores_by_model = {
-        model_name: score_model(model, context, feature_aware)
-        for model_name, (model, feature_aware) in models.items()
+        model_name: context.evaluator.get_scores(model, [EVALUATION_CUTOFF])
+        for model_name, model in models.items()
     }
     if include_top_pop:
         # TopPop is reported on test as an independent non-personalized
         # reference rather than participating in hyperparameter tuning.
-        scores_by_model["TopPop"] = score_top_pop(context)
+        top_pop = TopPopRecommender(context.X_train).learn()
+        scores_by_model["TopPop"] = context.evaluator.get_scores(
+            top_pop, [EVALUATION_CUTOFF]
+        )
     # Reorient model-first score dictionaries into metric-first JSON, which
     # makes side-by-side model comparisons straightforward.
     return {

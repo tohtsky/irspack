@@ -8,6 +8,7 @@ import scipy.sparse as sps
 
 from irspack.evaluation import Evaluator, EvaluatorWithColdUser
 from irspack.recommenders import P3alphaRecommender, TopPopRecommender
+from irspack.recommenders.base import BaseRecommender
 from irspack.split import rowwise_train_test_split
 
 from ..mock_recommender import MockRecommender
@@ -270,6 +271,97 @@ def test_score_from_score_matrix_cold_user_masks_input() -> None:
         ]
         == 1.0
     )
+
+
+def test_cold_user_evaluator_with_cold_item_features() -> None:
+    class FeatureItemMockRecommender(BaseRecommender, register_class=False):
+        def __init__(self) -> None:
+            super().__init__(sps.csr_matrix((2, 2)))
+            self.prepare_count = 0
+
+        def _learn(self) -> None:
+            pass
+
+        def get_score(self, user_indices: np.ndarray) -> np.ndarray:
+            return np.repeat(
+                np.array([[0.2, 0.1]], dtype=np.float32),
+                len(user_indices),
+                axis=0,
+            )
+
+        def get_score_cold_user(self, X: sps.csr_matrix) -> np.ndarray:
+            return np.repeat(
+                np.array([[0.2, 0.1]], dtype=np.float32),
+                X.shape[0],
+                axis=0,
+            )
+
+        def _create_cold_user_with_item_features_scorer(self, item_features):
+            self.prepare_count += 1
+            np.testing.assert_array_equal(
+                item_features, np.array([[1.0], [2.0]], dtype=np.float32)
+            )
+
+            def scorer(X):
+                return np.repeat(
+                    np.array([[0.2, 0.1, 0.9, 0.8]], dtype=np.float32),
+                    X.shape[0],
+                    axis=0,
+                )
+
+            return scorer
+
+    input_interaction = sps.csr_matrix([[1, 0], [0, 1]], dtype=np.float32)
+    ground_truth = sps.csr_matrix([[0, 0, 1, 0], [0, 0, 1, 0]])
+    cold_item_features = np.array([[1.0], [2.0]], dtype=np.float32)
+    evaluator = EvaluatorWithColdUser(
+        input_interaction,
+        ground_truth,
+        cold_item_features=cold_item_features,
+        cutoff=1,
+        mb_size=1,
+        n_threads=1,
+    )
+    rec = FeatureItemMockRecommender()
+
+    score = evaluator.get_score(rec)
+    assert score["recall"] == 1.0
+    assert score["catalog_coverage"] == 0.25
+    assert rec.prepare_count == 1
+    qualified_score = evaluator.get_scores(rec, [1])
+    assert qualified_score["catalog_coverage@1"] == 0.25
+
+    fallback = TopPopRecommender(input_interaction).learn()
+    fallback_score = evaluator.get_score(fallback)
+    assert fallback_score["recall"] == 0.0
+    # Negative-infinity cold-item scores are not counted as recommendations.
+    assert fallback_score["appeared_item"] == 2.0
+
+
+def test_cold_user_evaluator_cold_item_shape_validation() -> None:
+    input_interaction = sps.csr_matrix((2, 3))
+    ground_truth = sps.csr_matrix((2, 4))
+    cold_item_features = np.ones((2, 1), dtype=np.float32)
+
+    with pytest.raises(ValueError, match="ground_truth"):
+        EvaluatorWithColdUser(
+            input_interaction,
+            ground_truth,
+            cold_item_features=cold_item_features,
+        )
+
+
+def test_negative_infinity_scores_are_not_recommendations() -> None:
+    ground_truth = sps.csr_matrix([[1, 0, 0]])
+    evaluator = Evaluator(ground_truth, cutoff=3)
+    score = evaluator.get_score_from_score_matrix(
+        np.array([[1.0, -np.inf, -np.inf]], dtype=np.float64)
+    )
+
+    assert score["recall"] == 1.0
+    assert score["precision"] == 1.0
+    assert score["appeared_item"] == 1.0
+    assert score["catalog_coverage"] == pytest.approx(1 / 3)
 
 
 def test_score_from_score_chunks_matches_matrix() -> None:

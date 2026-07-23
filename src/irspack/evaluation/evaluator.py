@@ -7,7 +7,7 @@ import numpy as np
 from scipy import sparse as sps
 
 from .._threading import get_n_threads
-from ..definitions import DenseScoreArray, InteractionMatrix
+from ..definitions import DenseScoreArray, InteractionMatrix, ProfileMatrix
 from ._core_evaluator import EvaluatorCore, Metrics
 
 if TYPE_CHECKING:
@@ -31,6 +31,7 @@ METRIC_NAMES = [
     "gini_index",
     "entropy",
     "appeared_item",
+    "catalog_coverage",
 ]
 
 
@@ -131,9 +132,18 @@ class Evaluator:
             recommendable_items_arg = [recommendable_items]
 
         self.core = EvaluatorCore(ground_truth, recommendable_items_arg)
+        if not recommendable_items_arg:
+            self.n_recommendable_items = ground_truth.shape[1]
+        elif len(recommendable_items_arg) == 1:
+            self.n_recommendable_items = len(recommendable_items_arg[0])
+        else:
+            self.n_recommendable_items = len(
+                {item for user_items in recommendable_items_arg for item in user_items}
+            )
         self.offset = offset
         self.n_users = ground_truth.shape[0]
         self.n_items = ground_truth.shape[1]
+        self.n_cold_items = 0
         self.target_metric = TargetMetric[target_metric]
         self.cutoff = cutoff
         self.target_metric_name = f"{self.target_metric.name}@{self.cutoff}"
@@ -313,6 +323,16 @@ class Evaluator:
                 result[f"{metric_name}@{cutoff}"] = score[metric_name]
         return result
 
+    def _metrics_as_dict(self, metrics: Metrics) -> Dict[str, float]:
+        result = metrics.as_dict()
+        if self.n_recommendable_items:
+            result["catalog_coverage"] = (
+                result["appeared_item"] / self.n_recommendable_items
+            )
+        else:
+            result["catalog_coverage"] = float("nan")
+        return result
+
     def _get_score_matrix_mask(self) -> Optional[sps.csr_matrix]:
         return self.masked_interactions
 
@@ -375,7 +395,7 @@ class Evaluator:
                 "score chunks did not cover the evaluator's "
                 f"n_users={self.n_users} rows: processed {chunk_start} rows."
             )
-        return [item.as_dict() for item in metrics]
+        return [self._metrics_as_dict(item) for item in metrics]
 
     def _get_scores_as_list(
         self, model: "BaseRecommender", cutoffs: List[int]
@@ -418,7 +438,7 @@ class Evaluator:
                 )
                 metrics[i].merge(chunked_metric)
 
-        return [item.as_dict() for item in metrics]
+        return [self._metrics_as_dict(item) for item in metrics]
 
 
 class EvaluatorWithColdUser(Evaluator):
@@ -426,9 +446,16 @@ class EvaluatorWithColdUser(Evaluator):
 
     Args:
         input_interaction (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-            The cold-users' known interaction with the items.
+            The cold-users' known interaction with the items used to train the
+            model.
         ground_truth (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
-            The held-out ground-truth.
+            The held-out ground-truth. When ``cold_item_features`` is supplied,
+            its columns must contain the training items first, followed by the
+            feature-only items.
+        cold_item_features:
+            Optional features for items absent from the training interaction
+            matrix. Supporting recommenders score these items after the
+            training-item columns. Other recommenders leave them unscoreable.
         offset (int): Where the validation target user block begins.
             Often the validation set is defined for a subset of users.
             When offset is not 0, we assume that the users with validation
@@ -450,6 +477,8 @@ class EvaluatorWithColdUser(Evaluator):
         masked_interactions (Optional[Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]], optional):
             If set, this matrix masks the score output of recommender model where it is non-zero.
             If none, the mask will be the training matrix (``input_interaction``) it self.
+            With ``cold_item_features``, this may have either the same columns
+            as ``input_interaction`` or the expanded columns of ``ground_truth``.
         n_threads (int, optional):
             Specifies the Number of threads to sort scores and compute the evaluation metrics.
             If ``None``, the environment variable ``"IRSPACK_NUM_THREADS_DEFAULT"`` will be looked up,
@@ -486,7 +515,38 @@ class EvaluatorWithColdUser(Evaluator):
         n_threads: Optional[int] = None,
         recall_with_cutoff: bool = False,
         mb_size: int = 1024,
+        cold_item_features: Optional[ProfileMatrix] = None,
     ):
+
+        if input_interaction.shape[0] != ground_truth.shape[0]:
+            raise ValueError(
+                "input_interaction and ground_truth must have the same number of rows."
+            )
+
+        n_cold_items = 0 if cold_item_features is None else cold_item_features.shape[0]
+        n_warm_items = input_interaction.shape[1]
+        if cold_item_features is not None:
+            expected_n_items = n_warm_items + n_cold_items
+            if ground_truth.shape[1] != expected_n_items:
+                raise ValueError(
+                    "ground_truth must have input_interaction.shape[1] + "
+                    "cold_item_features.shape[0] columns, but got "
+                    f"{ground_truth.shape[1]} instead of {expected_n_items}."
+                )
+            if (
+                masked_interactions is not None
+                and masked_interactions.shape == input_interaction.shape
+            ):
+                masked_interactions = sps.hstack(
+                    [
+                        masked_interactions,
+                        sps.csr_matrix(
+                            (masked_interactions.shape[0], n_cold_items),
+                            dtype=masked_interactions.dtype,
+                        ),
+                    ],
+                    format="csr",
+                )
 
         super().__init__(
             ground_truth,
@@ -501,10 +561,26 @@ class EvaluatorWithColdUser(Evaluator):
             mb_size=mb_size,
         )
         self.input_interaction = input_interaction
+        self.n_warm_items = n_warm_items
+        self.n_cold_items = n_cold_items
+        self.cold_item_features = cold_item_features
+        if n_cold_items:
+            self._input_interaction_mask = sps.hstack(
+                [
+                    input_interaction,
+                    sps.csr_matrix(
+                        (input_interaction.shape[0], n_cold_items),
+                        dtype=input_interaction.dtype,
+                    ),
+                ],
+                format="csr",
+            )
+        else:
+            self._input_interaction_mask = input_interaction.tocsr()
 
     def _get_score_matrix_mask(self) -> Optional[sps.csr_matrix]:
         if self.masked_interactions is None:
-            return self.input_interaction.tocsr()
+            return self._input_interaction_mask
         return self.masked_interactions
 
     def _get_scores_as_list(
@@ -513,7 +589,13 @@ class EvaluatorWithColdUser(Evaluator):
         cutoffs: List[int],
     ) -> List[Dict[str, float]]:
 
-        n_items = model.n_items
+        if model.n_items != self.n_warm_items:
+            raise ValueError(
+                "The model and input_interaction assume different numbers of "
+                "training items."
+            )
+
+        n_items = self.n_items
         metrics: List[Metrics] = []
         for c in cutoffs:
             metrics.append(Metrics(n_items))
@@ -522,16 +604,43 @@ class EvaluatorWithColdUser(Evaluator):
         n_validated = self.n_users
         block_end = block_start + n_validated
         mb_size = self.mb_size
+        score_with_item_features = None
+        if self.cold_item_features is not None:
+            try:
+                score_with_item_features = (
+                    model._create_cold_user_with_item_features_scorer(
+                        self.cold_item_features
+                    )
+                )
+            except NotImplementedError:
+                pass
 
         for chunk_start in range(block_start, block_end, mb_size):
             chunk_end = min(chunk_start + mb_size, block_end)
-            scores = model.get_score_cold_user(
-                self.input_interaction[chunk_start:chunk_end]
-            )
-            if self.masked_interactions is None:
-                mask = self.input_interaction[chunk_start:chunk_end]
+            input_chunk = self.input_interaction[chunk_start:chunk_end]
+            if score_with_item_features is not None:
+                try:
+                    scores = score_with_item_features(input_chunk)
+                except NotImplementedError:
+                    score_with_item_features = None
+                    scores = model.get_score_cold_user(input_chunk)
             else:
-                mask = self.masked_interactions[chunk_start:chunk_end]
+                scores = model.get_score_cold_user(input_chunk)
+            if scores.shape[1] == self.n_warm_items and self.n_cold_items:
+                scores = np.concatenate(
+                    [
+                        scores,
+                        np.full(
+                            (scores.shape[0], self.n_cold_items),
+                            -np.inf,
+                            dtype=scores.dtype,
+                        ),
+                    ],
+                    axis=1,
+                )
+            mask = self._get_score_matrix_mask()
+            assert mask is not None
+            mask = mask[chunk_start:chunk_end]
             scores[mask.nonzero()] = -np.inf
 
             if not scores.flags.c_contiguous:
@@ -545,4 +654,4 @@ class EvaluatorWithColdUser(Evaluator):
                 chunked_metric = self._get_metrics(scores, c, chunk_start)
                 metrics[i].merge(chunked_metric)
 
-        return [item.as_dict() for item in metrics]
+        return [self._metrics_as_dict(item) for item in metrics]

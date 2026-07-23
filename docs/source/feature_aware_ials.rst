@@ -104,54 +104,59 @@ align with the rows and columns of the training interaction matrix.
        loss_type="ORIGINAL",
    ).learn()
 
-Feature-only cold-start embeddings can then be computed from features.  These
-methods solve the iALS least-squares system with an empty interaction history,
-using the same solver type selected for training.  Consequently, the result
-includes the loss on unobserved interactions and is generally not exactly
-``A f`` or ``B g``:
+Evaluation with new items
+-------------------------
+
+Supply user history over training items, ground truth ordered as training items
+followed by new items, and the features of those new items:
 
 .. code-block:: python
 
-   new_user_features = ...  # shape: (n_new_users, n_user_features)
-   new_user_embedding = rec.compute_user_embedding_from_features(
-       new_user_features
-   )
-   scores = rec.get_score_cold_user_from_features(new_user_features)
+   from irspack import EvaluatorWithColdUser
 
-   new_item_features = ...  # shape: (n_new_items, n_item_features)
-   new_item_embedding = rec.compute_item_embedding_from_features(
-       new_item_features
-   )
-   item_scores = rec.get_score_from_item_features(
-       user_indices=[0, 1, 2],
-       item_features=new_item_features,
-   )
+   X_history = ...  # shape: (n_eval_users, n_training_items)
+   X_target = ...   # shape: (n_eval_users, n_training_items + n_new_items)
 
-If both interaction history and side features are available at prediction time,
-pass the feature matrix to the normal transform API.  This solves the same
-regularized least-squares problem used during training, instead of returning
-only ``A f`` or ``B g``.
+   evaluator = EvaluatorWithColdUser(
+       X_history,
+       X_target,
+       cold_item_features=new_item_features,
+       cutoff=20,
+   )
+   result = evaluator.get_scores(rec, [20])
+
+``EvaluatorWithColdUser`` prepares new-item embeddings once and reuses them
+while scoring user minibatches.  The result includes ``catalog_coverage@20``.
+Recommenders without feature-only item support remain valid baselines: their
+new-item scores are unavailable and are not included in recommendation counts.
+
+For scoring without an evaluator,
+``get_score_cold_user_with_item_features(X_history, new_item_features)``
+returns training-item columns followed by new-item columns in feature row
+order.
+
+Lower-level transforms
+----------------------
+
+Feature-only embeddings solve the iALS least-squares system with empty
+interaction history, so they include the loss on unobserved interactions and
+are generally not exactly ``A f`` or ``B g``:
 
 .. code-block:: python
 
-   X_new_user = ...  # shape: (n_new_users, n_items)
-   new_user_features = ...  # shape: (n_new_users, n_user_features)
+   new_user_embedding = rec.compute_user_embedding_from_features(new_user_features)
+   new_item_embedding = rec.compute_item_embedding_from_features(new_item_features)
 
-   hybrid_user_embedding = rec.compute_user_embedding(
-       X_new_user,
-       user_features=new_user_features,
+When both interaction history and features are available, pass both to the
+normal transform API:
+
+.. code-block:: python
+
+   user_embedding = rec.compute_user_embedding(
+       X_new_user, user_features=new_user_features
    )
-   hybrid_scores = rec.get_score_cold_user(
-       X_new_user,
-       user_features=new_user_features,
-   )
-
-   X_new_items = ...  # shape: (n_users, n_new_items)
-   new_item_features = ...  # shape: (n_new_items, n_item_features)
-
-   hybrid_item_embedding = rec.compute_item_embedding(
-       X_new_items,
-       item_features=new_item_features,
+   item_embedding = rec.compute_item_embedding(
+       X_new_items, item_features=new_item_features
    )
 
 Important parameters
@@ -188,8 +193,7 @@ split all interactions at global time boundaries, keep post-cutoff items out of
 the training interaction matrix, and fit every feature transformer on
 training-period data only.  Define the recommendation catalog from items that
 were eligible for exposure during each evaluation period.  Report accuracy on
-all targets, together with item diversity or coverage and the share of
-recommendations occupied by items unseen during training.
+all targets together with item diversity or coverage.
 
 MIND-small temporal example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -231,23 +235,14 @@ The experiment uses the following evaluation design:
   ``reg``; feature-aware iALS also searches ``lambda_item_feature``.  Early
   stopping selects the final number of training epochs.
 
-Validation and test both evaluate all target clicks together.  In addition to
-accuracy, diversity, and catalog coverage, ``new_item_ratio@20`` reports the
-fraction of the articles actually returned in top-20 recommendation lists that
-had no pre-cutoff clicks.  This directly shows how often the feature-aware
-model uses its new-item scoring capability without introducing separate
-warm-item and new-item evaluation tasks.  Test also includes TopPop as an
+Validation and test both evaluate all target clicks together and report
+accuracy, diversity, and catalog coverage.  Test also includes TopPop as an
 independent baseline.
 
-The example's ``TemporalTuningEvaluatorAdapter`` is intentionally separate
-from a normal ``EvaluatorWithColdUser``.  The trained model has columns only
-for warm items, whereas evaluation uses an expanded warm-plus-new item space.
-Evaluation items are ordered with warm items first, so the adapter can append
-feature-derived new-item scores to the model's normal warm-item scores during
-tuning.
-``ItemIDMapper.score_to_recommended_items_batch`` then applies the evaluation
-catalog, omits unscoreable items, and maps the top-ranked columns back to
-article IDs when computing ``new_item_ratio@20``.
+The example passes warm-item history, expanded ground truth, and new-item
+features directly to ``EvaluatorWithColdUser``.  The same evaluator is used for
+early stopping, final feature-aware evaluation, and ordinary iALS or TopPop
+baselines; no model-specific evaluation adapter is required.
 
 Example result
 ^^^^^^^^^^^^^^

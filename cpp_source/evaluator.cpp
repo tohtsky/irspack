@@ -1,12 +1,14 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
-#include <numeric>
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <map>
 #include <future>
 #include <iterator>
+#include <numeric>
 #include <string>
 #include <tuple>
 #include <unordered_set>
@@ -101,7 +103,9 @@ struct Metrics {
       entropy += -std::log(p) * p;
       gini += (2 * i - item_cnt.rows() + 1) * cnt;
     }
-    gini /= (item_cnt.rows() * total_item);
+    if (total_item > 0) {
+      gini /= (item_cnt.rows() * total_item);
+    }
 
     size_t denominator = valid_user > 0u ? valid_user : 1;
     result["total_user"] = total_user;
@@ -126,6 +130,9 @@ struct Metrics {
     size_t n_gt = gt_indices.size();
     size_t n_recommendable_items = score_and_index.size();
     this->valid_user += 1;
+    if (n_recommendable_items == 0) {
+      return;
+    }
     double dcg = 0;
     double idcg = std::accumulate(
         dcg_discount.begin(),
@@ -296,7 +303,6 @@ private:
     score_and_index.reserve(n_items);
     recommendation_index.reserve(n_items);
     vector<StorageIndex> intersection(cutoff);
-    size_t n_recommendable_items = std::min(cutoff, n_items);
     size_t score_rows = scores.rows();
     while (true) {
       auto u = current_index.fetch_add(1);
@@ -318,25 +324,31 @@ private:
       if (this->recommendable_items.empty()) {
         auto score_loc = buffer;
         for (StorageIndex _ = 0; _ < n_items_signed; _++) {
-          score_and_index.emplace_back(-*(score_loc++), _);
+          auto score = *(score_loc++);
+          if (score != -std::numeric_limits<ScoreFloatType>::infinity()) {
+            score_and_index.emplace_back(-score, _);
+          }
         }
       } else if (this->recommendable_items.size() == 1u) {
         const auto &rec_items_global = recommendable_items[0];
         for (auto i : rec_items_global) {
-          score_and_index.emplace_back(-buffer[i], i);
+          auto score = buffer[i];
+          if (score != -std::numeric_limits<ScoreFloatType>::infinity()) {
+            score_and_index.emplace_back(-score, i);
+          }
         }
-        n_recommendable_items = std::min(cutoff, recommendable_items[0].size());
       } else {
         const auto &item_local = this->recommendable_items[u_orig];
         for (auto i : item_local) {
-          score_and_index.emplace_back(-buffer[i], i);
+          auto score = buffer[i];
+          if (score != -std::numeric_limits<ScoreFloatType>::infinity()) {
+            score_and_index.emplace_back(-score, i);
+          }
         }
-        n_recommendable_items = std::min(cutoff, item_local.size());
       }
 
-      if (n_recommendable_items == 0) {
-        continue;
-      }
+      size_t n_recommendable_items =
+          std::min(cutoff, score_and_index.size());
 
       std::partial_sort(score_and_index.begin(),
                         score_and_index.begin() + n_recommendable_items,
