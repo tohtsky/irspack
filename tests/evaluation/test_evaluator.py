@@ -270,3 +270,71 @@ def test_score_from_score_matrix_cold_user_masks_input() -> None:
         ]
         == 1.0
     )
+
+
+def test_score_from_score_chunks_matches_matrix() -> None:
+    rns = np.random.RandomState(0)
+    U, I = 11, 7
+    scores = rns.randn(U, I).astype(np.float64)
+    original_scores = scores.copy()
+    X_gt = sps.csr_matrix((rns.rand(U, I) >= 0.5).astype(np.float64))
+    mask = sps.csr_matrix((rns.rand(U, I) >= 0.5).astype(np.float64))
+    evaluator = Evaluator(X_gt, cutoff=3, masked_interactions=mask, mb_size=2)
+
+    expected = evaluator.get_scores_from_score_matrix(scores, [1, 3])
+
+    # Several non-uniform chunk sizes; total still U.
+    split_points = [0, 1, 1, 3, 3, 6, 10, 11]
+    chunks = [
+        scores[split_points[i] : split_points[i + 1]]
+        for i in range(len(split_points) - 1)
+        if split_points[i] != split_points[i + 1]
+    ]
+    got = evaluator.get_scores_from_score_chunks(iter(chunks), [1, 3])
+    for key, value in expected.items():
+        assert got[key] == pytest.approx(value, abs=1e-12), key
+    np.testing.assert_array_equal(scores, original_scores)
+
+    # chunked input must not mutate caller arrays either
+    seen = [c.copy() for c in chunks]
+    evaluator.get_scores_from_score_chunks(iter(chunks), [3])
+    for original, mutated in zip(seen, chunks):
+        np.testing.assert_array_equal(original, mutated)
+
+
+def test_score_from_score_chunks_cold_user_masks_input() -> None:
+    input_interaction = sps.csr_matrix([[1, 0]])
+    ground_truth = sps.csr_matrix([[0, 1]])
+    evaluator = EvaluatorWithColdUser(input_interaction, ground_truth, cutoff=1)
+
+    assert (
+        evaluator.get_score_from_score_chunks(
+            iter([np.array([[1.0, 0.0]], dtype=np.float64)])
+        )["recall"]
+        == 1.0
+    )
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_score_from_score_chunks_errors(dtype: type) -> None:
+    U, I = 3, 4
+    X_gt = sps.csr_matrix(np.eye(U, I, dtype=np.float64))
+    evaluator = Evaluator(X_gt, cutoff=2)
+
+    # wrong number of columns
+    with pytest.raises(ValueError, match="n_items"):
+        evaluator.get_score_from_score_chunks(iter([np.zeros((U, I - 1), dtype=dtype)]))
+    # wrong dtype
+    with pytest.raises(ValueError, match="dtype"):
+        evaluator.get_score_from_score_chunks(
+            iter([np.zeros((U, I), dtype=np.float16)])
+        )
+    # too few rows
+    with pytest.raises(ValueError, match="did not cover"):
+        evaluator.get_score_from_score_chunks(iter([np.zeros((U - 1, I), dtype=dtype)]))
+    # too many rows
+    with pytest.raises(ValueError, match="more rows"):
+        evaluator.get_score_from_score_chunks(iter([np.zeros((U + 1, I), dtype=dtype)]))
+    # not a 2-D array (1-D ndarray slipped into the iterator)
+    with pytest.raises(ValueError, match="2-D ndarray"):
+        evaluator.get_score_from_score_chunks(iter([np.zeros(I, dtype=dtype)]))

@@ -177,3 +177,182 @@ Limitations
   ``compute_user_embedding(..., user_features=...)`` and
   ``compute_item_embedding(..., item_features=...)`` methods additionally
   account for observed interactions.
+
+Evaluation guidance
+-------------------
+
+Random interaction holdouts often understate the benefit of item features:
+nearly every evaluated item is already warm and ordinary collaborative
+filtering can learn its embedding directly.  For a production-like comparison,
+split all interactions at global time boundaries, keep post-cutoff items out of
+the training interaction matrix, and fit every feature transformer on
+training-period data only.  Define the recommendation catalog from items that
+were eligible for exposure during each evaluation period.  Report warm-item
+and new-item accuracy separately, as well as an item diversity or coverage
+metric.
+
+MIND-small temporal example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``MINDDataManager`` provides a compact public dataset suited to this setup.
+MIND-small has timestamped click impressions and article category, title,
+abstract, linked-entity, and knowledge-graph features.  Its official training
+and development archives are chronologically separated.  Note that the
+``history`` field does not contain timestamps for individual clicks;
+``read_interaction()`` therefore uses only timestamped positive impressions so
+that it does not invent event times or leak future information.
+
+The complete experiment is in
+``examples/mind/mind_small_feature_aware_ials.py``.  Run it with:
+
+.. code-block:: console
+
+   uv run python examples/mind/mind_small_feature_aware_ials.py \
+       --n-trials 100 \
+       --n-threads 8 \
+       --output examples/mind/mind_feature_aware_ials_test.json
+
+The experiment uses the following evaluation design:
+
+- The final calendar day of the official train archive is validation.  The
+  chronologically later official dev archive is test.
+- The recommendation catalog contains only articles exposed in at least one
+  impression during the corresponding evaluation period.  Pre-cutoff items
+  outside this catalog remain available for user-history and embedding lookup,
+  but cannot be recommended.
+- The training interaction matrix contains only items clicked before the
+  cutoff.  Post-cutoff items are not inserted as zero-interaction columns.
+- TF-IDF, truncated SVD, and category encoders are fitted only on pre-cutoff
+  items.  The feature-aware model creates embeddings for post-cutoff items
+  only when it is evaluated.
+- Only users with pre-cutoff history are included.  Fully cold users and their
+  fallback policy are intentionally a separate problem.
+- Ordinary and feature-aware iALS are tuned independently with
+  ``IALSRecommender.tune``.  Both search ``n_components``, ``alpha0``, and
+  ``reg``; feature-aware iALS also searches ``lambda_item_feature``.  Early
+  stopping selects the final number of training epochs.
+
+Validation reports ``all_targets`` and ``new_item_targets``.  Test also reports
+``warm_item_targets`` and includes TopPop as an independent baseline.  The
+segments restrict the target items, not the recommendation catalog: for
+example, ``warm_item_targets`` still ranks warm and new candidate articles
+together.  This shows whether side information improves ranking of known items
+instead of measuring only the ability to score new ones.
+
+Example result
+^^^^^^^^^^^^^^
+
+The following result was obtained with 100 tuning trials per model.  These are
+test-period metrics at cutoff 20; they are an example from one dataset and
+temporal split, not a general performance guarantee.
+
+.. list-table:: Accuracy on all test targets
+   :header-rows: 1
+   :widths: 28 24 24 24
+
+   * - Metric
+     - TopPop
+     - iALS
+     - Feature-aware iALS
+   * - NDCG@20
+     - 0.00187
+     - 0.00516
+     - 0.00982
+   * - Recall@20
+     - 0.00511
+     - 0.01127
+     - 0.02221
+   * - Hit@20
+     - 0.01010
+     - 0.02288
+     - 0.04510
+
+Feature-aware iALS achieves 1.90 times the NDCG of ordinary iALS and 5.26
+times that of TopPop on all targets.  Recall and hit rate are also approximately
+doubled relative to ordinary iALS.
+
+.. list-table:: Accuracy on warm-item test targets
+   :header-rows: 1
+   :widths: 28 24 24 24
+
+   * - Metric
+     - TopPop
+     - iALS
+     - Feature-aware iALS
+   * - NDCG@20
+     - 0.00347
+     - 0.00956
+     - 0.01652
+   * - Recall@20
+     - 0.01024
+     - 0.02257
+     - 0.03886
+   * - Hit@20
+     - 0.01535
+     - 0.03480
+     - 0.05988
+
+On warm-item targets, feature-aware iALS improves all three accuracy metrics by
+approximately 1.72 times over ordinary iALS.  The overall gain therefore does
+not come only from making post-cutoff items scoreable: feature regularization
+also improves ranking of items that already have collaborative embeddings.
+
+.. list-table:: Accuracy on new-item test targets
+   :header-rows: 1
+   :widths: 28 24 24 24
+
+   * - Metric
+     - TopPop
+     - iALS
+     - Feature-aware iALS
+   * - NDCG@20
+     - 0
+     - 0
+     - 0.00171
+   * - Recall@20
+     - 0
+     - 0
+     - 0.00561
+   * - Hit@20
+     - 0
+     - 0
+     - 0.00922
+
+TopPop and ordinary iALS cannot score items absent from training, so their
+new-item accuracy is zero by construction.  Feature-aware iALS makes these
+items recommendable, but the 0.92% hit rate also shows that cold-item ranking
+remains difficult.  The result demonstrates a useful capability rather than a
+solved cold-start problem.
+
+.. list-table:: Recommendation diversity on all test targets
+   :header-rows: 1
+   :widths: 28 24 24 24
+
+   * - Metric
+     - TopPop
+     - iALS
+     - Feature-aware iALS
+   * - Gini index@20 (lower is better)
+     - 0.9982
+     - 0.9783
+     - 0.9305
+   * - Entropy@20 (higher is better)
+     - 3.071
+     - 5.776
+     - 6.897
+   * - Catalog coverage@20
+     - 0.0050
+     - 0.1084
+     - 0.5364
+
+In this run, the accuracy gain does not come from concentrating recommendations
+on a smaller set of popular articles.  Feature-aware iALS covers 53.6% of the
+period catalog, compared with 10.8% for ordinary iALS and 0.5% for TopPop, and
+also improves both Gini index and entropy.
+
+The period-level exposure catalog is still an approximation.  It uses the
+union of impressions from the evaluation period for every user, whereas a
+strict logged-policy evaluation would rank only the candidates in each
+individual impression.  Results should also be checked across additional
+temporal splits, random seeds, and content representations before drawing a
+general conclusion about feature-aware iALS.

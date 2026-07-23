@@ -1,7 +1,7 @@
 import warnings
 from collections import OrderedDict
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 from scipy import sparse as sps
@@ -257,6 +257,62 @@ class Evaluator:
                 result[f"{metric_name}@{cutoff}"] = score[metric_name]
         return result
 
+    def get_score_from_score_chunks(
+        self, score_chunks: Iterable[DenseScoreArray]
+    ) -> Dict[str, float]:
+        r"""Compute metrics from an iterable of consecutive score row-blocks.
+
+        This is the streaming counterpart of :meth:`get_score_from_score_matrix`.
+        Each yielded array must have shape ``(n_block_users, n_items)`` and the
+        blocks must be supplied in the same row order as ``ground_truth``; the
+        concatenated rows must add up to :attr:`n_users`. This avoids
+        materializing the full ``(n_users, n_items)`` score matrix: a caller can
+        stream blocks from a model and discard each block once it has been scored.
+
+        Each block is copied before any mask is applied, so caller-owned arrays
+        are never modified.
+
+        Args:
+            score_chunks: An iterable yielding user-by-item score blocks in row
+                order. Blocks may have any positive number of rows; their dtype
+                must be float32 or float64.
+
+        Returns:
+            Metric values for this evaluator's default cutoff.
+        """
+        return self._get_scores_from_score_chunks_as_list(score_chunks, [self.cutoff])[
+            0
+        ]
+
+    def get_scores_from_score_chunks(
+        self,
+        score_chunks: Iterable[DenseScoreArray],
+        cutoffs: List[int],
+    ) -> Dict[str, float]:
+        r"""Compute metrics at multiple cutoffs from consecutive score row-blocks.
+
+        This is the streaming counterpart of :meth:`get_scores_from_score_matrix`.
+        See :meth:`get_score_from_score_chunks` for the contract on
+        ``score_chunks``.
+
+        Args:
+            score_chunks: An iterable yielding user-by-item score blocks in row
+                order. Blocks may have any positive number of rows; their dtype
+                must be float32 or float64.
+            cutoffs: Cutoffs at which to compute metrics.
+
+        Returns:
+            Metric values keyed by metric name and cutoff.
+        """
+        result: Dict[str, float] = OrderedDict()
+        scores_as_list = self._get_scores_from_score_chunks_as_list(
+            score_chunks, cutoffs
+        )
+        for cutoff, score in zip(cutoffs, scores_as_list):
+            for metric_name in METRIC_NAMES:
+                result[f"{metric_name}@{cutoff}"] = score[metric_name]
+        return result
+
     def _get_score_matrix_mask(self) -> Optional[sps.csr_matrix]:
         return self.masked_interactions
 
@@ -271,17 +327,54 @@ class Evaluator:
         if scores.dtype not in (np.dtype("float32"), np.dtype("float64")):
             raise ValueError("score matrix must have dtype float32 or float64.")
 
-        # Masking scores must not alter an array owned by the caller.
-        scores = scores.copy(order="C")
+        mb_size = self.mb_size
+        chunks = (
+            scores[chunk_start : chunk_start + mb_size]
+            for chunk_start in range(0, self.n_users, mb_size)
+        )
+        return self._get_scores_from_score_chunks_as_list(chunks, cutoffs)
+
+    def _get_scores_from_score_chunks_as_list(
+        self,
+        score_chunks: Iterable[DenseScoreArray],
+        cutoffs: List[int],
+    ) -> List[Dict[str, float]]:
         mask = self._get_score_matrix_mask()
         metrics = [Metrics(self.n_items) for _ in cutoffs]
-        for chunk_start in range(0, self.n_users, self.mb_size):
-            chunk_end = min(chunk_start + self.mb_size, self.n_users)
-            score_chunk = scores[chunk_start:chunk_end]
+        chunk_start = 0
+        for score_chunk in score_chunks:
+            if not isinstance(score_chunk, np.ndarray) or score_chunk.ndim != 2:
+                raise ValueError(
+                    "each score chunk must be a 2-D ndarray, got "
+                    f"{type(score_chunk).__name__}."
+                )
+            if score_chunk.shape[1] != self.n_items:
+                raise ValueError(
+                    "score chunk must have n_items="
+                    f"{self.n_items} columns, got {score_chunk.shape[1]}."
+                )
+            if score_chunk.dtype not in (np.dtype("float32"), np.dtype("float64")):
+                raise ValueError("score chunk must have dtype float32 or float64.")
+            chunk_end = chunk_start + score_chunk.shape[0]
+            if chunk_end > self.n_users:
+                raise ValueError(
+                    "score chunks supplied more rows than the evaluator's "
+                    f"n_users={self.n_users}: processed {chunk_end} rows."
+                )
+            if score_chunk.shape[0] == 0:
+                continue
+            # Masking scores must not alter an array owned by the caller.
+            score_chunk = score_chunk.copy(order="C")
             if mask is not None:
                 score_chunk[mask[chunk_start:chunk_end].nonzero()] = -np.inf
             for i, cutoff in enumerate(cutoffs):
                 metrics[i].merge(self._get_metrics(score_chunk, cutoff, chunk_start))
+            chunk_start = chunk_end
+        if chunk_start != self.n_users:
+            raise ValueError(
+                "score chunks did not cover the evaluator's "
+                f"n_users={self.n_users} rows: processed {chunk_start} rows."
+            )
         return [item.as_dict() for item in metrics]
 
     def _get_scores_as_list(
