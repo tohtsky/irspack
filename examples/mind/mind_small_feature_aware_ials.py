@@ -22,6 +22,7 @@ from sklearn.preprocessing import Normalizer, OneHotEncoder
 
 from irspack import EvaluatorWithColdUser, IALSRecommender, df_to_sparse
 from irspack.dataset import MINDDataManager
+from irspack.utils import ItemIDMapper
 
 TRAIN_EPOCHS = 16
 # Keep the ranking cutoff in one place because it is used both when constructing
@@ -31,6 +32,7 @@ METRICS_TO_REPORT = (
     "ndcg@20",
     "recall@20",
     "hit@20",
+    "new_item_ratio@20",
     "gini_index@20",
     "entropy@20",
     "catalog_coverage@20",
@@ -39,24 +41,22 @@ METRICS_TO_REPORT = (
 
 @dataclass
 class TemporalEvaluationContext:
-    """Data, index mappings, and evaluators for one temporal evaluation split.
+    """Data and evaluator for one temporal evaluation split.
 
     ``X_train`` and the trained model use only warm items.  Evaluation matrices
-    use ``eval_item_ids`` instead, which is the union of warm items and the
-    evaluation period's candidate catalog.  The index arrays below bridge those
-    two item spaces without adding zero-interaction columns to the training
-    matrix.
+    use ``eval_item_ids``, ordered as all warm items followed by cold candidate
+    items.  Evaluation scores can therefore concatenate their warm and cold
+    parts without adding zero-interaction columns to ``X_train``.
     """
 
     X_train: sps.csr_matrix
     train_item_popularity: np.ndarray
     eval_item_ids: np.ndarray
     item_features_train: sps.csr_matrix
-    item_features_eval: sps.csr_matrix
-    warm_item_indices: np.ndarray
-    cold_item_indices: np.ndarray
+    item_features_cold: sps.csr_matrix
+    n_warm_items: int
     recommendable_item_indices: np.ndarray
-    evaluators: Dict[str, EvaluatorWithColdUser]
+    evaluator: EvaluatorWithColdUser
 
 
 def make_item_features(
@@ -141,9 +141,11 @@ def build_evaluation_context(
     # Recommend only articles exposed during this evaluation period.
     candidate_item_ids = evaluation_impressions["item_id"].unique()
 
-    # Evaluation needs warm items for history lookup plus all recommendable
-    # candidates.  Both groups need metadata for feature construction.
-    eval_item_ids = np.union1d(train_item_ids, candidate_item_ids)
+    # Keep warm items first so scoring can concatenate the model's native
+    # scores with feature-derived cold-item scores.
+    cold_item_ids = np.setdiff1d(candidate_item_ids, train_item_ids)
+    eval_item_ids = np.concatenate([train_item_ids, cold_item_ids])
+    n_warm_items = len(train_item_ids)
     metadata_item_ids = item_info.index.to_numpy()
     if np.setdiff1d(eval_item_ids, metadata_item_ids).size:
         raise RuntimeError("Some required items have no MIND article metadata.")
@@ -154,7 +156,6 @@ def build_evaluation_context(
     X_train, _, _ = df_to_sparse(
         pre_cutoff_events, "user_id", "item_id", item_ids=train_item_ids
     )
-    X_train = X_train.tocsr().astype(np.float32)
     # Multiple clicks express implicit preference, not increasing interaction
     # strength in this experiment, so collapse every observed pair to one.
     X_train.data[:] = 1
@@ -181,70 +182,32 @@ def build_evaluation_context(
     X_history.data[:] = 1
     X_target.data[:] = 1
 
-    # Translate item IDs into columns of the expanded evaluation matrices.
-    eval_item_index = pd.Series(np.arange(len(eval_item_ids)), index=eval_item_ids)
-    warm_item_indices = eval_item_index.loc[train_item_ids].to_numpy(dtype=np.int64)
-    recommendable_item_indices = eval_item_index.loc[candidate_item_ids].to_numpy(
-        dtype=np.int64
-    )
+    recommendable_item_indices = pd.Index(eval_item_ids).get_indexer(candidate_item_ids)
     # This example evaluates item cold-start only.  Users without an interaction
     # on a trainable (warm) item cannot receive an iALS user embedding and are
     # intentionally excluded.
-    has_history = np.asarray(X_history[:, warm_item_indices].getnnz(axis=1) > 0)
+    has_history = np.asarray(X_history[:, :n_warm_items].getnnz(axis=1) > 0)
     X_history = X_history[has_history]
     X_target = X_target[has_history]
     if X_history.shape[0] == 0:
         raise RuntimeError("The evaluation period has no users with history.")
 
-    # Produce a target matrix containing only post-cutoff items.  It is used to
-    # measure the capability that ordinary iALS and TopPop do not have.
-    cold_target = X_target.copy().tolil()
-    cold_target[:, warm_item_indices] = 0
-    cold_target = cold_target.tocsr()
-    has_cold_target = np.asarray(cold_target.getnnz(axis=1) > 0)
-    if not has_cold_target.any():
-        raise RuntimeError("No users with history have a new-item target.")
-
-    # All target segments use the same full candidate catalog.  Segmenting
-    # targets must not make the ranking task easier by shrinking its candidates.
     evaluator_args = {
         "cutoff": EVALUATION_CUTOFF,
         "recommendable_items": recommendable_item_indices.tolist(),
         "mb_size": 256,
     }
-    cold_item_indices = np.setdiff1d(np.arange(len(eval_item_ids)), warm_item_indices)
-    # Symmetrically isolate warm targets and restrict this evaluator to users
-    # who actually have at least one warm positive in the period.
-    warm_target = X_target.copy().tolil()
-    warm_target[:, cold_item_indices] = 0
-    warm_target = warm_target.tocsr()
-    has_warm_target = np.asarray(warm_target.getnnz(axis=1) > 0)
-    evaluators = {
-        "all_targets": EvaluatorWithColdUser(X_history, X_target, **evaluator_args),
-        "new_item_targets": EvaluatorWithColdUser(
-            X_history[has_cold_target],
-            cold_target[has_cold_target],
-            **evaluator_args,
-        ),
-        "warm_item_targets": EvaluatorWithColdUser(
-            X_history[has_warm_target],
-            warm_target[has_warm_target],
-            **evaluator_args,
-        ),
-    }
-    # Fit one leakage-safe feature pipeline and slice warm rows for training.
-    # Cold rows are retained only for feature-based inference at evaluation.
-    item_features_eval = make_item_features(item_info, train_item_ids, eval_item_ids)
+    # Feature rows have the same warm-then-cold ordering as ``eval_item_ids``.
+    item_features = make_item_features(item_info, train_item_ids, eval_item_ids)
     return TemporalEvaluationContext(
         X_train=X_train,
         train_item_popularity=train_item_popularity,
         eval_item_ids=eval_item_ids,
-        item_features_train=item_features_eval[warm_item_indices],
-        item_features_eval=item_features_eval,
-        warm_item_indices=warm_item_indices,
-        cold_item_indices=cold_item_indices,
+        item_features_train=item_features[:n_warm_items],
+        item_features_cold=item_features[n_warm_items:],
+        n_warm_items=n_warm_items,
         recommendable_item_indices=recommendable_item_indices,
-        evaluators=evaluators,
+        evaluator=EvaluatorWithColdUser(X_history, X_target, **evaluator_args),
     )
 
 
@@ -274,76 +237,107 @@ def train_model(
 def _metrics_from_scores(
     evaluator: EvaluatorWithColdUser,
     score_chunks: Iterable[np.ndarray],
-    n_recommendable: int,
+    context: TemporalEvaluationContext,
 ) -> Dict[str, float]:
     """Convert streamed score matrices into the metrics used by this example."""
-    scores = evaluator.get_scores_from_score_chunks(score_chunks, [EVALUATION_CUTOFF])
+    item_mapper = ItemIDMapper(context.eval_item_ids.tolist())
+    recommendable_item_ids = context.eval_item_ids[
+        context.recommendable_item_indices
+    ].tolist()
+    new_item_ids = set(context.eval_item_ids[context.n_warm_items :])
+    n_new_item_recommendations = 0
+    n_recommendations = 0
+    chunk_start = 0
+
+    def chunks_with_new_item_count() -> Iterator[np.ndarray]:
+        nonlocal chunk_start, n_new_item_recommendations, n_recommendations
+        for score_chunk in score_chunks:
+            chunk_end = chunk_start + score_chunk.shape[0]
+            ranking_scores = score_chunk.copy()
+            ranking_scores[
+                evaluator.input_interaction[chunk_start:chunk_end].nonzero()
+            ] = -np.inf
+            recommendations = item_mapper.score_to_recommended_items_batch(
+                ranking_scores,
+                cutoff=EVALUATION_CUTOFF,
+                allowed_item_ids=recommendable_item_ids,
+                n_threads=evaluator.n_threads,
+            )
+            n_new_item_recommendations += sum(
+                item_id in new_item_ids
+                for user_recommendations in recommendations
+                for item_id, _ in user_recommendations
+            )
+            n_recommendations += sum(map(len, recommendations))
+            chunk_start = chunk_end
+            yield score_chunk
+
+    scores = evaluator.get_scores_from_score_chunks(
+        chunks_with_new_item_count(), [EVALUATION_CUTOFF]
+    )
     # ``appeared_item`` is a count; dividing by the eligible catalog size makes
     # coverage comparable across validation and test periods.
-    scores["catalog_coverage@20"] = scores["appeared_item@20"] / n_recommendable
+    scores["catalog_coverage@20"] = scores["appeared_item@20"] / len(
+        context.recommendable_item_indices
+    )
+    scores["new_item_ratio@20"] = (
+        n_new_item_recommendations / n_recommendations
+        if n_recommendations
+        else float("nan")
+    )
     return {name: scores[name] for name in METRICS_TO_REPORT}
 
 
 def score_model(
     model: IALSRecommender,
     context: TemporalEvaluationContext,
-    evaluator: EvaluatorWithColdUser,
     feature_aware: bool,
 ) -> Dict[str, float]:
     """Evaluate in batches without materializing the full MIND score matrix.
 
-    The evaluator owns history in the expanded evaluation-item space, whereas
-    the model was fitted in warm-item space.  The explicit index projections in
-    this function keep those spaces aligned.
+    Evaluation items are ordered warm-first, so each score chunk is simply the
+    model's native warm-item scores followed by its cold-item scores.
     """
+    evaluator = context.evaluator
+    n_cold_items = context.item_features_cold.shape[0]
 
     def chunks() -> Iterator[np.ndarray]:
         # A cold item has no collaborative factor.  Feature-aware iALS can infer
         # one from its metadata; ordinary iALS intentionally leaves it unscored.
         cold_embedding = None
-        if feature_aware and context.cold_item_indices.size:
+        if feature_aware and n_cold_items:
             cold_embedding = model.compute_item_embedding_from_features(
-                context.item_features_eval[context.cold_item_indices]
+                context.item_features_cold
             )
         for begin in range(0, evaluator.n_users, evaluator.mb_size):
             end = min(begin + evaluator.mb_size, evaluator.n_users)
             history = evaluator.input_interaction[begin:end]
-            # Project each user's history onto the warm columns understood by
-            # the fitted model before solving for a user embedding.
             user_embedding = model.compute_user_embedding(
-                history[:, context.warm_item_indices]
+                history[:, : context.n_warm_items]
             )
-            # ``-inf`` makes every unsupported item impossible to recommend.
-            # It also avoids accidentally treating a missing score as zero.
-            scores = np.full(
-                (end - begin, len(context.eval_item_ids)),
+            warm_scores = model.get_score_from_user_embedding(user_embedding)
+            cold_scores = np.full(
+                (end - begin, n_cold_items),
                 -np.inf,
                 dtype=user_embedding.dtype,
             )
-            scores[:, context.warm_item_indices] = model.get_score_from_user_embedding(
-                user_embedding
-            )
             if cold_embedding is not None:
-                # Warm-user × cold-item scores use the same latent-space inner
-                # product as ordinary iALS once feature-derived factors exist.
-                scores[:, context.cold_item_indices] = user_embedding.dot(
-                    cold_embedding.T
-                )
-            yield scores
+                cold_scores = user_embedding.dot(cold_embedding.T)
+            yield np.concatenate([warm_scores, cold_scores], axis=1)
 
-    return _metrics_from_scores(
-        evaluator, chunks(), len(context.recommendable_item_indices)
-    )
+    return _metrics_from_scores(evaluator, chunks(), context)
 
 
-def score_top_pop(
-    context: TemporalEvaluationContext, evaluator: EvaluatorWithColdUser
-) -> Dict[str, float]:
+def score_top_pop(context: TemporalEvaluationContext) -> Dict[str, float]:
     """Score every user with the same pre-cutoff item-popularity vector."""
-    # Cold items have no training clicks, so TopPop cannot rank them.  Warm
-    # popularity values are mapped into the expanded evaluation item space.
-    popularity = np.full(len(context.eval_item_ids), -np.inf, dtype=np.float32)
-    popularity[context.warm_item_indices] = context.train_item_popularity
+    evaluator = context.evaluator
+    # Cold items have no training clicks, so TopPop cannot rank them.
+    cold_popularity = np.full(
+        len(context.eval_item_ids) - context.n_warm_items,
+        -np.inf,
+        dtype=np.float32,
+    )
+    popularity = np.concatenate([context.train_item_popularity, cold_popularity])
 
     def chunks() -> Iterator[np.ndarray]:
         for begin in range(0, evaluator.n_users, evaluator.mb_size):
@@ -352,20 +346,25 @@ def score_top_pop(
             # memory behavior as model-based scoring.
             yield np.repeat(popularity[None, :], end - begin, axis=0)
 
-    return _metrics_from_scores(
-        evaluator, chunks(), len(context.recommendable_item_indices)
-    )
+    return _metrics_from_scores(evaluator, chunks(), context)
 
 
-class TemporalTuningEvaluator(EvaluatorWithColdUser):
-    """Connect temporal evaluation-context scoring to recommender tuning."""
+class TemporalTuningEvaluatorAdapter(EvaluatorWithColdUser):
+    """Adapt temporal catalog scoring to the recommender tuning interface.
+
+    A normal ``EvaluatorWithColdUser`` cannot be passed directly to tuning
+    here: the fitted model has only warm-item columns, while evaluation uses an
+    expanded warm-plus-cold item space.  This adapter delegates scoring to
+    ``score_model``, which concatenates scores in that expanded space and
+    creates cold-item embeddings from features when supported.
+    """
 
     def __init__(self, context: TemporalEvaluationContext, feature_aware: bool):
         self.context = context
         self.feature_aware = feature_aware
         # ``IALSRecommender.tune`` reads these evaluator attributes directly.
-        # Reuse their canonical definitions from the all-target evaluator.
-        evaluator = context.evaluators["all_targets"]
+        # Reuse their canonical definitions from the temporal evaluator.
+        evaluator = context.evaluator
         self.target_metric = evaluator.target_metric
         self.cutoff = evaluator.cutoff
         self.target_metric_name = evaluator.target_metric_name
@@ -373,12 +372,7 @@ class TemporalTuningEvaluator(EvaluatorWithColdUser):
     def get_score(self, model: IALSRecommender) -> Dict[str, float]:
         # Tuning follows the production-like catalog scoring path, including
         # feature-derived cold-item factors for the feature-aware variant.
-        scores = score_model(
-            model,
-            self.context,
-            self.context.evaluators["all_targets"],
-            self.feature_aware,
-        )
+        scores = score_model(model, self.context, self.feature_aware)
         # The tuning interface expects unqualified metric names because it
         # already knows the evaluator cutoff.
         return {name.split("@", 1)[0]: value for name, value in scores.items()}
@@ -419,7 +413,7 @@ def tune(
         fixed_parameters["item_features"] = context.item_features_train
     return IALSRecommender.tune(
         context.X_train,
-        TemporalTuningEvaluator(context, feature_aware),
+        TemporalTuningEvaluatorAdapter(context, feature_aware),
         n_trials=n_trials,
         tuning_random_seed=seed,
         parameter_suggest_function=suggest_parameters,
@@ -433,12 +427,9 @@ def evaluate_period(
     context: TemporalEvaluationContext,
     baseline_config: Dict[str, Any],
     feature_config: Dict[str, Any],
-    segment_names: Tuple[str, ...] = ("all_targets", "new_item_targets"),
     include_top_pop: bool = False,
 ) -> Dict[str, Any]:
-    """Train both iALS variants and evaluate each requested target segment."""
-    # Models are trained once per evaluation context and reused across segments.
-    # A segment changes only relevant targets/users, never fitting or candidates.
+    """Train both iALS variants and evaluate all targets in the period."""
     models = {
         "iALS": (
             train_model(context, baseline_config, False),
@@ -449,29 +440,25 @@ def evaluate_period(
             True,
         ),
     }
-    segments: Dict[str, Any] = {}
-    for segment_name in segment_names:
-        evaluator = context.evaluators[segment_name]
-        # Preserve whether a model supports feature-derived cold embeddings;
-        # this flag controls only scoring, not target construction.
-        scores_by_model = {
-            model_name: score_model(model, context, evaluator, feature_aware)
-            for model_name, (model, feature_aware) in models.items()
+    # Preserve whether a model supports feature-derived cold embeddings; this
+    # flag controls only scoring, not targets or candidates.
+    scores_by_model = {
+        model_name: score_model(model, context, feature_aware)
+        for model_name, (model, feature_aware) in models.items()
+    }
+    if include_top_pop:
+        # TopPop is reported on test as an independent non-personalized
+        # reference rather than participating in hyperparameter tuning.
+        scores_by_model["TopPop"] = score_top_pop(context)
+    # Reorient model-first score dictionaries into metric-first JSON, which
+    # makes side-by-side model comparisons straightforward.
+    return {
+        metric: {
+            model_name: model_scores[metric]
+            for model_name, model_scores in scores_by_model.items()
         }
-        if include_top_pop:
-            # TopPop is reported on test as an independent non-personalized
-            # reference rather than participating in hyperparameter tuning.
-            scores_by_model["TopPop"] = score_top_pop(context, evaluator)
-        # Reorient model-first score dictionaries into metric-first JSON, which
-        # makes side-by-side model comparisons straightforward.
-        segments[segment_name] = {
-            metric: {
-                model_name: model_scores[metric]
-                for model_name, model_scores in scores_by_model.items()
-            }
-            for metric in METRICS_TO_REPORT
-        }
-    return segments
+        for metric in METRICS_TO_REPORT
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -540,8 +527,6 @@ if __name__ == "__main__":
         dev_impressions,
         all_item_info,
     )
-    # Validation reports the all/new views used during model selection.  Test
-    # additionally splits out warm targets and includes the TopPop reference.
     results = {
         "validation_start": validation_start.isoformat(),
         "model_config": {
@@ -555,11 +540,6 @@ if __name__ == "__main__":
             test_context,
             baseline_config,
             feature_config,
-            segment_names=(
-                "all_targets",
-                "warm_item_targets",
-                "new_item_targets",
-            ),
             include_top_pop=True,
         ),
     }

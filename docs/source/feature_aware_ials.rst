@@ -187,9 +187,9 @@ filtering can learn its embedding directly.  For a production-like comparison,
 split all interactions at global time boundaries, keep post-cutoff items out of
 the training interaction matrix, and fit every feature transformer on
 training-period data only.  Define the recommendation catalog from items that
-were eligible for exposure during each evaluation period.  Report warm-item
-and new-item accuracy separately, as well as an item diversity or coverage
-metric.
+were eligible for exposure during each evaluation period.  Report accuracy on
+all targets, together with item diversity or coverage and the share of
+recommendations occupied by items unseen during training.
 
 MIND-small temporal example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -209,7 +209,6 @@ The complete experiment is in
 
    uv run python examples/mind/mind_small_feature_aware_ials.py \
        --n-trials 100 \
-       --n-threads 8 \
        --output examples/mind/mind_feature_aware_ials_test.json
 
 The experiment uses the following evaluation design:
@@ -232,12 +231,23 @@ The experiment uses the following evaluation design:
   ``reg``; feature-aware iALS also searches ``lambda_item_feature``.  Early
   stopping selects the final number of training epochs.
 
-Validation reports ``all_targets`` and ``new_item_targets``.  Test also reports
-``warm_item_targets`` and includes TopPop as an independent baseline.  The
-segments restrict the target items, not the recommendation catalog: for
-example, ``warm_item_targets`` still ranks warm and new candidate articles
-together.  This shows whether side information improves ranking of known items
-instead of measuring only the ability to score new ones.
+Validation and test both evaluate all target clicks together.  In addition to
+accuracy, diversity, and catalog coverage, ``new_item_ratio@20`` reports the
+fraction of the articles actually returned in top-20 recommendation lists that
+had no pre-cutoff clicks.  This directly shows how often the feature-aware
+model uses its new-item scoring capability without introducing separate
+warm-item and new-item evaluation tasks.  Test also includes TopPop as an
+independent baseline.
+
+The example's ``TemporalTuningEvaluatorAdapter`` is intentionally separate
+from a normal ``EvaluatorWithColdUser``.  The trained model has columns only
+for warm items, whereas evaluation uses an expanded warm-plus-new item space.
+Evaluation items are ordered with warm items first, so the adapter can append
+feature-derived new-item scores to the model's normal warm-item scores during
+tuning.
+``ItemIDMapper.score_to_recommended_items_batch`` then applies the evaluation
+catalog, omits unscoreable items, and maps the top-ranked columns back to
+article IDs when computing ``new_item_ratio@20``.
 
 Example result
 ^^^^^^^^^^^^^^
@@ -270,59 +280,6 @@ temporal split, not a general performance guarantee.
 Feature-aware iALS achieves 1.90 times the NDCG of ordinary iALS and 5.26
 times that of TopPop on all targets.  Recall and hit rate are also approximately
 doubled relative to ordinary iALS.
-
-.. list-table:: Accuracy on warm-item test targets
-   :header-rows: 1
-   :widths: 28 24 24 24
-
-   * - Metric
-     - TopPop
-     - iALS
-     - Feature-aware iALS
-   * - NDCG@20
-     - 0.00347
-     - 0.00956
-     - 0.01652
-   * - Recall@20
-     - 0.01024
-     - 0.02257
-     - 0.03886
-   * - Hit@20
-     - 0.01535
-     - 0.03480
-     - 0.05988
-
-On warm-item targets, feature-aware iALS improves all three accuracy metrics by
-approximately 1.72 times over ordinary iALS.  The overall gain therefore does
-not come only from making post-cutoff items scoreable: feature regularization
-also improves ranking of items that already have collaborative embeddings.
-
-.. list-table:: Accuracy on new-item test targets
-   :header-rows: 1
-   :widths: 28 24 24 24
-
-   * - Metric
-     - TopPop
-     - iALS
-     - Feature-aware iALS
-   * - NDCG@20
-     - 0
-     - 0
-     - 0.00171
-   * - Recall@20
-     - 0
-     - 0
-     - 0.00561
-   * - Hit@20
-     - 0
-     - 0
-     - 0.00922
-
-TopPop and ordinary iALS cannot score items absent from training, so their
-new-item accuracy is zero by construction.  Feature-aware iALS makes these
-items recommendable, but the 0.92% hit rate also shows that cold-item ranking
-remains difficult.  The result demonstrates a useful capability rather than a
-solved cold-start problem.
 
 .. list-table:: Recommendation diversity on all test targets
    :header-rows: 1
