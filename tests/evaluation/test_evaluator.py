@@ -6,7 +6,7 @@ from typing import Callable
 import numpy as np
 import pytest
 import scipy.sparse as sps
-from numpy.typing import NDArray, fl
+from numpy.typing import NDArray
 
 from irspack.evaluation import Evaluator, EvaluatorWithColdUser
 from irspack.recommenders import P3alphaRecommender, TopPopRecommender
