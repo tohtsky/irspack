@@ -33,7 +33,8 @@ jobs:
           uv sync --group dev --verbose
       - name: Run pytest
         run: |
-          uv pip install jaxlib==0.10.0 jax==0.10.0 dm-haiku optax || echo "JAX installation failed, skipping MultVAE tests"
+          # dm-haiku 0.0.16 still uses APIs removed in JAX 0.11.
+          uv pip install "jaxlib<0.11" "jax<0.11" dm-haiku optax || echo "JAX installation failed, skipping MultVAE tests"
           uv pip install lightfm || echo "LightFM installation failed, skipping BPR tests"
           uv run pytest tests \
             --cov=./src/irspack \

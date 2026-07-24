@@ -81,8 +81,12 @@ def test_ials_overfit_cholesky(
     [("CHOLESKY", 3), ("CG", 0)],
 )
 @pytest.mark.parametrize("feature_type", ["dense", "sparse"])
+@pytest.mark.parametrize("n_threads", [1, 3])
 def test_feature_aware_ials_weighted_updates_objective_and_local_stability(
-    solver_type: Literal["CG", "CHOLESKY"], max_cg_steps: int, feature_type: str
+    solver_type: Literal["CG", "CHOLESKY"],
+    max_cg_steps: int,
+    feature_type: str,
+    n_threads: int,
 ) -> None:
     interaction_dense = np.array(
         [[1, 0, 2, 1], [0, 3, 0, 0], [1, 1, 0, 4]], dtype=np.float64
@@ -120,7 +124,7 @@ def test_feature_aware_ials_weighted_updates_objective_and_local_stability(
         lambda_user_feature=lambda_user_feature,
         lambda_item_feature=lambda_item_feature,
         train_epochs=500,
-        n_threads=1,
+        n_threads=n_threads,
         random_seed=0,
     ).learn()
     core = rec.trainer_as_ials.core_trainer
