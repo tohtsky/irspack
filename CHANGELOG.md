@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.1 (2026-07-24)
+
+### Added
+
+- Added `MINDDataManager` for downloading and reading the Microsoft News
+  Dataset, including impressions, timestamped interactions, article metadata,
+  and knowledge-graph embeddings.
+- Added support for scoring and evaluating feature-only cold-start items with
+  feature-aware iALS through
+  `IALSRecommender.get_score_cold_user_with_item_features` and the
+  `cold_item_features` argument of `EvaluatorWithColdUser`.
+- Added `catalog_coverage` to evaluator results.
+- Added streaming evaluation of consecutive score blocks through
+  `Evaluator.get_score_from_score_chunks` and
+  `Evaluator.get_scores_from_score_chunks`.
+- Added an end-to-end MIND Small example for temporal evaluation of
+  feature-aware iALS.
+
+### Changed
+
+- Parallelized feature-weight updates in feature-aware iALS using the
+  configured number of threads.
+- Expanded the feature-aware iALS documentation with cold-start evaluation
+  guidance and the MIND Small experiment.
+
+### Fixed
+
+- Excluded unavailable (`-inf`) scores from recommendation candidates and
+  handled evaluations with no recommendable items without invalid diversity
+  calculations.
+
 ## 0.5.0 (2026-07-16)
 
 ### Added
