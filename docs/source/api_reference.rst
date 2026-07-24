@@ -90,4 +90,5 @@ Dataset
     MovieLens1MDataManager
     MovieLens100KDataManager
     MovieLens20MDataManager
+    MINDDataManager
     NeuMFML1MDownloader

@@ -350,7 +350,7 @@ class IALSRecommender(
         >>> rec.learn()
         >>> evaluator=Evaluator(X_test)
         >>> print(evaluator.get_scores(rec, [20]))
-        OrderedDict([('hit@20', 1.0), ('recall@20', 0.9003412698412698), ('ndcg@20', 0.6175493479217139), ('map@20', 0.3848785870622406), ('precision@20', 0.3385), ('gini_index@20', 0.0814), ('entropy@20', 3.382497875272383), ('appeared_item@20', 30.0)])
+        OrderedDict([('hit@20', 1.0), ('recall@20', 0.9003412698412698), ('ndcg@20', 0.6175493479217139), ('map@20', 0.3848785870622406), ('precision@20', 0.3385), ('gini_index@20', 0.0814), ('entropy@20', 3.382497875272383), ('appeared_item@20', 30.0), ('catalog_coverage@20', 1.0)])
     """
 
     config_class = IALSConfig
@@ -488,6 +488,40 @@ class IALSRecommender(
     ) -> DenseScoreArray:
         user_vector = self.compute_user_embedding(X, user_features=user_features)
         return self.get_score_from_user_embedding(user_vector)
+
+    def _create_cold_user_with_item_features_scorer(
+        self, item_features: ProfileMatrix
+    ) -> Callable[[InteractionMatrix], DenseScoreArray]:
+        if self.item_features is None:
+            raise NotImplementedError(
+                "IALSRecommender must be trained with item_features before it "
+                "can score additional items from features."
+            )
+
+        n_additional_items = item_features.shape[0]
+        if n_additional_items:
+            item_embedding = self.compute_item_embedding_from_features(item_features)
+        else:
+            item_embedding = np.empty(
+                (0, self.n_components),
+                dtype=self.get_item_embedding().dtype,
+            )
+
+        def scorer(X: InteractionMatrix) -> DenseScoreArray:
+            user_embedding = self.compute_user_embedding(X)
+            known_scores = self.get_score_from_user_embedding(user_embedding)
+            additional_scores = user_embedding.dot(item_embedding.T)
+            return np.concatenate([known_scores, additional_scores], axis=1)
+
+        return scorer
+
+    def get_score_cold_user_with_item_features(
+        self,
+        X: InteractionMatrix,
+        item_features: ProfileMatrix,
+    ) -> DenseScoreArray:
+        scorer = self._create_cold_user_with_item_features_scorer(item_features)
+        return scorer(X)
 
     def get_user_embedding(self) -> DenseMatrix:
         return self.trainer_as_ials.core_trainer.user

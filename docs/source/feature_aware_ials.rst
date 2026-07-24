@@ -104,54 +104,59 @@ align with the rows and columns of the training interaction matrix.
        loss_type="ORIGINAL",
    ).learn()
 
-Feature-only cold-start embeddings can then be computed from features.  These
-methods solve the iALS least-squares system with an empty interaction history,
-using the same solver type selected for training.  Consequently, the result
-includes the loss on unobserved interactions and is generally not exactly
-``A f`` or ``B g``:
+Evaluation with new items
+-------------------------
+
+Supply user history over training items, ground truth ordered as training items
+followed by new items, and the features of those new items:
 
 .. code-block:: python
 
-   new_user_features = ...  # shape: (n_new_users, n_user_features)
-   new_user_embedding = rec.compute_user_embedding_from_features(
-       new_user_features
-   )
-   scores = rec.get_score_cold_user_from_features(new_user_features)
+   from irspack import EvaluatorWithColdUser
 
-   new_item_features = ...  # shape: (n_new_items, n_item_features)
-   new_item_embedding = rec.compute_item_embedding_from_features(
-       new_item_features
-   )
-   item_scores = rec.get_score_from_item_features(
-       user_indices=[0, 1, 2],
-       item_features=new_item_features,
-   )
+   X_history = ...  # shape: (n_eval_users, n_training_items)
+   X_target = ...   # shape: (n_eval_users, n_training_items + n_new_items)
 
-If both interaction history and side features are available at prediction time,
-pass the feature matrix to the normal transform API.  This solves the same
-regularized least-squares problem used during training, instead of returning
-only ``A f`` or ``B g``.
+   evaluator = EvaluatorWithColdUser(
+       X_history,
+       X_target,
+       cold_item_features=new_item_features,
+       cutoff=20,
+   )
+   result = evaluator.get_scores(rec, [20])
+
+``EvaluatorWithColdUser`` prepares new-item embeddings once and reuses them
+while scoring user minibatches.  The result includes ``catalog_coverage@20``.
+Recommenders without feature-only item support remain valid baselines: their
+new-item scores are unavailable and are not included in recommendation counts.
+
+For scoring without an evaluator,
+``get_score_cold_user_with_item_features(X_history, new_item_features)``
+returns training-item columns followed by new-item columns in feature row
+order.
+
+Lower-level transforms
+----------------------
+
+Feature-only embeddings solve the iALS least-squares system with empty
+interaction history, so they include the loss on unobserved interactions and
+are generally not exactly ``A f`` or ``B g``:
 
 .. code-block:: python
 
-   X_new_user = ...  # shape: (n_new_users, n_items)
-   new_user_features = ...  # shape: (n_new_users, n_user_features)
+   new_user_embedding = rec.compute_user_embedding_from_features(new_user_features)
+   new_item_embedding = rec.compute_item_embedding_from_features(new_item_features)
 
-   hybrid_user_embedding = rec.compute_user_embedding(
-       X_new_user,
-       user_features=new_user_features,
+When both interaction history and features are available, pass both to the
+normal transform API:
+
+.. code-block:: python
+
+   user_embedding = rec.compute_user_embedding(
+       X_new_user, user_features=new_user_features
    )
-   hybrid_scores = rec.get_score_cold_user(
-       X_new_user,
-       user_features=new_user_features,
-   )
-
-   X_new_items = ...  # shape: (n_users, n_new_items)
-   new_item_features = ...  # shape: (n_new_items, n_item_features)
-
-   hybrid_item_embedding = rec.compute_item_embedding(
-       X_new_items,
-       item_features=new_item_features,
+   item_embedding = rec.compute_item_embedding(
+       X_new_items, item_features=new_item_features
    )
 
 Important parameters
@@ -177,3 +182,136 @@ Limitations
   ``compute_user_embedding(..., user_features=...)`` and
   ``compute_item_embedding(..., item_features=...)`` methods additionally
   account for observed interactions.
+
+Evaluation guidance
+-------------------
+
+Random interaction holdouts often understate the benefit of item features:
+nearly every evaluated item is already warm and ordinary collaborative
+filtering can learn its embedding directly.  For a production-like comparison,
+split all interactions at global time boundaries, keep post-cutoff items out of
+the training interaction matrix, and fit every feature transformer on
+training-period data only.  Define the recommendation catalog from items that
+were eligible for exposure during each evaluation period.  Report accuracy on
+all targets together with item diversity or coverage.
+
+MIND-small temporal example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``MINDDataManager`` provides a compact public dataset suited to this setup.
+MIND-small has timestamped click impressions and article category, title,
+abstract, linked-entity, and knowledge-graph features.  Its official training
+and development archives are chronologically separated.  Note that the
+``history`` field does not contain timestamps for individual clicks;
+``read_interaction()`` therefore uses only timestamped positive impressions so
+that it does not invent event times or leak future information.
+
+The complete experiment is in
+``examples/mind/mind_small_feature_aware_ials.py``.  Run it with:
+
+.. code-block:: console
+
+   uv run python examples/mind/mind_small_feature_aware_ials.py \
+       --n-trials 100 \
+       --output examples/mind/mind_feature_aware_ials_test.json
+
+This experiment asks whether feature-aware iALS improves recommendation over a
+production-like temporal catalog.  It evaluates the combined capability of
+regularizing embeddings for known items and scoring items unseen during
+training; it does not attempt to isolate the contribution of each mechanism.
+
+The experiment uses the following evaluation design:
+
+- The final calendar day of the official train archive is validation.  The
+  chronologically later official dev archive is test.
+- The recommendation catalog contains only articles exposed in at least one
+  impression during the corresponding evaluation period.  Pre-cutoff items
+  outside this catalog remain available for user-history and embedding lookup,
+  but cannot be recommended.
+- The training interaction matrix contains only items clicked before the
+  cutoff.  Post-cutoff items are not inserted as zero-interaction columns.
+- TF-IDF, truncated SVD, and category encoders are fitted only on pre-cutoff
+  items.  The feature-aware model creates embeddings for post-cutoff items
+  only when it is evaluated.
+- Only users with pre-cutoff history are included.  Fully cold users and their
+  fallback policy are intentionally a separate problem.
+- Ordinary and feature-aware iALS are tuned independently with
+  ``IALSRecommender.tune``.  Both search ``n_components``, ``alpha0``, and
+  ``reg``; feature-aware iALS also searches ``lambda_item_feature``.  Early
+  stopping selects the final number of training epochs.
+
+Validation and test both evaluate all target clicks together and report
+accuracy, diversity, and catalog coverage.  Test also includes TopPop as an
+independent baseline.
+
+The example passes warm-item history, expanded ground truth, and new-item
+features directly to ``EvaluatorWithColdUser``.  The same evaluator is used for
+early stopping, final feature-aware evaluation, and ordinary iALS or TopPop
+baselines; no model-specific evaluation adapter is required.
+
+Example result
+^^^^^^^^^^^^^^
+
+The following result was obtained with 100 tuning trials per model.  These are
+test-period metrics at cutoff 20; they are an example from one dataset and
+temporal split, not a general performance guarantee.
+
+Feature-aware iALS achieved 1.90 times the NDCG and approximately 5 times the
+catalog coverage of ordinary iALS in this run.
+
+.. list-table:: Accuracy on all test targets
+   :header-rows: 1
+   :widths: 28 24 24 24
+
+   * - Metric
+     - TopPop
+     - iALS
+     - Feature-aware iALS
+   * - NDCG@20
+     - 0.00187
+     - 0.00516
+     - 0.00982
+   * - Recall@20
+     - 0.00511
+     - 0.01127
+     - 0.02221
+   * - Hit@20
+     - 0.01010
+     - 0.02288
+     - 0.04510
+
+Feature-aware iALS also achieves 5.26 times the NDCG of TopPop.  Recall and hit
+rate are approximately doubled relative to ordinary iALS.
+
+.. list-table:: Recommendation diversity on all test targets
+   :header-rows: 1
+   :widths: 28 24 24 24
+
+   * - Metric
+     - TopPop
+     - iALS
+     - Feature-aware iALS
+   * - Gini index@20 (lower is better)
+     - 0.9982
+     - 0.9783
+     - 0.9305
+   * - Entropy@20 (higher is better)
+     - 3.071
+     - 5.776
+     - 6.897
+   * - Catalog coverage@20
+     - 0.0050
+     - 0.1084
+     - 0.5364
+
+In this run, the accuracy gain does not come from concentrating recommendations
+on a smaller set of popular articles.  Feature-aware iALS covers 53.6% of the
+period catalog, compared with 10.8% for ordinary iALS and 0.5% for TopPop, and
+also improves both Gini index and entropy.
+
+The period-level exposure catalog is still an approximation.  It uses the
+union of impressions from the evaluation period for every user, whereas a
+strict logged-policy evaluation would rank only the candidates in each
+individual impression.  Results should also be checked across additional
+temporal splits, random seeds, and content representations before drawing a
+general conclusion about feature-aware iALS.

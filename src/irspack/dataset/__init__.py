@@ -1,5 +1,6 @@
 from .amazon_music import AmazonMusicDataManager
 from .citeulike import CiteULikeADataManager
+from .mind import MINDDataManager
 from .movielens import (
     MovieLens1MDataManager,
     MovieLens20MDataManager,
@@ -15,4 +16,5 @@ __all__ = [
     "AmazonMusicDataManager",
     "NeuMFML1MDownloader",
     "NeuMFMPinterestDownloader",
+    "MINDDataManager",
 ]

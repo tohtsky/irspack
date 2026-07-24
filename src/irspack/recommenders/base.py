@@ -31,6 +31,7 @@ from ..definitions import (
     DenseMatrix,
     DenseScoreArray,
     InteractionMatrix,
+    ProfileMatrix,
     UserIndexArray,
 )
 from ..optimization.parameter_range import ParameterRange
@@ -348,6 +349,44 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
         raise NotImplementedError(
             f"get_score_cold_user is not implemented for {self.__class__.__name__}!"
         )  # pragma: no cover
+
+    def _create_cold_user_with_item_features_scorer(
+        self, item_features: ProfileMatrix
+    ) -> Callable[[InteractionMatrix], DenseScoreArray]:
+        """Prepare repeated cold-user scoring against additional item features.
+
+        This protected hook lets evaluators prepare feature-derived item state
+        once and then score multiple user minibatches. Recommenders that support
+        more efficient preparation can override it.
+        """
+        return lambda X: self.get_score_cold_user_with_item_features(X, item_features)
+
+    def get_score_cold_user_with_item_features(
+        self,
+        X: InteractionMatrix,
+        item_features: ProfileMatrix,
+    ) -> DenseScoreArray:
+        """Score unseen users against known and feature-only items.
+
+        The first ``self.n_items`` columns correspond to the items used to fit
+        the model. They are followed by one column for each row of
+        ``item_features``.
+
+        Args:
+            X:
+                Interaction histories for unseen users. Its number of columns
+                must be ``self.n_items``.
+            item_features:
+                Features of items that were not present during training.
+
+        Returns:
+            Scores with shape
+            ``(X.shape[0], self.n_items + item_features.shape[0])``.
+        """
+        raise NotImplementedError(
+            "Scoring additional items from features is not implemented for "
+            f"{self.__class__.__name__}."
+        )
 
     def get_score_cold_user_remove_seen(self, X: InteractionMatrix) -> DenseScoreArray:
         """Compute the item recommendation score for unseen users whose profiles are given as another user-item relation matrix. The score will then be masked by the input.

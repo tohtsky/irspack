@@ -1,13 +1,16 @@
 import pickle
 from collections import defaultdict
 from io import BytesIO
+from typing import Callable
 
 import numpy as np
 import pytest
 import scipy.sparse as sps
+from numpy.typing import NDArray
 
 from irspack.evaluation import Evaluator, EvaluatorWithColdUser
 from irspack.recommenders import P3alphaRecommender, TopPopRecommender
+from irspack.recommenders.base import BaseRecommender
 from irspack.split import rowwise_train_test_split
 
 from ..mock_recommender import MockRecommender
@@ -270,3 +273,164 @@ def test_score_from_score_matrix_cold_user_masks_input() -> None:
         ]
         == 1.0
     )
+
+
+def test_cold_user_evaluator_with_cold_item_features() -> None:
+    class FeatureItemMockRecommender(BaseRecommender, register_class=False):
+        def __init__(self) -> None:
+            super().__init__(sps.csr_matrix((2, 2)))
+            self.prepare_count = 0
+
+        def _learn(self) -> None:
+            pass
+
+        def get_score(self, user_indices: np.ndarray) -> np.ndarray:
+            return np.repeat(
+                np.array([[0.2, 0.1]], dtype=np.float32),
+                len(user_indices),
+                axis=0,
+            )
+
+        def get_score_cold_user(self, X: sps.csr_matrix) -> np.ndarray:
+            return np.repeat(
+                np.array([[0.2, 0.1]], dtype=np.float32),
+                X.shape[0],
+                axis=0,
+            )
+
+        def _create_cold_user_with_item_features_scorer(
+            self, item_features: NDArray
+        ) -> Callable[[sps.csr_matrix], NDArray]:
+            self.prepare_count += 1
+            np.testing.assert_array_equal(
+                item_features, np.array([[1.0], [2.0]], dtype=np.float32)
+            )
+
+            def scorer(X: sps.csr_matrix) -> NDArray:
+                return np.repeat(
+                    np.array([[0.2, 0.1, 0.9, 0.8]], dtype=np.float32),
+                    X.shape[0],
+                    axis=0,
+                )
+
+            return scorer
+
+    input_interaction = sps.csr_matrix([[1, 0], [0, 1]], dtype=np.float32)
+    ground_truth = sps.csr_matrix([[0, 0, 1, 0], [0, 0, 1, 0]])
+    cold_item_features = np.array([[1.0], [2.0]], dtype=np.float32)
+    evaluator = EvaluatorWithColdUser(
+        input_interaction,
+        ground_truth,
+        cold_item_features=cold_item_features,
+        cutoff=1,
+        mb_size=1,
+        n_threads=1,
+    )
+    rec = FeatureItemMockRecommender()
+
+    score = evaluator.get_score(rec)
+    assert score["recall"] == 1.0
+    assert score["catalog_coverage"] == 0.25
+    assert rec.prepare_count == 1
+    qualified_score = evaluator.get_scores(rec, [1])
+    assert qualified_score["catalog_coverage@1"] == 0.25
+
+    fallback = TopPopRecommender(input_interaction).learn()
+    fallback_score = evaluator.get_score(fallback)
+    assert fallback_score["recall"] == 0.0
+    # Negative-infinity cold-item scores are not counted as recommendations.
+    assert fallback_score["appeared_item"] == 2.0
+
+
+def test_cold_user_evaluator_cold_item_shape_validation() -> None:
+    input_interaction = sps.csr_matrix((2, 3))
+    ground_truth = sps.csr_matrix((2, 4))
+    cold_item_features = np.ones((2, 1), dtype=np.float32)
+
+    with pytest.raises(ValueError, match="ground_truth"):
+        EvaluatorWithColdUser(
+            input_interaction,
+            ground_truth,
+            cold_item_features=cold_item_features,
+        )
+
+
+def test_negative_infinity_scores_are_not_recommendations() -> None:
+    ground_truth = sps.csr_matrix([[1, 0, 0]])
+    evaluator = Evaluator(ground_truth, cutoff=3)
+    score = evaluator.get_score_from_score_matrix(
+        np.array([[1.0, -np.inf, -np.inf]], dtype=np.float64)
+    )
+
+    assert score["recall"] == 1.0
+    assert score["precision"] == 1.0
+    assert score["appeared_item"] == 1.0
+    assert score["catalog_coverage"] == pytest.approx(1 / 3)
+
+
+def test_score_from_score_chunks_matches_matrix() -> None:
+    rns = np.random.RandomState(0)
+    U, I = 11, 7
+    scores = rns.randn(U, I).astype(np.float64)
+    original_scores = scores.copy()
+    X_gt = sps.csr_matrix((rns.rand(U, I) >= 0.5).astype(np.float64))
+    mask = sps.csr_matrix((rns.rand(U, I) >= 0.5).astype(np.float64))
+    evaluator = Evaluator(X_gt, cutoff=3, masked_interactions=mask, mb_size=2)
+
+    expected = evaluator.get_scores_from_score_matrix(scores, [1, 3])
+
+    # Several non-uniform chunk sizes; total still U.
+    split_points = [0, 1, 1, 3, 3, 6, 10, 11]
+    chunks = [
+        scores[split_points[i] : split_points[i + 1]]
+        for i in range(len(split_points) - 1)
+        if split_points[i] != split_points[i + 1]
+    ]
+    got = evaluator.get_scores_from_score_chunks(iter(chunks), [1, 3])
+    for key, value in expected.items():
+        assert got[key] == pytest.approx(value, abs=1e-12), key
+    np.testing.assert_array_equal(scores, original_scores)
+
+    # chunked input must not mutate caller arrays either
+    seen = [c.copy() for c in chunks]
+    evaluator.get_scores_from_score_chunks(iter(chunks), [3])
+    for original, mutated in zip(seen, chunks):
+        np.testing.assert_array_equal(original, mutated)
+
+
+def test_score_from_score_chunks_cold_user_masks_input() -> None:
+    input_interaction = sps.csr_matrix([[1, 0]])
+    ground_truth = sps.csr_matrix([[0, 1]])
+    evaluator = EvaluatorWithColdUser(input_interaction, ground_truth, cutoff=1)
+
+    assert (
+        evaluator.get_score_from_score_chunks(
+            iter([np.array([[1.0, 0.0]], dtype=np.float64)])
+        )["recall"]
+        == 1.0
+    )
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_score_from_score_chunks_errors(dtype: type) -> None:
+    U, I = 3, 4
+    X_gt = sps.csr_matrix(np.eye(U, I, dtype=np.float64))
+    evaluator = Evaluator(X_gt, cutoff=2)
+
+    # wrong number of columns
+    with pytest.raises(ValueError, match="n_items"):
+        evaluator.get_score_from_score_chunks(iter([np.zeros((U, I - 1), dtype=dtype)]))
+    # wrong dtype
+    with pytest.raises(ValueError, match="dtype"):
+        evaluator.get_score_from_score_chunks(
+            iter([np.zeros((U, I), dtype=np.float16)])
+        )
+    # too few rows
+    with pytest.raises(ValueError, match="did not cover"):
+        evaluator.get_score_from_score_chunks(iter([np.zeros((U - 1, I), dtype=dtype)]))
+    # too many rows
+    with pytest.raises(ValueError, match="more rows"):
+        evaluator.get_score_from_score_chunks(iter([np.zeros((U + 1, I), dtype=dtype)]))
+    # not a 2-D array (1-D ndarray slipped into the iterator)
+    with pytest.raises(ValueError, match="2-D ndarray"):
+        evaluator.get_score_from_score_chunks(iter([np.zeros(I, dtype=dtype)]))
