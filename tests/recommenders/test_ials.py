@@ -3,11 +3,13 @@ import pickle
 from typing import Callable, Dict, Literal, Optional, Tuple
 
 import numpy as np
+import optuna
 import pytest
 import scipy.sparse as sps
 
 from irspack.evaluation import Evaluator
 from irspack.recommenders._ials_core import (
+    FeatureRidgeCholeskyError,
     IALSModelConfigBuilder,
     IALSSolverConfigBuilder,
     IALSTrainer,
@@ -713,6 +715,50 @@ def test_ials_tuning_with_n_startup_trials(
     assert history[f"ndcg@{cutoff}"].isna().sum() == 0
     assert "train_epochs" in bp
     assert bp["train_epochs"] <= 16
+
+
+def test_ials_tuning_recovers_from_feature_ridge_cholesky_error() -> None:
+    interaction = sps.csr_matrix(np.array([[1, 0], [0, 1]], dtype=np.float32))
+    # This rank-deficient, high-magnitude feature matrix loses positive
+    # definiteness in the float32 Gram computation when the ridge term is tiny.
+    user_features = np.full((2, 2), 1e5, dtype=np.float32)
+    lambda_user_feature = 1e-45
+
+    with pytest.raises(FeatureRidgeCholeskyError):
+        IALSRecommender(
+            interaction,
+            n_components=2,
+            alpha0=0.1,
+            reg=0.01,
+            user_features=user_features,
+            lambda_user_feature=lambda_user_feature,
+            n_threads=1,
+            train_epochs=1,
+        ).learn()
+
+    study = optuna.create_study()
+    study.enqueue_trial({})
+    _, history = IALSRecommender.tune(
+        interaction,
+        Evaluator(interaction, cutoff=1),
+        study=study,
+        n_trials=1,
+        max_epoch=1,
+        n_components=2,
+        alpha0=0.1,
+        reg=0.01,
+        user_features=user_features,
+        lambda_user_feature=lambda_user_feature,
+        n_threads=1,
+    )
+
+    trial = study.trials[0]
+    assert trial.state == optuna.trial.TrialState.COMPLETE
+    assert trial.value == float("inf")
+    assert trial.user_attrs["_failure_reason"] == (
+        "Feature ridge Cholesky decomposition failed."
+    )
+    assert history.loc[trial.number, "ndcg@1"] == -float("inf")
 
 
 def test_ials_tuning_with_too_early_n_startup(
