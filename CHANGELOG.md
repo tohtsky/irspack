@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.2 (TBD)
+
+### Fixed
+
+- Let feature-aware iALS tuning continue when the feature ridge Cholesky
+  decomposition fails: the affected Optuna trial is recorded with the worst
+  objective value instead of aborting the entire study.
+
 ## 0.5.1 (2026-07-24)
 
 ### Added

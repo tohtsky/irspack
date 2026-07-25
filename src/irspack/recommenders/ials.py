@@ -24,7 +24,11 @@ from ..optimization.parameter_range import (
     ParameterRange,
     UniformIntegerRange,
 )
-from ._ials_core import IALSModelConfigBuilder, IALSSolverConfigBuilder
+from ._ials_core import (
+    FeatureRidgeCholeskyError,
+    IALSModelConfigBuilder,
+    IALSSolverConfigBuilder,
+)
 from ._ials_core import IALSTrainer as CoreTrainer
 from ._ials_core import LossType, SolverType
 from .base import (
@@ -354,6 +358,7 @@ class IALSRecommender(
     """
 
     config_class = IALSConfig
+    optuna_trial_failure_exceptions = (FeatureRidgeCholeskyError,)
     default_tune_range: List[ParameterRange] = [
         UniformIntegerRange("n_components", 4, 300),
         LogUniformFloatRange("alpha0", 3e-3, 1),

@@ -90,6 +90,7 @@ class Optimizer:
         max_epoch: int = 128,
         validate_epoch: int = 5,
         score_degradation_max: int = 5,
+        trial_failure_exceptions: Tuple[Type[Exception], ...] = (),
     ):
 
         if logger is None:
@@ -107,6 +108,7 @@ class Optimizer:
         self.max_epoch = max_epoch
         self.validate_epoch = validate_epoch
         self.score_degradation_max = score_degradation_max
+        self.trial_failure_exceptions = trial_failure_exceptions
 
     def objective_function(
         self, recommender_class: Type["BaseRecommender"]
@@ -125,16 +127,27 @@ class Optimizer:
             self.logger.info("Trial %s:", trial.number)
             self.logger.info("parameter = %s", params)
 
-            recommender = recommender_class(data, **params)
-            recommender.learn_with_optimizer(
-                self.val_evaluator,
-                trial,
-                max_epoch=self.max_epoch,
-                validate_epoch=self.validate_epoch,
-                score_degradation_max=self.score_degradation_max,
-            )
+            try:
+                recommender = recommender_class(data, **params)
+                recommender.learn_with_optimizer(
+                    self.val_evaluator,
+                    trial,
+                    max_epoch=self.max_epoch,
+                    validate_epoch=self.validate_epoch,
+                    score_degradation_max=self.score_degradation_max,
+                )
 
-            score = self.val_evaluator.get_score(recommender)
+                score = self.val_evaluator.get_score(recommender)
+            except self.trial_failure_exceptions as error:
+                self.logger.warning(
+                    "Trial %s failed with a recoverable error: %s",
+                    trial.number,
+                    error,
+                )
+                trial.set_user_attr("_failure_reason", str(error))
+                score = {self.val_evaluator.target_metric.name: -float("inf")}
+                add_score_to_trial(trial, score, self.val_evaluator.cutoff)
+                return float("inf")
             end = time.time()
 
             time_spent = end - start

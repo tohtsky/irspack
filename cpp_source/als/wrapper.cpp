@@ -22,6 +22,9 @@ NB_MODULE(_ials_core, m) {
 
   m.doc() = doc_stream.str();
 
+  nanobind::exception<FeatureRidgeCholeskyError>(
+      m, "FeatureRidgeCholeskyError", PyExc_RuntimeError);
+
   nanobind::enum_<LossType>(m, "LossType")
       .value("ORIGINAL", LossType::ORIGINAL)
       .value("IALSPP", LossType::IALSPP);

@@ -11,6 +11,8 @@ import numpy
 import scipy
 from numpy.typing import NDArray
 
+class FeatureRidgeCholeskyError(RuntimeError): ...
+
 class LossType(enum.Enum):
     ORIGINAL = 0
 

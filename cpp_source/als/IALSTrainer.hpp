@@ -28,6 +28,11 @@ using FeatureMatrix = std::variant<SparseMatrix, DenseMatrix>;
 using ColMajorDenseMatrix =
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 
+class FeatureRidgeCholeskyError : public std::runtime_error {
+public:
+  using std::runtime_error::runtime_error;
+};
+
 struct FeatureWeightCache {
   DenseVector row_weights;
   Eigen::LLT<ColMajorDenseMatrix, Eigen::Lower> llt;
@@ -1102,7 +1107,8 @@ private:
     gram.diagonal().array() += lambda_feature;
     cache.llt.compute(gram);
     if (cache.llt.info() != Eigen::Success)
-      throw std::runtime_error("Feature ridge Cholesky decomposition failed.");
+      throw FeatureRidgeCholeskyError(
+          "Feature ridge Cholesky decomposition failed.");
     cache.initialized = true;
   }
 
@@ -1125,7 +1131,8 @@ private:
     gram.diagonal().array() += lambda_feature;
     cache.llt.compute(gram);
     if (cache.llt.info() != Eigen::Success)
-      throw std::runtime_error("Feature ridge Cholesky decomposition failed.");
+      throw FeatureRidgeCholeskyError(
+          "Feature ridge Cholesky decomposition failed.");
     cache.initialized = true;
   }
 

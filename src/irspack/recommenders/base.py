@@ -87,6 +87,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
 
     config_class: Type[RecommenderConfig]
     default_tune_range: List[ParameterRange]
+    optuna_trial_failure_exceptions: Tuple[Type[Exception], ...] = ()
 
     X_train_all: sps.csr_matrix
     """The matrix to feed into recommender."""
@@ -278,6 +279,7 @@ class BaseRecommender(object, metaclass=RecommenderMeta):
             validate_epoch=validate_epoch,
             score_degradation_max=score_degradation_max,
             logger=logger,
+            trial_failure_exceptions=cls.optuna_trial_failure_exceptions,
         )
         return optim.optimize_with_study(study, cls, n_trials=n_trials, timeout=timeout)
 
