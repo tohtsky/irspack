@@ -2,8 +2,16 @@ Feature-aware iALS
 ==================
 
 ``IALSRecommender`` supports an experimental feature-aware extension of
-implicit ALS.  It is useful when user or item side information is available
+implicit ALS (iALS). It is useful when user or item side information is available
 and recommendations must also work for cold-start users or items.
+
+Here, "feature-aware iALS" refers to irspack's implementation of an existing
+model family.  Its item-feature formulation follows content-aware WMF
+[Liang2015]_, which learns a linear map from fixed content features to an
+item-factor prior mean; feature-centered priors also appear in RLFM
+[Agarwal2009]_.  irspack supports features for either side, retains iALS's
+frequency-aware regularization [Rendle2022]_, and uses a different
+empty-history inference policy from [Liang2015]_.
 
 The standard iALS model predicts a score by the inner product of user and item
 embeddings:
@@ -21,10 +29,8 @@ toward an embedding predicted from side features:
    \qquad
    y_i \sim \mathcal{N}(B g_i, r_i^{-1} I),
 
-where ``f_u`` and ``g_i`` are user and item feature vectors, and ``A`` and
-``B`` are linear maps from feature space to the latent embedding space.  In
-other words, the learned user/item embeddings are residual embeddings around a
-feature-predicted prior.
+where ``f_u`` and ``g_i`` are user and item feature vectors, and ``A`` and ``B`` are linear maps from feature space to the latent embedding space.
+In other words, the learned user/item embeddings are residual embeddings around a feature-predicted prior.
 
 Objective
 ---------
@@ -42,8 +48,7 @@ objective is:
 
 The frequency-aware terms ``r_u`` and ``r_i`` are the same regularization
 strengths used by normal iALS, but their centers are replaced by the
-feature-predicted embeddings.  Thus the side-feature model does not introduce
-a second embedding regularization coefficient.
+feature-predicted embeddings.
 
 Optimization
 ------------
@@ -66,8 +71,9 @@ For example, the user embedding update solves:
    =
    \sum_i c_{ui} p_{ui} y_i + r_u A f_u.
 
-This is the usual iALS system with one extra diagonal term and one extra right
-hand-side term, so the same Cholesky and conjugate-gradient solvers can be used.
+Relative to ordinary iALS, only the right-hand side gains ``r_u A f_u``, so
+the same Cholesky and conjugate-gradient solvers can be used.  [Liang2015]_
+also alternates factor and linear feature-map updates.
 
 The feature map update is a ridge regression:
 
@@ -147,6 +153,10 @@ are generally not exactly ``A f`` or ``B g``:
    new_user_embedding = rec.compute_user_embedding_from_features(new_user_features)
    new_item_embedding = rec.compute_item_embedding_from_features(new_item_features)
 
+[Liang2015]_ instead uses the prior mean directly for new items.  Empty-history
+ALS also fits unobserved pairs as zero targets, so it can shrink or rotate that
+embedding; this documentation does not compare the two policies.
+
 When both interaction history and features are available, pass both to the
 normal transform API:
 
@@ -186,9 +196,8 @@ Limitations
 Evaluation guidance
 -------------------
 
-Random interaction holdouts often understate the benefit of item features:
-nearly every evaluated item is already warm and ordinary collaborative
-filtering can learn its embedding directly.  For a production-like comparison,
+Random interaction holdouts may leave most evaluated items warm and thus
+underrepresent newly arriving items.  For a catalog with arriving items,
 split all interactions at global time boundaries, keep post-cutoff items out of
 the training interaction matrix, and fit every feature transformer on
 training-period data only.  Define the recommendation catalog from items that
@@ -304,10 +313,17 @@ rate are approximately doubled relative to ordinary iALS.
      - 0.1084
      - 0.5364
 
-In this run, the accuracy gain does not come from concentrating recommendations
-on a smaller set of popular articles.  Feature-aware iALS covers 53.6% of the
-period catalog, compared with 10.8% for ordinary iALS and 0.5% for TopPop, and
-also improves both Gini index and entropy.
+In this run, higher accuracy accompanies broader aggregate recommendation
+coverage.  Feature-aware iALS covers 53.6% of the period catalog, compared
+with 10.8% for ordinary iALS and 0.5% for TopPop, and also improves both Gini
+index and entropy.  These metrics describe aggregate exposure concentration;
+they do not establish the cause of the accuracy gain or measure alignment
+with individual users' preferences for less popular articles.
+
+This comparison includes ordinary iALS and TopPop, but not other feature-based
+methods such as post-hoc feature-to-factor regression.  It therefore does not
+isolate the benefit of joint learning or establish an improvement over prior
+content-aware WMF methods.
 
 The period-level exposure catalog is still an approximation.  It uses the
 union of impressions from the evaluation period for every user, whereas a
@@ -315,3 +331,23 @@ strict logged-policy evaluation would rank only the candidates in each
 individual impression.  Results should also be checked across additional
 temporal splits, random seeds, and content representations before drawing a
 general conclusion about feature-aware iALS.
+
+References
+----------
+
+.. [Liang2015] Dawen Liang, Minshu Zhan, and Daniel P. W. Ellis.
+   `Content-Aware Collaborative Music Recommendation Using Pre-trained Neural Networks
+   <https://ismir2015.uma.es/articles/290_Paper.pdf>`_.
+   ISMIR 2015, pp. 295–301.  Section 3.2 describes the linear prior map and
+   alternating updates.  The authors also published
+   `content_wmf <https://github.com/dawenl/content_wmf>`_.
+
+.. [Agarwal2009] Deepak Agarwal and Bee-Chung Chen.
+   `Regression-based latent factor models
+   <https://doi.org/10.1145/1557019.1557029>`_.
+   KDD 2009, pp. 19–28.
+
+.. [Rendle2022] Steffen Rendle, Walid Krichene, Li Zhang, and Yehuda Koren.
+   `Revisiting the Performance of iALS on Item Recommendation Benchmarks
+   <https://arxiv.org/abs/2110.14037>`_.
+   RecSys 2022, pp. 427–435.

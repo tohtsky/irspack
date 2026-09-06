@@ -279,6 +279,14 @@ class IALSRecommender(
         - `Revisiting the Performance of iALS on Item Recommendation Benchmarks
           <https://arxiv.org/abs/2110.14037>`_
 
+    With user or item features, regularization is centered on feature-predicted
+    embeddings. The item-feature formulation follows the content-aware WMF of
+    Liang, Zhan, and Ellis (ISMIR 2015):
+    `Content-Aware Collaborative Music Recommendation Using Pre-trained Neural Networks
+    <https://ismir2015.uma.es/articles/290_Paper.pdf>`_.
+    See :doc:`/feature_aware_ials` for the objective, related work, and the
+    different cold-inference policy used in this implementation.
+
     Args:
         X_train_all (Union[scipy.sparse.csr_matrix, scipy.sparse.csc_matrix]):
             Input interaction matrix.
