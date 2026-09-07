@@ -5,7 +5,6 @@ import optuna
 import pytest
 import scipy.sparse as sps
 
-from irspack.dataset.movielens import MovieLens100KDataManager
 from irspack.definitions import DenseScoreArray, UserIndexArray
 from irspack.evaluation import Evaluator
 from irspack.optimization.parameter_range import (
@@ -22,11 +21,9 @@ from irspack.split import rowwise_train_test_split
 X_small = sps.csr_matrix(
     (np.random.RandomState(42).rand(100, 32) > 0.8).astype(np.float64)
 )
-ml_100k_df = MovieLens100KDataManager(force_download=True).read_interaction()
-_, user_index = np.unique(ml_100k_df.userId, return_inverse=True)
-_, movie_index = np.unique(ml_100k_df.movieId, return_inverse=True)
+X_large_random = np.random.RandomState(0).rand(1_000, 100)
 X_large = sps.csr_matrix(
-    (np.ones(ml_100k_df.shape[0], dtype=np.float64), (user_index, movie_index)),
+    (X_large_random < 0.1).astype(np.float64),
 )
 
 
