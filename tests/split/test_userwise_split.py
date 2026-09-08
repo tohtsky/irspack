@@ -1,10 +1,10 @@
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 import pytest
 import scipy.sparse as sps
 
-from irspack.dataset.movielens import MovieLens100KDataManager
 from irspack.split import (
     UserTrainTestInteractionPair,
     split_dataframe_partial_user_holdout,
@@ -12,7 +12,18 @@ from irspack.split import (
 
 RNS = np.random.RandomState(0)
 
-df = MovieLens100KDataManager(force_download=True).read_interaction()
+_n_users = 100
+_interactions_per_user = 20
+df = pd.DataFrame(
+    {
+        "userId": np.repeat(np.arange(_n_users), _interactions_per_user),
+        "movieId": np.tile(np.arange(_interactions_per_user), _n_users),
+        "rating": 1.0,
+        "timestamp": pd.to_datetime(
+            np.tile(np.arange(_interactions_per_user), _n_users), unit="s"
+        ),
+    }
+)
 
 test_configs = [
     (None, None, 0.1, 0.15),

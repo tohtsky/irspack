@@ -35,7 +35,7 @@ Where to start
      - ``SLIMRecommender``
      - Learns item-to-item weights directly, at a higher training cost.
    * - Side features and cold start
-     - Feature-aware iALS
+     - :doc:`Feature-aware iALS <feature_aware_ials>`
      - Incorporates user and item features when interaction history is missing
        or limited. This implementation is experimental.
 
@@ -63,9 +63,9 @@ for every model in a comparison.
 
 Ranking metrics answer different questions. Recall measures how much relevant
 content is retrieved, precision measures how concentrated the list is, and NDCG
-rewards relevant items near the top. Coverage, entropy, and the Gini index help
-detect a model that obtains accuracy by recommending only a narrow set of
-popular items.
+rewards relevant items near the top. Coverage, entropy, and the Gini index
+describe aggregate recommendation concentration. To assess popularity bias,
+also examine the training popularity of recommended items.
 
 A practical sequence
 --------------------

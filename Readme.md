@@ -100,7 +100,12 @@ evaluation.
 | Strong general-purpose collaborative filtering | `IALSRecommender` |
 | Explainable item-to-item recommendations | `CosineKNNRecommender` |
 | Sparse implicit-feedback data | `RP3betaRecommender` or `SLIMRecommender` |
-| Cold-start users/items with side information | Feature-aware iALS |
+| Cold-start users/items with side information | [Feature-aware iALS](https://tohtsky.github.io/irspack/feature_aware_ials.html) |
+
+Feature-aware iALS implements feature-centered regularization from the
+content-aware WMF model family, including
+[Liang, Zhan, and Ellis (ISMIR 2015)](https://ismir2015.uma.es/articles/290_Paper.pdf).
+The guide describes irspack's formulation and cold-start inference policy.
 
 There is no universally best recommender. Start with a cheap baseline, compare
 a small set of candidates using a split that reflects the product scenario,
